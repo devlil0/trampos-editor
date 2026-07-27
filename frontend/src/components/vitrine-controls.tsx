@@ -3,6 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { NICHE_OPTIONS } from "@/lib/format";
+import { NicheIcon } from "./niche-tag";
+import type { EditorNiche } from "@/lib/types";
 
 export function VitrineControls() {
   const router = useRouter();
@@ -62,6 +64,7 @@ export function VitrineControls() {
           <Chip
             key={value}
             label={label}
+            niche={value}
             active={activeNiche === value}
             onClick={() => selectNiche(value)}
           />
@@ -73,10 +76,12 @@ export function VitrineControls() {
 
 function Chip({
   label,
+  niche,
   active,
   onClick,
 }: {
   label: string;
+  niche?: EditorNiche;
   active: boolean;
   onClick: () => void;
 }) {
@@ -87,10 +92,11 @@ function Chip({
       aria-pressed={active}
       className={
         active
-          ? "rounded-full border border-accent bg-accent px-4 py-[7px] text-sm font-medium text-accent-contrast"
-          : "rounded-full border border-line bg-card px-4 py-[7px] text-sm font-medium text-muted hover:border-accent hover:text-fg"
+          ? "inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent px-4 py-[7px] text-sm font-medium text-accent-contrast"
+          : "inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-4 py-[7px] text-sm font-medium text-muted hover:border-accent hover:text-fg"
       }
     >
+      {niche && <NicheIcon niche={niche} size={15} />}
       {label}
     </button>
   );

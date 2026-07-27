@@ -36,7 +36,17 @@ A API sobe em `http://localhost:8080`. Health: `GET /actuator/health`.
 | PUT | `/v1/me/editor-profile` | Bearer (EDITOR) | Cria/atualiza o próprio perfil |
 | POST | `/v1/me/editor-profile/portfolio` | Bearer (EDITOR) | Adiciona item de portfólio (link YouTube/Vimeo) |
 | DELETE | `/v1/me/editor-profile/portfolio/{itemId}` | Bearer (EDITOR) | Remove item de portfólio |
+| POST | `/v1/me/job-requests` | Bearer | Publica um pedido ("preciso de um editor") |
+| GET | `/v1/me/job-requests` | Bearer | Meus pedidos, com quem se candidatou |
+| POST | `/v1/me/job-requests/{id}/close` | Bearer | Fecha o pedido |
+| POST | `/v1/me/job-requests/{jobId}/interests/{interestId}/accept` | Bearer | Aceita um editor — **libera o contato dos dois lados** |
+| GET | `/v1/me/job-interests` | Bearer | Pedidos em que me candidatei |
+| GET | `/v1/job-requests` | Bearer | Feed de pedidos abertos (filtro `niche`) |
+| POST | `/v1/job-requests/{id}/interests` | Bearer (com perfil publicado) | Demonstra interesse num pedido |
 | GET | `/actuator/health` | pública | Health check |
+
+> **Conta única:** todo cadastro entra como `CLIENT`. Publicar o perfil em `PUT /v1/me/editor-profile`
+> é o que concede o papel `EDITOR` — não existe cadastro separado de editor.
 
 ```bash
 curl -X POST http://localhost:8080/v1/auth/register \

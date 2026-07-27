@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -48,7 +49,7 @@ class EditorDirectoryTest {
                 {
                   "headline": "Cortes de Reels que retêm",
                   "bio": "5 anos editando short-form.",
-                  "niches": ["SHORTS"],
+                  "niches": ["REELS", "TIKTOK"],
                   "tools": ["PREMIERE", "CAPCUT"],
                   "priceMinCents": 8000,
                   "priceMaxCents": 40000,
@@ -90,7 +91,7 @@ class EditorDirectoryTest {
                 {"niches": ["YOUTUBE"], "tools": ["DAVINCI_RESOLVE"]}
                 """);
 
-        mockMvc.perform(get("/v1/editors").param("niche", "SHORTS"))
+        mockMvc.perform(get("/v1/editors").param("niche", "REELS"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
 
@@ -100,23 +101,34 @@ class EditorDirectoryTest {
     }
 
     @Test
-    void clientePuroNaoPodeCriarPerfilDeEditor() throws Exception {
+    void clienteViraEditorAoCriarOPerfil() throws Exception {
+        // A conta é uma só: quem entrou pra contratar se torna editor no ato de
+        // publicar o perfil, sem cadastro separado.
         String token = registrar("cliente@teste.com", "Cliente", "CLIENT");
 
-        mockMvc.perform(put("/v1/me/editor-profile")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"niches": ["SHORTS"], "tools": ["PREMIERE"]}
-                                """))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles").value("CLIENT"));
+
+        upsertPerfil(token, """
+                {"niches": ["REELS", "TIKTOK"], "tools": ["PREMIERE"]}
+                """);
+
+        mockMvc.perform(get("/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roles", hasItems("CLIENT", "EDITOR")));
+
+        // E já aparece na vitrine pública.
+        mockMvc.perform(get("/v1/editors"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
     void portfolioSoAceitaYoutubeOuVimeo() throws Exception {
         String token = registrarEditor("bug@teste.com", "Bug");
         upsertPerfil(token, """
-                {"niches": ["SHORTS"], "tools": ["PREMIERE"]}
+                {"niches": ["REELS", "TIKTOK"], "tools": ["PREMIERE"]}
                 """);
 
         mockMvc.perform(post("/v1/me/editor-profile/portfolio")

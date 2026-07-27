@@ -16,7 +16,6 @@ import com.devlil0.tramposeditor.enums.PortfolioProvider;
 import com.devlil0.tramposeditor.enums.UserRole;
 import com.devlil0.tramposeditor.enums.Vertical;
 import com.devlil0.tramposeditor.exception.BusinessException;
-import com.devlil0.tramposeditor.exception.ForbiddenException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
 import com.devlil0.tramposeditor.mapper.EditorProfileMapper;
 import lombok.RequiredArgsConstructor;
@@ -78,11 +77,11 @@ public class EditorProfileService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(userId));
 
-        if (!user.hasRole(UserRole.EDITOR)) {
-            throw new ForbiddenException("Apenas usuários com o perfil EDITOR podem ter um perfil de editor");
-        }
-
         validatePriceRange(dto.priceMinCents(), dto.priceMaxCents());
+
+        // A conta é uma só: criar o perfil É o registro como editor. Quem chegou pra
+        // contratar e resolveu editar vira editor aqui, sem cadastro paralelo.
+        user.getRoles().add(UserRole.EDITOR);
 
         EditorProfileEntity profile = editorProfileRepository.findByUserId(userId)
                 .orElseGet(() -> EditorProfileEntity.builder()

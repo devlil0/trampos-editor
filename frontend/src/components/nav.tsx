@@ -1,36 +1,53 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
+import { logoutAction } from "@/app/actions/auth";
+import type { AuthUser } from "@/lib/types";
 
-export function Nav() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
+/**
+ * A fonte da verdade do tema é o atributo `data-theme` no <html>, escrito pelo script
+ * inline do layout antes da primeira pintura. O botão lê esse DOM externo em vez de
+ * duplicá-lo em estado — por isso useSyncExternalStore e não useState+useEffect.
+ */
+function subscribeToTheme(onChange: () => void) {
+  const observer = new MutationObserver(onChange);
+  observer.observe(document.documentElement, { attributeFilter: ["data-theme"] });
+  return () => observer.disconnect();
+}
 
-  useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "light" || current === "dark") setTheme(current);
-  }, []);
+function readTheme(): "dark" | "light" {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
 
-  function toggle() {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
+export function Nav({ user }: { user: AuthUser | null }) {
+  // No servidor o tema é sempre o de origem (dark) — igual ao que o HTML entrega.
+  const theme = useSyncExternalStore(subscribeToTheme, readTheme, () => "dark" as const);
+
+  const toggle = useCallback(() => {
+    const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("theme", next);
     } catch {
       // localStorage indisponível (modo privado) — tema não persiste, sem problema.
     }
-  }
+  }, []);
 
   return (
     <nav className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-6">
         <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
-          <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-gradient-to-br from-accent to-accent-strong text-white">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </span>
+          {/* alt vazio: o wordmark ao lado já nomeia o link, evita leitura duplicada */}
+          <Image
+            src="/logo-mark.png"
+            alt=""
+            width={36}
+            height={36}
+            priority
+            className="rounded-full"
+          />
           <span>
             Trampos<span className="text-accent">Editor</span>
           </span>
@@ -40,12 +57,18 @@ export function Nav() {
           <Link href="/" className="hover:text-fg">
             Editores
           </Link>
-          <a href="#" className="hover:text-fg">
+          <Link href="/como-funciona" className="hover:text-fg">
             Como funciona
-          </a>
-          <a href="#" className="hover:text-fg">
-            Para editores
-          </a>
+          </Link>
+          {user ? (
+            <Link href="/painel" className="hover:text-fg">
+              Painel
+            </Link>
+          ) : (
+            <Link href="/como-funciona#para-editores" className="hover:text-fg">
+              Para editores
+            </Link>
+          )}
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">
@@ -66,18 +89,42 @@ export function Nav() {
               </svg>
             )}
           </button>
-          <a
-            href="#"
-            className="hidden rounded-full border border-line px-4 py-2 text-sm font-semibold hover:border-accent hover:text-accent sm:inline-block"
-          >
-            Entrar
-          </a>
-          <a
-            href="#"
-            className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
-          >
-            Criar conta
-          </a>
+          {user ? (
+            <>
+              <Link
+                href="/painel"
+                className="hidden items-center gap-2 rounded-full border border-line py-1 pr-3.5 pl-1 text-sm font-semibold hover:border-accent sm:inline-flex"
+              >
+                <span className="grid h-7 w-7 place-items-center rounded-full bg-accent text-xs font-bold text-accent-contrast">
+                  {user.displayName.charAt(0).toUpperCase()}
+                </span>
+                {user.displayName.split(" ")[0]}
+              </Link>
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted hover:border-busy hover:text-busy"
+                >
+                  Sair
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/entrar"
+                className="hidden rounded-full border border-line px-4 py-2 text-sm font-semibold hover:border-accent hover:text-accent sm:inline-block"
+              >
+                Entrar
+              </Link>
+              <Link
+                href="/criar-conta"
+                className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+              >
+                Criar conta
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </nav>

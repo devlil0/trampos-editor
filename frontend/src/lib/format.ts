@@ -1,9 +1,21 @@
 import type { EditorNiche, EditorTool } from "./types";
 
 const NICHE_LABELS: Record<EditorNiche, string> = {
-  SHORTS: "Shorts",
+  TIKTOK: "TikTok",
+  REELS: "Reels",
   YOUTUBE: "YouTube",
   PODCAST: "Podcast (cortes)",
+};
+
+/**
+ * Ícone da plataforma, gerado por scripts/gen-brand-assets.mjs a partir de media/enterprises.
+ * Podcast não é plataforma, então cai no ícone de microfone desenhado no componente.
+ */
+const NICHE_ICONS: Record<EditorNiche, string | null> = {
+  TIKTOK: "/plataformas/tiktok.png",
+  REELS: "/plataformas/reels.png",
+  YOUTUBE: "/plataformas/youtube.png",
+  PODCAST: null,
 };
 
 const TOOL_LABELS: Record<EditorTool, string> = {
@@ -17,8 +29,15 @@ const TOOL_LABELS: Record<EditorTool, string> = {
 // Filtros da vitrine expõem os nichos como chips.
 export const NICHE_OPTIONS = Object.entries(NICHE_LABELS) as [EditorNiche, string][];
 
+// Mesma lista, usada nos checkboxes de "monte seu perfil".
+export const TOOL_OPTIONS = Object.entries(TOOL_LABELS) as [EditorTool, string][];
+
 export function nicheLabel(n: EditorNiche): string {
   return NICHE_LABELS[n] ?? n;
+}
+
+export function nicheIcon(n: EditorNiche): string | null {
+  return NICHE_ICONS[n] ?? null;
 }
 
 export function toolLabel(t: EditorTool): string {

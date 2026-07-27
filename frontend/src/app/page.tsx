@@ -54,7 +54,8 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(288px,1fr))] gap-5 pb-16 pt-3">
+          // Lista vertical: um editor embaixo do outro, capa à esquerda.
+          <div className="flex flex-col gap-3.5 pb-16 pt-3">
             {result.content.map((editor) => (
               <EditorCard key={editor.id} editor={editor} />
             ))}

@@ -1,5 +1,22 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Assets de marca
+
+Ícones, favicon e imagem de compartilhamento são **gerados** a partir das artes originais em
+`../media/` (não editar na mão):
+
+```bash
+node scripts/gen-brand-assets.mjs
+```
+
+Saída: `src/app/{icon,apple-icon,opengraph-image,twitter-image}.png`, `src/app/favicon.ico` e
+`public/logo-mark.png` (a marca da nav). Decisões e pegadinhas em `../docs/FUNDACAO.md` §11.7.
+
+## Variáveis de ambiente
+
+`API_URL` (backend, lido só no servidor) e `SITE_URL` (URL pública, usada no `metadataBase`
+pras URLs absolutas de `og:image`). Ver `.env.example`.
+
 ## Getting Started
 
 First, run the development server:

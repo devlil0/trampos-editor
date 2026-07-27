@@ -324,3 +324,125 @@ antes de codar — vale seguir.
 **Estado:** vitrine (`/`) e perfil (`/editores/[slug]`) prontos e validados ponta a ponta com
 6 editores semeados via API (`scratchpad/seed.sh`). `next build` limpo. Falta: telas de auth
 (login/cadastro), fluxo de "criar/editar meu perfil" no front, e Dockerfile do front pro deploy.
+
+### 11.7. Identidade visual — logo aplicada (2026-07-27)
+
+Logo definitiva (claquete) feita na LogoFaster, entregue em três artes 675×675 em `media/`:
+`icon-square-format` (fundo chapado), `icon-circle-format` e `icon-with-shadow`. Cores da
+própria arte: fundo `#2F1140`, miolo `#390E57`, traço branco — coerente com o violeta que o
+front já usava (`--accent: #8b5cf6`), então **nenhum token de tema mudou**.
+
+**Decisões:**
+- **Re-enquadramento obrigatório.** Na arte original a claquete ocupa só ~48% da largura; a 32px
+  (nav) ou 16px (favicon) isso vira borrão. Todos os assets derivam de um recorte quadrado
+  centrado no bbox do glifo (medido: x 169–495, y 199–506), com `fill` de 0.66–0.72.
+- **Gerador versionado**, não binário mágico: `frontend/scripts/gen-brand-assets.mjs`
+  (usa o `sharp` que já vem com o Next). Rodar `node scripts/gen-brand-assets.mjs` refaz tudo.
+  A arte fonte é a `icon-square-format` — o círculo sai de máscara, e o recorte cai todo dentro
+  do disco, então não há canto transparente.
+- **Convenções de arquivo do Next** em vez de `<link>` na mão: `src/app/icon.png` (512),
+  `apple-icon.png` (180), `favicon.ico` (16/32/48) e `opengraph-image.png` /`twitter-image.png`
+  (1200×630) com seus `.alt.txt`. O Next emite as tags sozinho.
+- **Ícone da aba = arte circular** (`icon-circle-format`), decisão do usuário. Detalhe que engana:
+  reenquadrar a arte circular **não** preserva o círculo — o recorte apertado cai todo dentro do
+  disco e volta a ser um quadrado cheio, então a máscara redonda é redesenhada no tamanho final.
+  O `fill` do ícone da aba é menor (0.62 contra 0.72 do quadrado) porque a claquete é diagonal e
+  o disco corta os cantos do retângulo envolvente dela.
+- **`apple-icon` segue quadrado e opaco** de propósito: o iOS aplica a máscara dele por cima e
+  renderiza transparência como preto — um círculo ali viraria círculo dentro de quadrado preto.
+- **Nav** usa `public/logo-mark.png` a 36px com `rounded-full` (4x de densidade), substituindo o
+  triângulo de play provisório. `alt=""` porque o wordmark ao lado já nomeia o link.
+- **`SITE_URL` nova env** (default `http://localhost:3000`) pro `metadataBase` — `og:image`
+  exige URL absoluta e o domínio ainda não existe. Trocar no deploy.
+
+**Pegadinhas:**
+- O decoder de `.ico` do Next **exige PNG embutido em RGBA**. Com `flatten()` (que tira o alpha)
+  o dev server derruba a página inteira com `Format error decoding Ico: The PNG is not in RGBA
+  format!` — daí o `ensureAlpha().png({ palette: false })` só no caminho do `.ico`.
+- `sharp` renderiza texto de SVG nesta máquina (via librsvg), o que permitiu gerar o card de
+  compartilhamento estático. A fonte é a do sistema (Segoe UI), **não Inter** — se algum dia a
+  fidelidade importar, trocar por `next/og` (`opengraph-image.tsx`).
+
+### 11.8. Taxonomia por plataforma, auth no front e área logada (2026-07-27)
+
+**Nichos deixaram de ser formato e viraram plataforma.** `EditorNiche` era
+`SHORTS | YOUTUBE | PODCAST`; agora é `TIKTOK | REELS | YOUTUBE | PODCAST`. Motivo: o cliente
+chega procurando "editor de TikTok", não "editor de short-form" — e cada plataforma tem marca
+própria, o que dá tag com ícone reconhecível. Migration `V3__niches_por_plataforma.sql` converte
+`SHORTS` em duas linhas (REELS + TIKTOK, porque quem atendia short-form atendia as duas); a ordem
+importa (inserir TIKTOK antes do UPDATE, senão o SELECT não acha mais nada). Feito agora porque
+não há produção: com base real isso viraria migração de dados de verdade.
+
+**Ícones das plataformas** (`media/enterprises/`) entram pelo mesmo gerador dos assets de marca,
+normalizados num quadrado transparente de 64px (as artes vinham 4–5k quadradas e o YouTube
+640×443). O chip de nicho ficou **neutro** de propósito: quem carrega cor é a marca, e o chip
+violeta brigava com o vermelho do YouTube e o gradiente do Reels. Podcast não é plataforma —
+cai num microfone desenhado.
+
+**Auth no front** (§11.4 continua valendo pro backend):
+- **Server Actions**, não route handlers: o formulário posta direto pra função no servidor
+  (`src/app/actions/auth.ts`), sem hop extra e funcionando sem JS no cliente.
+- **Sessão em cookie httpOnly** (`te_session`), `maxAge` = `expiresIn` do backend (12h).
+  O browser nunca vê o JWT — combina com `API_URL` server-only (§11.6) e tira o token do XSS.
+- **Quem é o usuário logado sai do backend**, não do JWT decodificado: `getCurrentUser()`
+  chama `/v1/users/me` a cada render. Token expirado devolve `null` e a UI trata como deslogado.
+- Ler a sessão no layout raiz **torna todas as rotas dinâmicas** — aceitável porque as páginas
+  já eram `no-store` e o HTML pro SEO continua vindo do servidor.
+- **Login com Google entra sem refatorar**: a action nova troca o código do provedor por um
+  `AuthResponse` do nosso backend e chama o mesmo `createSession`.
+
+**Landing vs. área logada:** `/` continua sendo a vitrine pública e indexável (é o ativo de
+aquisição). O pós-login mora em `/painel`, com conteúdo por papel — é pra onde login e cadastro
+redirecionam. A primeira versão mostra estado da conta, o perfil público do editor (ou o convite
+pra criar) e o atalho da vitrine pro cliente; **o coração do SaaS ainda vai ser definido**.
+
+**Novas telas:** `/entrar`, `/criar-conta` (papel via checkbox — uma pessoa pode ser editor e
+cliente, §5.2), `/como-funciona` (dois públicos, âncora `#para-editores` usada pela nav) e
+`/painel`. As telas de sessão levam `robots: { index: false }`.
+
+**Dívida fechada de quebra:** o toggle de tema da nav chamava `setState` dentro de `useEffect`
+(erro de lint que o `next build` não pega, porque não roda eslint). Agora lê o `data-theme` do
+`<html>` via `useSyncExternalStore` — a fonte da verdade é o DOM que o script inline já escreveu.
+
+### 11.9. Conta única e o coração do painel (2026-07-27)
+
+**Decisão de produto do usuário: a conta é uma só.** Não existe "cadastro de editor" separado —
+todo mundo entra podendo contratar, e **publicar o perfil de editor é o que registra a pessoa
+como editor**. Consequências:
+- `EditorProfileService.upsertMyProfile` **concede** `UserRole.EDITOR` em vez de exigi-lo (antes
+  devolvia 403 pra cliente puro). O teste virou o oposto: `clienteViraEditorAoCriarOPerfil`.
+- O cadastro do front não pergunta mais o papel; manda sempre `["CLIENT"]`.
+- `/painel/meu-perfil` não tem trava de papel — a tela é justamente o caminho pra virar editor.
+- O papel EDITOR no JWT antigo fica defasado até o próximo login, e **isso não importa**: nenhuma
+  rota autoriza por esse papel; o que manda é ter perfil publicado (consultado no banco).
+
+**Blocos 7 antecipado — "postar pedido rápido".** O usuário pediu as duas metades do painel
+juntas (editor monta perfil, cliente posta o serviço), então a Fase 1.5 do §10.2 veio antes do
+chat. Entregue com `JobRequestEntity` + `JobInterestEntity` (migration `V4`), fiel ao §5.1:
+**sem lance e sem leilão** — o editor manda uma mensagem dizendo que topa, não uma proposta com
+preço.
+
+**A troca de contato é o aceite.** Como o chat (Bloco 5) não existe, era preciso resolver como as
+pontas se falam sem virar raspagem de e-mail. Regra implementada e coberta por teste: o feed
+**nunca** traz o e-mail do cliente; quando o cliente aceita um interesse, aí sim cada lado vê o
+e-mail do outro (`JobInterestDTO.editorEmail` e `JobRequestFeedDTO.clientEmail` saem de null).
+Quando o Bloco 5 chegar, o aceite passa a abrir uma conversa em vez de revelar e-mail.
+
+**Outras regras** (todas testadas em `JobRequestTest`): feed exige login (pedido aberto não é
+conteúdo público); só quem tem perfil publicado se candidata; ninguém se candidata ao próprio
+pedido; um interesse por editor por pedido (constraint no banco); pedido fechado some do feed e
+recusa candidatura; só o dono fecha/aceita.
+
+**Rotas novas:** `/v1/me/job-requests` (POST, GET), `/v1/me/job-requests/{id}/close`,
+`/v1/me/job-requests/{jobId}/interests/{interestId}/accept`, `/v1/me/job-interests`,
+`/v1/job-requests` (feed, GET) e `/v1/job-requests/{id}/interests` (POST).
+No front: `/painel/pedidos`, `/painel/pedidos/novo` e `/painel/trabalhos`.
+
+**Pegadinha evitada:** o filtro opcional de plataforma no feed virou **dois métodos derivados**
+(`findByStatus...` / `findByStatusAndNiche...`) em vez de um JPQL com parâmetro nulo — o custo
+disso já está registrado no §11.5.
+
+**Vitrine virou lista, não grade** (pedido do usuário, referência: lista de "próximos vídeos" do
+YouTube): um editor embaixo do outro, capa à esquerda e informação à direita, **sem perder nada
+do card** (disponibilidade e preço seguem sobre a capa; nome, nota, chamada, tags e prazo à
+direita). Em telas estreitas empilha — capa em cima, texto embaixo.

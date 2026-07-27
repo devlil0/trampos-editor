@@ -2,13 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchEditorBySlug } from "@/lib/api";
+import { NicheTag } from "@/components/niche-tag";
 import { VideoThumb } from "@/components/video-thumb";
-import {
-  formatPrice,
-  formatTurnaround,
-  nicheLabel,
-  toolLabel,
-} from "@/lib/format";
+import { formatPrice, formatTurnaround, toolLabel } from "@/lib/format";
 
 type Params = Promise<{ slug: string }>;
 
@@ -75,9 +71,7 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
 
           <div className="mt-3.5 flex flex-wrap gap-1.5">
             {editor.niches.map((n) => (
-              <span key={n} className="rounded-md bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent-strong">
-                {nicheLabel(n)}
-              </span>
+              <NicheTag key={n} niche={n} />
             ))}
             {editor.tools.map((t) => (
               <span key={t} className="rounded-md bg-panel px-2.5 py-1 text-xs font-semibold text-muted">
