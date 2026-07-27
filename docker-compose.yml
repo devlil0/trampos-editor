@@ -1,0 +1,22 @@
+# Ambiente de desenvolvimento: sobe só o Postgres.
+# A aplicação roda pela IDE / ./mvnw spring-boot:run apontando pra cá.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: tramposeditor_postgres
+    environment:
+      POSTGRES_DB: tramposeditor
+      POSTGRES_USER: tramposeditor
+      POSTGRES_PASSWORD: tramposeditor
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tramposeditor -d tramposeditor"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

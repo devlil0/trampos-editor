@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* Tema de origem = dark (decisão do produto). Light é opt-in via [data-theme="light"]. */
+:root {
+  --bg: #0e0d14;
+  --card: #17151f;
+  --panel: #201d2b;
+  --line: #2b2838;
+  --fg: #eceaf2;
+  --muted: #9a96a8;
+  --accent: #8b5cf6;
+  --accent-strong: #a78bfa;
+  --accent-contrast: #14121c;
+  --accent-soft: rgba(139, 92, 246, 0.14);
+  --good: #34d399;
+  --busy: #fb923c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --card: #fbfafd;
+  --panel: #f3f1f8;
+  --line: #e9e7f0;
+  --fg: #1b1826;
+  --muted: #6e6a7c;
+  --accent: #7c3aed;
+  --accent-strong: #6d28d9;
+  --accent-contrast: #ffffff;
+  --accent-soft: #f1ebfe;
+  --good: #15a34a;
+  --busy: #c2410c;
+  --shadow: 0 1px 2px rgba(27, 24, 38, 0.05), 0 12px 32px -16px rgba(27, 24, 38, 0.18);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-panel: var(--panel);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-busy: var(--busy);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Foco visível e acessível em toda a app */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,326 @@
+# TramposEditor — Documento de Fundação
+
+> Marketplace para encontrar **editores de vídeo profissionais**.
+> Dia 1: estudo, análise, mapeamento e planejamento. Nada de código de produto ainda.
+> Data: 2026-07-21 · Stack base já existente: Spring Boot 4.1.0 + Java 17 (esqueleto limpo).
+
+---
+
+## 1. O que é o produto (definição em 1 frase)
+
+Uma plataforma de **duas pontas (two-sided marketplace)** que conecta:
+
+- **Oferta:** editores de vídeo profissionais (freelancers).
+- **Demanda:** criadores de conteúdo, infoprodutores, empresas e pessoas que precisam de edição.
+
+Posicionamento: o **"anti-Workana"** — simples, sem burocracia, sem plano/assinatura, focado em experiência. Um *life saver* dos dois lados.
+
+O segundo produto (mix/master/beats — "studio session") é **a MESMA máquina com outra vertical**. Fica pra depois (ver §8).
+
+---
+
+## 2. O risco nº1 que define tudo: **Cold Start (liquidez)**
+
+> Marketplace não morre por falta de features. Morre por falta de **liquidez**: cliente que chega e não acha editor bom → sai; editor que chega e não acha cliente → sai. É o problema do ovo e da galinha.
+
+Isso precisa ser a obsessão do dia 1, acima de qualquer detalhe técnico. Duas decisões que resolvem 80% disso:
+
+### 2.1. NICHAR (não ser "edição de vídeo em geral")
+Liquidez é mais fácil num **lago pequeno** do que num oceano. Em vez de "todos os editores para todos os clientes", escolher UM nicho pra dominar primeiro. Candidatos:
+
+| Nicho | Por que é bom pra começar | Ticket médio |
+|---|---|---|
+| **Short-form (Reels/TikTok/Shorts)** | Volume altíssimo, recorrente, clientes = criadores que já vivem no TikTok/IG (onde você vai marketar) | R$ 80–400 |
+| Edição p/ YouTubers / infoprodutores | Tickets maiores, relação recorrente | R$ 300–1.500 |
+| Edição p/ small business / social media | Demanda B2B estável | R$ 200–800 |
+
+**Recomendação:** começar por **short-form**. É onde oferta e demanda são mais densas e onde o marketing orgânico (§4) tem alcance natural. Expande depois.
+
+### 2.2. Semear a OFERTA primeiro, à mão (concierge)
+Editor freelancer está **faminto por trabalho** → é o lado mais fácil de atrair. Recrutar manualmente os primeiros **~30–50 editores bons e curados**, montar portfólio deles, deixar a vitrine cheia ANTES de trazer cliente. Cliente que chega tem que ver qualidade de cara.
+
+---
+
+## 3. Monetização — a dúvida mais difícil (e onde há uma contradição a resolver)
+
+**Meta declarada: ~R$ 2.000/mês.**
+
+### 3.1. A contradição que precisa ficar clara
+Você quer duas coisas que, na forma ingênua, **se contradizem**:
+
+- (A) "**pego uma % pequena por serviço fechado**"
+- (B) "**sem planos, assinaturas e qualquer burocracia**"
+
+O problema: **para cobrar % de forma confiável, você PRECISA intermediar o pagamento** (escrow / split de pagamento). Se cliente e editor só se conhecem no site e pagam por fora (Pix direto), eles **fecham fora da plataforma pra fugir da taxa** — isso se chama *platform leakage/disintermediation* e é a doença crônica de todo marketplace de freela. E intermediar pagamento é **exatamente o oposto de "sem burocracia"**: exige split (Pagar.me/Asaas/Stripe Connect), KYC, retenção, resolução de disputa, nota fiscal.
+
+Ou seja: **% forçada = mais burocracia. Sem burocracia = % não se sustenta sozinha.** Precisamos escolher conscientemente.
+
+### 3.2. As alternativas, com a matemática do R$ 2k
+
+| Modelo | Como funciona | Conta pra bater R$ 2k/mês | Fere o "sem burocracia"? | Risco de leakage |
+|---|---|---|---|---|
+| **Take-rate (comissão)** | % sobre cada job fechado, via pagamento intermediado | 10% de R$400 = R$40/job → **50 jobs/mês**. 15% de R$500 → **~27 jobs/mês** | **Sim** (exige escrow/split) | Alto se pagamento for por fora |
+| **Destaque/Boost avulso** | Editor paga p/ aparecer no topo/em destaque, **pago por uso, sem assinatura** | R$25/semana × 80 boosts, ou 20 editores × R$100 = **R$ 2k** | **Não** (pay-per-use ≠ assinatura) | Nenhum |
+| **Lead unlock** | Editor paga p/ desbloquear contato de um pedido de cliente | R$10/lead × 200 = **R$ 2k** | Levemente (fricção pro editor) | Médio |
+| **Anúncios no site** | Ads de terceiros | Precisa de ~150–300k pageviews/mês pra R$2k | **Sim, polui** — fere o diferencial de "melhor experiência" | — |
+
+### 3.3. Recomendação: **sequenciar a monetização atrás da liquidez**
+Não monetizar cedo demais — isso mata marketplace novo. Proposta em 3 fases:
+
+- **Fase 1 (MVP / lançamento): GRÁTIS dos dois lados.** Objetivo único = criar liquidez e reputação. Zero taxa, zero anúncio. Site limpo.
+- **Fase 2 (monetização limpa): Destaque/Boost avulso.** Editor paga *por uso* pra aparecer em destaque. **Não é assinatura, não é burocracia, não polui o cliente, não tem leakage.** É o caminho mais fiel aos seus diferenciais e o mais provável de bater os R$ 2k primeiro.
+- **Fase 3 (take-rate como SERVIÇO, não imposto): Pagamento protegido opcional.** Aí sim intermediar pagamento — mas vendido como **proteção/garantia** ("seu dinheiro fica seguro até a entrega"). O cliente paga pela plataforma porque isso o *protege*; o editor aceita porque traz *confiança e mais clientes*. A % vira o preço de um seguro, não uma taxa que as pessoas querem evitar. Isso resolve o leakage de forma honesta.
+
+> Descartar **anúncios** como fonte principal: contradiz frontalmente "melhor experiência" e só paga com tráfego que você não terá tão cedo.
+
+---
+
+## 4. Marketing / Go-to-Market (canais)
+
+Regra de ouro: no começo, **conteúdo orgânico + comunidades** ganham de tráfego pago. Google Ads só faz sentido depois que houver liquidez e conversão (senão você paga caro por clique que não fecha).
+
+| Canal | Papel | Como usar | Quando |
+|---|---|---|---|
+| **TikTok / Instagram (Reels/Shorts)** | 🥇 Principal | Antes/depois de edições, "editor spotlight", bastidores, dicas. É onde vivem **os dois lados** (editores E criadores-clientes). Alcance orgânico ainda é alto pra short-form. | Desde o dia 1 |
+| **Discord** | 🥈 Aquisição de oferta | Comunidades de edição já existem e são enormes. **Parceria/presença**, não competir. É o hábitat natural do editor. Ótimo pra recrutar os 30–50 primeiros. | Semeadura inicial |
+| **Google Ads** | 🥉 Demanda de alta intenção | Termos "contratar editor de vídeo", "editor de reels". Alta intenção, mas caro e competitivo. Queima dinheiro sem liquidez. | Só na Fase 2+ |
+| Indicação / referral | Loop de crescimento | Editor traz editor; cliente satisfeito traz cliente | Após MVP |
+
+**Tática de cold-start (resume §2.2):** recrutar oferta à mão no Discord/IG, curar portfólios, encher a vitrine, e SÓ ENTÃO empurrar demanda via short-form.
+
+---
+
+## 5. System Design (mapeamento técnico)
+
+### 5.1. Duas formas de interação — e qual escolher
+Referências (Workana/99Freelas) usam o modelo **"cliente posta projeto → freelancers dão lances/propostas"**. Isso é poderoso, mas é **cheio de fricção** (proposta, lance, negociação) — parece exatamente a burocracia que você quer evitar.
+
+| Modelo | Como é | Prós | Contras |
+|---|---|---|---|
+| **A) Diretório / Vitrine** (browse → contato) | Cliente navega perfis de editores, vê portfólio, contata direto | Simples, rápido de construir, fiel ao "descomplicado" | Cliente com pedido muito específico tem que procurar |
+| **B) Job board** (cliente posta → editores aplicam) | Estilo Workana | Bom pra pedidos específicos | Fricção, lances, "leilão" — sensação de burocracia |
+
+**Recomendação:** **liderar pelo Modelo A (Diretório)** — é o mais alinhado ao seu diferencial e o mais barato de lançar. Adicionar depois um "**Postar um pedido rápido**" (versão leve do B, sem sistema de lances) como fluxo secundário.
+
+### 5.2. Entidades do domínio (mapa inicial)
+
+```
+User (base)
+ ├─ role: EDITOR | CLIENT  (uma pessoa pode ser os dois)
+ ├─ EditorProfile
+ │    ├─ bio, nichos[], ferramentas[] (Premiere, DaVinci, AfterFX, CapCut)
+ │    ├─ faixa de preço, prazo médio (turnaround), disponibilidade
+ │    ├─ PortfolioItem[]  (embed YouTube/Vimeo/upload — vídeo é o coração)
+ │    └─ rating agregado
+ └─ ClientProfile (leve)
+
+JobRequest (opcional / Modelo B leve)
+ ├─ descrição, orçamento, prazo, referências
+ └─ status
+
+Conversation / Message      (chat interno — ponto de contato)
+Review (rating + comentário, pós-serviço)
+Category / Vertical          ← CHAVE p/ expandir pra "studio session" depois
+Boost / FeaturedPlacement    (monetização Fase 2)
+Transaction / Escrow         (monetização Fase 3 — só quando chegar lá)
+```
+
+> ⚠️ Decisão de arquitetura importante: modelar **Category/Vertical como dimensão desde já** (mesmo que só exista "vídeo"). Isso permite plugar "áudio (mix/master/beats)" depois **sem reescrever o núcleo** (§8).
+
+### 5.3. Stack (ancorada no que já existe)
+- **Backend:** Spring Boot 4.1.0 + Java 17 (já no repo). Spring Web, Spring Data JPA, Spring Security, Validation.
+- **Banco:** PostgreSQL (padrão dos seus projetos).
+- **Auth:** JWT (ou OAuth Google/social pra reduzir fricção de cadastro — combina com "descomplicado").
+- **Mídia/portfólio:** começar com **embed** (YouTube/Vimeo) = zero custo de storage. Upload próprio (S3/Cloudflare R2) só se necessário.
+- **Frontend:** a definir (provavelmente separado). Prioridade: mobile-first, porque o público vive no celular.
+- **Deploy:** Railway/Render (padrão dos seus projetos).
+
+---
+
+## 6. Diferenciais — checagem de realidade
+Seus diferenciais (simplificado, descomplicado, sem burocracia, life saver dos dois lados) são um **posicionamento forte e coerente**. Só um alerta já tratado: "sem burocracia" + "% por serviço" tem tensão (§3.1) — resolvido sequenciando a monetização (Destaque avulso antes de escrow). Mantidos os diferenciais, a estratégia respeita todos eles.
+
+---
+
+## 7. Escopo do MVP (proposta) — o mínimo pra ter liquidez
+
+**Incluir:**
+1. Cadastro/login (editor e cliente) — social login pra reduzir fricção.
+2. Perfil de editor com **portfólio (embeds)**, nichos, preço, prazo.
+3. **Vitrine/diretório** navegável com busca e filtro (nicho, preço, ferramenta).
+4. Contato/chat básico entre cliente e editor.
+5. Avaliações pós-serviço (reputação = combustível de confiança).
+
+**NÃO incluir no MVP** (evitar over-engineering):
+- Pagamento/escrow (Fase 3).
+- Sistema de lances/propostas estilo Workana.
+- Studio session (áudio).
+- App mobile nativo (web mobile-first basta).
+
+---
+
+## 8. Segunda versão — Studio Session (mix / master / beats)
+Mesmo motor, outra vertical (áudio em vez de vídeo). **Não construir agora.**
+- Validar o marketplace de vídeo primeiro (provar liquidez e monetização).
+- Arquitetar com `Category/Vertical` como dimensão (§5.2) pra que a expansão seja **configuração, não reescrita**.
+- Portfólio de áudio = embed SoundCloud/Spotify em vez de YouTube — mesma abstração de `PortfolioItem`.
+
+---
+
+## 9. Roadmap por fases
+
+| Fase | Foco | Entregável | Monetização |
+|---|---|---|---|
+| **0 — Fundação** (agora) | Estudo, mapeamento, decisões | Este documento + nicho definido | — |
+| **1 — MVP** | Liquidez | Diretório + perfis + portfólio + chat + reviews. Semear 30–50 editores à mão | Grátis |
+| **2 — Monetizar** | R$ 2k/mês | Destaque/Boost avulso; Google Ads ligado | Boost pay-per-use |
+| **3 — Escalar** | Confiança + take-rate | Pagamento protegido (escrow opcional) | % como "seguro" |
+| **4 — Expandir** | Nova vertical | Studio Session (áudio) | Mesma máquina |
+
+---
+
+## 10. Decisões travadas (2026-07-21)
+1. ✅ **Nicho inicial:** **Short-form (Reels/TikTok/Shorts)**. Confiança rápida, ticket R$80–400, canal de marketing alinhado.
+2. ✅ **Modelo de interação:** **Híbrido** (vitrine + "postar pedido rápido") — porém **sequenciado**, não simultâneo:
+   - MVP = só **Diretório/vitrine**.
+   - Fase 1.5 = adicionar **"postar pedido rápido"** leve (sem lances/leilão), só "cliente descreve → editores respondem no chat".
+3. ✅ **Monetização:** **sequenciada** — Fase 1 grátis → Fase 2 Boost avulso (meta R$2k) → Fase 3 escrow como "pagamento protegido".
+4. ✅ **Marca:** **TramposEditor** (definitivo). Cuidados: garantir domínio/@ nas redes; ciente de que pode ficar apertado como guarda-chuva quando entrar áudio (Fase 4).
+
+### Ainda em aberto
+- **Domínio:** registrar a URL (usuário fará).
+- **VPS:** escolher entre KingHost e Hostinger (conferir specs/preço vigentes no site).
+
+---
+
+## 11. Arquitetura — execução em blocos (2026-07-22)
+
+A construção foi quebrada em **blocos verticais**: cada um entrega algo que roda e é testável,
+em ordem de dependência. Evita produzir esqueleto vazio que se reescreve na primeira feature real.
+
+### 11.1. Os blocos
+
+| # | Bloco | Entrega | Depende de | Status |
+|---|---|---|---|---|
+| 0 | **Fundação técnica** | pom, Docker, perfis, Flyway, erro global, health | — | ✅ feito |
+| 1 | **Identidade & Acesso** | `UserEntity` + roles, registro/login JWT, `/me` | 0 | ✅ feito |
+| 2 | **Taxonomia** | `Vertical` (VIDEO\|AUDIO), `EditorNiche`, `EditorTool` | 0 | ✅ feito |
+| 3 | **Perfil de Editor + Portfólio** | `EditorProfile`, `PortfolioItem` (embed) | 1, 2 | ✅ feito |
+| 4 | **Vitrine / Diretório** | busca, filtros, paginação — coração do MVP | 3 | ✅ feito |
+| 5 | **Contato / Chat** | `Conversation`, `Message` | 1 | ⬜ |
+| 6 | **Reviews** | `Review` + rating agregado | 3, 5 | ⬜ |
+
+Fora do MVP: 7 = "postar pedido rápido" (Fase 1.5), 8 = Boost (Fase 2), 9 = Escrow (Fase 3).
+
+### 11.2. Decisões técnicas travadas (2026-07-22)
+
+1. ✅ **Banco: PostgreSQL.** SQLite descartado — filesystem efêmero em container apaga o
+   arquivo, não há dialeto Hibernate oficial e o marketplace tem escrita concorrente.
+   Supabase é Postgres gerenciado e serviria, mas o valor dele (Auth, RLS, SDK) não seria
+   usado com JWT próprio no Spring — e traria pooler/IPv6/pausa do free tier de brinde.
+   Na VPS, Postgres em container é mais simples e barato.
+2. ✅ **Deploy: VPS (KingHost ou Hostinger)**, não PaaS. Daí `Dockerfile` + `docker-compose.prod.yml`,
+   app publicada só em `127.0.0.1:8080` e Nginx fazendo TLS/proxy na frente. Porta do
+   Postgres **nunca** exposta na internet.
+3. ✅ **Java 21** (era 17). Habilita virtual threads (`spring.threads.virtual.enabled`), que
+   casa com a carga de I/O bloqueante de um marketplace.
+4. ✅ **Auth: JWT próprio (HS256)** via `oauth2-resource-server`, sem biblioteca extra.
+   Social login (Google) fica para depois — o modelo de `UserEntity` não precisa mudar.
+5. ✅ **Migrations: Flyway** com `ddl-auto: validate`. Schema versionado em SQL desde a
+   primeira tabela; divergência entre migration e entidade quebra o teste, não o deploy.
+6. ✅ **Frontend: React + Tailwind, mas via Next.js (App Router)** — não SPA/Vite.
+   Motivo: o produto é um **diretório público** e vive de SEO long-tail ("editor de reels").
+   SPA renderizada no cliente indexa mal justamente as páginas de perfil, que são o ativo
+   de aquisição orgânica. Custo aceito: mais um runtime Node no deploy.
+7. ✅ **Spring Boot 4.0.7**, não 4.1.0 (nem voltar pro 3.5).
+   - **Não voltar pro 3.5:** é a última minor da linha 3.x — beco sem saída. Migraríamos pro 4
+     em alguns meses de qualquer forma, com muito mais código em cima. E o medo de
+     "ecossistema imaturo" não se confirmou: **springdoc 3.0.3 (Swagger/OpenAPI) é GA e
+     compilado contra Boot 4.0.5** — a lib que mais provavelmente entra a seguir já está pronta.
+   - **4.0.7 em vez de 4.1.0:** ambos saíram em 10/06/2026, mas o 4.1.0 é o primeiro da linha
+     (zero patches) e o 4.0.7 tem 7 releases de correção atrás. A troca custou **uma linha
+     no pom, zero mudança de código** — o 4.0.7 gerencia o mesmo Testcontainers 2.0.5, tem
+     `spring-boot-flyway` e `starter-webmvc`. Num projeto cujo risco nº1 é liquidez e não
+     tecnologia, noite perdida caçando bug de framework é desperdício puro.
+
+### 11.3. Pegadinhas do Spring Boot 4.x encontradas na prática
+
+Registradas porque custaram tempo e vão reaparecer nos próximos blocos:
+
+- `spring-boot-starter-web` virou **`spring-boot-starter-webmvc`**; os test starters foram
+  fatiados (`spring-boot-starter-webmvc-test`, `-data-jpa-test`).
+- **Flyway não roda** só com `flyway-core` no classpath: a autoconfiguração mora em
+  **`org.springframework.boot:spring-boot-flyway`**. Sem ela, falha silenciosa —
+  o erro que aparece é `Schema validation: missing table`.
+- **Jackson 3**: pacotes migraram de `com.fasterxml.jackson` para `tools.jackson`.
+- `AutoConfigureMockMvc` → `org.springframework.boot.webmvc.test.autoconfigure`.
+- **Testcontainers 2.0** (gerenciado pelo parent): artefatos renomeados para
+  `testcontainers-postgresql` / `testcontainers-junit-jupiter`, `PostgreSQLContainer` mudou
+  para `org.testcontainers.postgresql` e **deixou de ser genérico** (`PostgreSQLContainer`, sem `<?>`).
+- `ServiceConnection` → `org.springframework.boot.testcontainers.service.connection`.
+- `NimbusJwtEncoder` assume **RS256** por padrão: com chave HMAC é preciso passar
+  `JwsHeader.with(MacAlgorithm.HS256)` explicitamente, senão dá
+  `Failed to select a JWK signing key`.
+
+### 11.4. Dívidas conhecidas do Bloco 1
+
+- **Sem refresh token** — o access token dura 12h e acabou. Quando o frontend existir,
+  decidir entre refresh token rotativo ou sessão mais longa.
+- **Sem verificação de e-mail** e sem "esqueci minha senha".
+- **Sem rate limiting** no `/v1/auth/login` — necessário antes de ir a público (brute force).
+- **Sem revogação de token** (JWT stateless): desativar um usuário não invalida o token que
+  ele já tem, só bloqueia novos logins.
+
+### 11.5. Decisões e dívidas dos Blocos 2–4 (2026-07-26)
+
+Diretório de editores entregue ponta a ponta (taxonomia + perfil/portfólio + vitrine pública).
+
+**Decisões:**
+- **Taxonomia como enum, não tabela** (`Vertical`, `EditorNiche`, `EditorTool`): lista muda
+  pouco e evita seed/join extra no MVP. `Vertical` já é coluna pra que áudio (Fase 4) seja
+  configuração, não reescrita — como o §5.2 pede. Trocar por tabela depois é migration simples.
+- **Slug imutável** gerado do `displayName` no cadastro do perfil (`joao-silva`). URL estável =
+  SEO estável (o motivo do Next.js no §11.2.6). Colisão resolve com sufixo aleatório curto.
+- **Vitrine 100% pública** (`GET /v1/editors/**` no `permitAll`); a gestão do perfil mora em
+  base separada `/v1/me/editor-profile` pra não vazar rota de escrita no `permitAll` por engano.
+- **Provider do portfólio inferido da URL** (YouTube/Vimeo), não enviado pelo editor — menos
+  fricção. Embed = zero storage (§5.3).
+- **Pegadinha Postgres:** parâmetro `null` sem tipo em `lower(:q)` vira `lower(bytea)` e explode
+  mesmo com `:q is null` curto-circuitando. Resolvido com `cast(:q as string)` na JPQL.
+
+**Dívidas conhecidas:**
+- **Cover do card via lazy-load** (`toSummary` acessa o 1º item do portfólio dentro da
+  transação): N+1 na listagem. Irrelevante nos ~50 editores do MVP; otimizar com projeção/fetch
+  quando a vitrine crescer.
+- **Rating sempre 0** até o Bloco 6 (reviews) existir — a coluna já está lá.
+- **Ordenação fixa** (disponível > rating > recente); sem sort configurável pelo cliente ainda.
+
+### 11.6. Frontend MVP — vitrine (2026-07-26)
+
+Front iniciado em `frontend/` (app separado, como previsto no §5.3). Visual aprovado a partir
+de mockup HTML estático antes de escrever React (referências do cliente: Dolphin Anty pro
+minimalismo/violeta com dark de origem, 99freelas só pela lógica de card/filtro).
+
+**Stack:** Next.js 16.2 (App Router, Turbopack) + React 19 + **Tailwind v4** (CSS-first, `@theme`
+no `globals.css`, sem `tailwind.config`) + **fonte Inter** via `next/font` (self-hosted). TypeScript.
+
+**Decisões:**
+- **SSR de verdade:** as páginas são Server Components que buscam da API server-side. É o ponto
+  do Next em vez de SPA — as páginas de perfil precisam ser indexáveis (SEO long-tail, §11.2.6).
+- **`API_URL` é server-only** (não `NEXT_PUBLIC_`): o browser nunca fala direto com o backend;
+  o Next renderiza o HTML. Default `http://localhost:8080`.
+- **Filtros via URL:** os controles (client) empurram query params (`?niche=`, `?q=`) e o server
+  re-renderiza. Estado compartilhável por link e amigável a SEO/back-forward.
+- **Tema dark como origem:** default dark no `:root`, light opt-in via `[data-theme="light"]`,
+  persistido em localStorage; script inline no `<head>` evita flash.
+- **Thumbnails:** capa derivada da URL do YouTube (`i.ytimg.com/vi/{id}/hqdefault.jpg`), com
+  `remotePatterns` no `next.config`. Vimeo e vídeos sem ID caem em gradiente de fallback.
+
+**Pegadinhas do Next 16 (posterior ao cutoff — lidas em `node_modules/next/dist/docs/`):**
+`params`/`searchParams` viraram **Promise** (acesso síncrono foi removido de vez, tem que
+`await`); Turbopack é default em dev e build. O `frontend/AGENTS.md` avisa pra ler a doc bundled
+antes de codar — vale seguir.
+
+**Estado:** vitrine (`/`) e perfil (`/editores/[slug]`) prontos e validados ponta a ponta com
+6 editores semeados via API (`scratchpad/seed.sh`). `next build` limpo. Falta: telas de auth
+(login/cadastro), fluxo de "criar/editar meu perfil" no front, e Dockerfile do front pro deploy.
