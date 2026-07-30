@@ -17,7 +17,7 @@ export function VitrineControls() {
     mutate(params);
     params.delete("page"); // qualquer mudança de filtro volta pra primeira página
     const qs = params.toString();
-    router.push(qs ? `/?${qs}` : "/");
+    router.push(qs ? `/editores?${qs}` : "/editores");
   }
 
   function onSearch(e: React.FormEvent) {
@@ -52,7 +52,7 @@ export function VitrineControls() {
         />
         <button
           type="submit"
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+          className="btn btn-primary btn-sm"
         >
           Buscar
         </button>

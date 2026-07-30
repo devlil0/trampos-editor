@@ -10,7 +10,8 @@ const GRADIENTS = [
   "linear-gradient(135deg, #2a2f52, #16192b)",
 ];
 
-function gradientFor(seed: string): string {
+/** Fallback determinístico pra quem não tem thumbnail — mesmo editor, mesma cor sempre. */
+export function gradientFor(seed: string): string {
   let hash = 0;
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
   return GRADIENTS[Math.abs(hash) % GRADIENTS.length];

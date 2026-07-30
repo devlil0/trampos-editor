@@ -10,6 +10,8 @@ public record UserResponseDTO(
         UUID id,
         String email,
         String displayName,
+        /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */
+        String instagram,
         Set<UserRole> roles,
         boolean active,
         LocalDateTime createdAt

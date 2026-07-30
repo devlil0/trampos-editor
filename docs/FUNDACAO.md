@@ -446,3 +446,33 @@ disso já está registrado no §11.5.
 YouTube): um editor embaixo do outro, capa à esquerda e informação à direita, **sem perder nada
 do card** (disponibilidade e preço seguem sobre a capa; nome, nota, chamada, tags e prazo à
 direita). Em telas estreitas empilha — capa em cima, texto embaixo.
+
+### 11.10. Landing separada e estilo de edição (2026-07-27)
+
+**A raiz virou landing; a vitrine mudou pra `/editores`.** A URL casa com a do perfil
+(`/editores/{slug}`) e o SEO não perde nada — a lista continua SSR e indexável, com título e
+canonical próprios. A landing usa a referência Kameleo pela **estrutura**, não pela cor: hero com
+a palavra final se digitando, seção de dor (manchete + dores + caixa com a virada), benefícios em
+linhas largas e grade 2×2 de ações. Sem ilustração: o hero mostra **editores reais da API** em
+quadros 9:16, porque o que um marketplace precisa provar na primeira dobra é que tem oferta.
+
+**Terceira dimensão de taxonomia: `EditorStyle`** (migration V5, tabela `editor_profile_styles`)
+— DINAMICA, LEGENDADA, CLEAN, CINEMATOGRAFICA, MOTION_GRAPHICS, STORYTELLING, MEME e **DARK**
+(canal sem rosto; o rótulo é "Dark (sem rosto)" pra não confundir com tema escuro). É ortogonal à
+plataforma: um Reels pode ser meme ou cinematográfico, e o cliente costuma pedir pelo estilo.
+Campo **opcional** no upsert — perfil criado antes da dimensão continua válido (tem teste).
+
+**Decisão de escopo:** foi avaliada uma taxonomia de 11 categorias com ~80 sub-itens (vlog,
+unboxing, casamento, imobiliária…) e **recusada**. Com ~50 editores, cada tag divide o mesmo
+estoque e a maioria dos filtros voltaria vazia — que é exatamente o que faz marketplace novo
+parecer morto (§2). O longo rabo fica na bio e é achado pela busca livre (`q`), virando tag só
+quando houver editor que sustente a tag.
+
+**Esteira de tags** na landing: CSS puro, sem JS — a faixa tem a lista duas vezes e a animação
+desloca 50%, então o laço é invisível. A cópia repetida sai do fluxo de leitores de tela
+(`aria-hidden` + `tabIndex={-1}`), a rolagem **pausa no hover** (chip que foge do cursor é
+impossível de clicar) e `motion-reduce` desliga a animação. Todo chip leva a um filtro real
+(`niche`, `style` ou `tool`) — nenhuma tag decorativa que abre a vitrine vazia.
+
+**Ícones de ferramenta** (Premiere, After Effects, DaVinci, Final Cut, CapCut) entram pelo mesmo
+gerador, agora lendo tudo de `media/enterprises/`.

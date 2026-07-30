@@ -12,10 +12,13 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 export interface EditorQuery {
   niche?: string;
   tool?: string;
+  style?: string;
   available?: string;
   maxPriceCents?: string;
   q?: string;
   page?: string;
+  /** Útil pra quem só quer o `totalElements` — `size=1` evita trazer a página toda. */
+  size?: string;
 }
 
 export function buildEditorParams(query: EditorQuery): URLSearchParams {

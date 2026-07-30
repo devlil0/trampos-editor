@@ -1,6 +1,7 @@
 package com.devlil0.tramposeditor.database.model;
 
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 import com.devlil0.tramposeditor.enums.Vertical;
 import jakarta.persistence.*;
@@ -62,6 +63,14 @@ public class EditorProfileEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private Set<EditorTool> tools = new HashSet<>();
+
+    /** Como corta — ortogonal à plataforma (ver EditorStyle). */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "editor_profile_styles", joinColumns = @JoinColumn(name = "editor_profile_id"))
+    @Column(name = "style", nullable = false, length = 30)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Set<EditorStyle> styles = new HashSet<>();
 
     /** Faixa de preço em centavos de BRL — inteiro evita imprecisão de ponto flutuante em dinheiro. */
     @Column(name = "price_min_cents")

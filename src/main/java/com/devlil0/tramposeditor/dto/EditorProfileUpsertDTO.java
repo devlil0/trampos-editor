@@ -1,6 +1,7 @@
 package com.devlil0.tramposeditor.dto;
 
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -26,6 +27,9 @@ public record EditorProfileUpsertDTO(
 
         @NotEmpty
         Set<EditorTool> tools,
+
+        /** Opcional: perfil antigo continua válido sem estilo declarado. */
+        Set<EditorStyle> styles,
 
         @PositiveOrZero
         Integer priceMinCents,

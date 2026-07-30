@@ -1,6 +1,6 @@
 import Image from "next/image";
-import type { EditorNiche } from "@/lib/types";
-import { nicheIcon, nicheLabel } from "@/lib/format";
+import type { EditorNiche, EditorStyle, EditorTool } from "@/lib/types";
+import { nicheIcon, nicheLabel, styleLabel, toolIcon, toolLabel } from "@/lib/format";
 
 /**
  * Ícone da plataforma do nicho. Sem hooks de propósito: é usado tanto em Server
@@ -51,6 +51,44 @@ export function NicheTag({ niche }: { niche: EditorNiche }) {
     <span className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-2 py-1 text-xs font-semibold text-fg">
       <NicheIcon niche={niche} />
       {nicheLabel(niche)}
+    </span>
+  );
+}
+
+/** Ícone da ferramenta, quando existe arte pra ela. */
+export function ToolIcon({ tool, size = 15 }: { tool: EditorTool; size?: number }) {
+  const icon = toolIcon(tool);
+  if (!icon) return null;
+
+  return (
+    <Image
+      src={icon}
+      alt=""
+      width={size}
+      height={size}
+      className="object-contain"
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+export function ToolTag({ tool }: { tool: EditorTool }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-panel px-2 py-1 text-xs font-semibold text-muted">
+      <ToolIcon tool={tool} />
+      {toolLabel(tool)}
+    </span>
+  );
+}
+
+/**
+ * Estilo de edição. Contorno tracejado em vez de fundo cheio: é a terceira dimensão
+ * da tag e precisa se distinguir de plataforma (fundo) e ferramenta (chapado).
+ */
+export function StyleTag({ style }: { style: EditorStyle }) {
+  return (
+    <span className="inline-flex items-center rounded-md border border-dashed border-accent/45 px-2 py-1 text-xs font-semibold text-accent-strong">
+      {styleLabel(style)}
     </span>
   );
 }

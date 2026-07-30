@@ -4,6 +4,7 @@ import com.devlil0.tramposeditor.dto.EditorProfileDTO;
 import com.devlil0.tramposeditor.dto.EditorSummaryDTO;
 import com.devlil0.tramposeditor.dto.PageResponseDTO;
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 import com.devlil0.tramposeditor.service.EditorProfileService;
 import lombok.RequiredArgsConstructor;
@@ -31,13 +32,14 @@ public class EditorController {
     public PageResponseDTO<EditorSummaryDTO> list(
             @RequestParam(required = false) EditorNiche niche,
             @RequestParam(required = false) EditorTool tool,
+            @RequestParam(required = false) EditorStyle style,
             @RequestParam(required = false) Boolean available,
             @RequestParam(required = false) Integer maxPriceCents,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size){
 
-        return editorProfileService.search(niche, tool, available, maxPriceCents, q, page, size);
+        return editorProfileService.search(niche, tool, style, available, maxPriceCents, q, page, size);
     }
 
     @GetMapping("/{slug}")

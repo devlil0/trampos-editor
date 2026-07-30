@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getSessionToken } from "@/lib/session";
-import type { EditorNiche, EditorTool } from "@/lib/types";
+import type { EditorNiche, EditorStyle, EditorTool } from "@/lib/types";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
@@ -47,6 +47,7 @@ export async function saveProfileAction(
 
   const niches = formData.getAll("niches").map(String) as EditorNiche[];
   const tools = formData.getAll("tools").map(String) as EditorTool[];
+  const styles = formData.getAll("styles").map(String) as EditorStyle[];
 
   if (niches.length === 0) return { error: "Escolha pelo menos uma plataforma que você atende." };
   if (tools.length === 0) return { error: "Escolha pelo menos uma ferramenta que você usa." };
@@ -62,6 +63,7 @@ export async function saveProfileAction(
     bio: String(formData.get("bio") ?? "").trim() || null,
     niches,
     tools,
+    styles,
     priceMinCents,
     priceMaxCents,
     turnaroundDays: toInt(formData.get("turnaroundDays")),

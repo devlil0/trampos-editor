@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { removePortfolioAction } from "@/app/actions/editor-profile";
 import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
+import { InstagramForm } from "@/components/instagram-form";
 import { VideoThumb } from "@/components/video-thumb";
 import { fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
@@ -48,6 +49,16 @@ export default async function MeuPerfilPage() {
 
       <section className="mt-8 rounded-[18px] border border-line bg-card p-6">
         <EditorProfileForm profile={profile} />
+      </section>
+
+      {/* Formulário próprio, e não mais um campo lá em cima: o Instagram é da conta e
+          salva por outro endpoint. Junto no mesmo submit, um erro de username faria o
+          perfil inteiro parecer que não salvou. */}
+      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
+        <InstagramForm instagram={user.instagram} />
+        <p className="mt-2.5 text-xs text-muted">
+          Fica visível no seu perfil público — é onde o cliente vê seu trabalho do dia a dia.
+        </p>
       </section>
 
       {/* Portfólio só existe depois que o perfil existe — é ele que dá o id no backend. */}

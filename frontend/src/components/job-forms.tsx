@@ -138,7 +138,7 @@ export function NewJobRequestForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast hover:bg-accent-strong disabled:opacity-60"
+          className="btn btn-primary disabled:opacity-60"
         >
           {pending ? "Publicando…" : "Publicar pedido"}
         </button>
@@ -169,7 +169,7 @@ export function InterestForm({ jobId }: { jobId: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong disabled:opacity-60"
+          className="btn btn-primary btn-sm disabled:opacity-60"
         >
           {pending ? "Enviando…" : "Tenho interesse"}
         </button>

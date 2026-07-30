@@ -24,7 +24,7 @@ function SubmitButton({ pending, children }: { pending: boolean; children: React
     <button
       type="submit"
       disabled={pending}
-      className="w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-contrast hover:bg-accent-strong disabled:opacity-60"
+      className="btn btn-primary btn-block btn-lg"
     >
       {pending ? "Um instante…" : children}
     </button>

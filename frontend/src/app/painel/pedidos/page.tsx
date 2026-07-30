@@ -32,7 +32,7 @@ export default async function MeusPedidosPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Meus pedidos</h1>
         <Link
           href="/painel/pedidos/novo"
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+          className="btn btn-primary btn-sm"
         >
           Postar pedido
         </Link>
@@ -42,7 +42,7 @@ export default async function MeusPedidosPage() {
         <p className="mt-8 rounded-[18px] border border-line bg-card p-6 text-muted">
           Você ainda não postou nenhum pedido. Descreva o que precisa e deixe os editores virem
           até você — ou{" "}
-          <Link href="/" className="font-semibold text-accent hover:underline">
+          <Link href="/editores" className="font-semibold text-accent hover:underline">
             procure na vitrine
           </Link>
           .
@@ -146,7 +146,7 @@ function InteresseItem({ jobId, interesse }: { jobId: string; interesse: JobInte
             <input type="hidden" name="interestId" value={interesse.id} />
             <button
               type="submit"
-              className="rounded-full border border-line px-3.5 py-1.5 text-xs font-semibold hover:border-accent hover:text-accent"
+              className="btn btn-ghost btn-sm text-xs"
             >
               Aceitar e ver contato
             </button>

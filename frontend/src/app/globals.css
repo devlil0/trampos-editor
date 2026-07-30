@@ -68,8 +68,255 @@ body {
   border-radius: 6px;
 }
 
+/* ---------- Botões ----------
+   Retângulo de cantos suaves (12px), e não pílula: o raio total deixa o botão com
+   cara de tag e some com a direção horizontal do texto. 12px é o mesmo raio dos
+   campos de formulário, então botão e input encostados combinam.
+
+   Classe em vez de utilitário repetido porque o mesmo par de estilos aparecia em
+   quinze arquivos — mudar o raio de novo custaria quinze edições.
+
+   A borda transparente na base não é enfeite: sem ela o botão sólido ficaria 2px mais
+   baixo que o de contorno, e os dois vivem lado a lado.
+
+   Tudo dentro de @layer components de propósito: CSS sem camada vence qualquer
+   utilitário do Tailwind, e aí um `text-xs` solto num botão seria silenciosamente
+   ignorado. Na camada, o utilitário no call site ainda ganha quando precisa. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease,
+      transform 120ms ease;
+  }
+
+  /* Afunda de leve no clique — devolve o toque sem custar layout. */
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Ação principal da tela. Só uma por bloco, senão nenhuma é a principal. */
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-contrast);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-strong);
+  }
+
+  /* Ação secundária: contorno, sem peso de fundo. */
+  .btn-ghost {
+    border-color: var(--line);
+    color: var(--fg);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Saída e recusa — o vermelho só aqui, pra não virar rotina. */
+  .btn-quiet {
+    border-color: var(--line);
+    color: var(--muted);
+  }
+
+  .btn-quiet:hover {
+    border-color: var(--busy);
+    color: var(--busy);
+  }
+
+  .btn-sm {
+    gap: 0.375rem;
+    padding: 0.4375rem 0.9375rem;
+  }
+
+  .btn-lg {
+    padding: 0.8125rem 1.375rem;
+    font-size: 0.9375rem;
+  }
+
+  .btn-block {
+    width: 100%;
+  }
+}
+
+/* Esteira de tags.
+   São QUATRO cópias idênticas e o deslocamento é de 25% (= exatamente uma cópia),
+   então o laço é invisível. Quatro, e não duas, porque com poucas tags uma cópia é
+   mais estreita que a tela — com duas cópias sobraria um vão antes de reiniciar.
+   Cada cópia carrega o próprio espaçamento à direita (pr), em vez de gap no pai:
+   com gap, metade dele entraria na conta do 25% e a emenda saltaria. */
+@keyframes marquee-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-25%);
+  }
+}
+
+/* A duração vem de fora pra cada esteira escolher o próprio ritmo: quanto mais há
+   pra ler num item, mais devagar ela precisa andar. */
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-left var(--marquee-duration, 42s) linear infinite;
+}
+
+/* Chip que foge do cursor é impossível de clicar. */
+.marquee-track:hover,
+.marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+/* Movimento ambiente do fundo do hero: manchas roxas que vagam e respiram, pra a
+   página não parecer uma foto. Devagar (20s+) e em `alternate`, que volta pelo mesmo
+   caminho — corte seco no fim do ciclo chamaria atenção pro truque. */
+@keyframes aurora-a {
+  from {
+    transform: translate3d(-4%, -3%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(9%, 7%, 0) scale(1.25);
+  }
+}
+
+@keyframes aurora-b {
+  from {
+    transform: translate3d(6%, 5%, 0) scale(1.18);
+  }
+  to {
+    transform: translate3d(-7%, -6%, 0) scale(0.92);
+  }
+}
+
+/* Fita do hero: três quadros que PULAM um lugar pra esquerda, em vez de deslizar.
+   Cada quadro cai exatamente onde o vizinho estava, com um arco pra cima no caminho —
+   daí o "pingo". As pausas entre os saltos é que dão tempo de ler o card do meio.
+
+   São duas cópias dos três quadros (seis no total) e o ciclo anda 50% do trilho, ou
+   seja, três saltos de um quadro. No fim, a cópia 2 está exatamente onde a cópia 1
+   começou, então o retorno a 0 não aparece. Cada quadro carrega o próprio espaçamento
+   à direita (pr), e não gap no pai: com gap, o passo de 1/6 não bateria com a largura
+   de um quadro e a fita sairia do lugar a cada volta. */
+@keyframes reel-hop {
+  0%,
+  26% {
+    transform: translate3d(0, 0, 0);
+  }
+  29.5% {
+    transform: translate3d(-8.3333%, -7px, 0);
+  }
+  33%,
+  59% {
+    transform: translate3d(-16.6667%, 0, 0);
+  }
+  62.5% {
+    transform: translate3d(-25%, -7px, 0);
+  }
+  66%,
+  92% {
+    transform: translate3d(-33.3333%, 0, 0);
+  }
+  95.5% {
+    transform: translate3d(-41.6667%, -7px, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+/* Quem está no meio fica grande. Como os quadros trocam de lugar, a ênfase não pode
+   morar no slot: cada quadro roda este mesmo ciclo com um atraso diferente, e cresce
+   justamente na volta em que passa pelo centro. Os cortes coincidem com os saltos
+   acima — crescer no meio da pausa denunciaria o truque. */
+@keyframes reel-focus {
+  0%,
+  26% {
+    scale: 1.16;
+    z-index: 2;
+  }
+  33%,
+  92% {
+    scale: 0.92;
+    z-index: 1;
+  }
+  100% {
+    scale: 1.16;
+    z-index: 2;
+  }
+}
+
+.reel-track {
+  --reel-cycle: 7.5s;
+  display: flex;
+  width: max-content;
+  animation: reel-hop var(--reel-cycle) ease-in-out infinite;
+}
+
+.reel-frame {
+  animation: reel-focus var(--reel-cycle) ease-in-out infinite;
+}
+
+/* Quadro que foge do cursor é impossível de clicar — para a fita e a ênfase junto,
+   senão o card continuaria encolhendo embaixo do mouse. */
+.reel-track:hover,
+.reel-track:focus-within,
+.reel-track:hover .reel-frame,
+.reel-track:focus-within .reel-frame {
+  animation-play-state: paused;
+}
+
+/* Cursor da palavra que se digita no título do hero. */
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Entrada dos quadros do hero: sobem em sequência, como clipes caindo na timeline. */
+@keyframes reel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Regra geral: quem pede menos movimento recebe a página parada.
+   `.motion-always` é a porta de saída explícita, pro punhado de animações que são o
+   próprio conteúdo da landing (esteiras, fundo vivo) e não enfeite. Marcar a classe
+   no elemento anima também os filhos — sem isso o `!important` daqui os congelaria. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *:not(.motion-always, .motion-always *) {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }

@@ -11,6 +11,7 @@ import com.devlil0.tramposeditor.dto.EditorSummaryDTO;
 import com.devlil0.tramposeditor.dto.PageResponseDTO;
 import com.devlil0.tramposeditor.dto.PortfolioItemCreateDTO;
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 import com.devlil0.tramposeditor.enums.PortfolioProvider;
 import com.devlil0.tramposeditor.enums.UserRole;
@@ -44,7 +45,7 @@ public class EditorProfileService {
 
     @Transactional(readOnly = true)
     public PageResponseDTO<EditorSummaryDTO> search(
-            EditorNiche niche, EditorTool tool, Boolean available,
+            EditorNiche niche, EditorTool tool, EditorStyle style, Boolean available,
             Integer maxPriceCents, String q, int page, int size){
 
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
@@ -52,7 +53,7 @@ public class EditorProfileService {
         String normalizedQ = (q == null || q.isBlank()) ? null : q.trim();
 
         Page<EditorProfileEntity> result = editorProfileRepository.search(
-                Vertical.VIDEO, niche, tool, available, maxPriceCents, normalizedQ, pageable);
+                Vertical.VIDEO, niche, tool, style, available, maxPriceCents, normalizedQ, pageable);
 
         return PageResponseDTO.from(result, mapper::toSummary);
     }
@@ -95,6 +96,10 @@ public class EditorProfileService {
         profile.setBio(trimToNull(dto.bio()));
         profile.setNiches(new java.util.HashSet<>(dto.niches()));
         profile.setTools(new java.util.HashSet<>(dto.tools()));
+        // Estilo é opcional: ausente vira conjunto vazio, não apaga por engano nem explode.
+        profile.setStyles(dto.styles() == null
+                ? new java.util.HashSet<>()
+                : new java.util.HashSet<>(dto.styles()));
         profile.setPriceMinCents(dto.priceMinCents());
         profile.setPriceMaxCents(dto.priceMaxCents());
         profile.setTurnaroundDays(dto.turnaroundDays());

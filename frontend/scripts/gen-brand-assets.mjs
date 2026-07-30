@@ -180,6 +180,33 @@ async function platformIcons() {
   return map.map(([niche]) => `public/plataformas/${niche}.png`);
 }
 
+/**
+ * Ícones das ferramentas de edição. Nem toda ferramenta tem arte ainda — quem não tem
+ * aparece só com o nome, e o `toolIcon()` do front devolve null pra ela.
+ */
+async function toolIcons() {
+  const dir = path.join(publicDir, "ferramentas");
+  await fs.mkdir(dir, { recursive: true });
+
+  // nome do arquivo de saída = valor do enum EditorTool em minúsculo
+  const map = [
+    ["capcut", "Capcut-icon.png"],
+    ["premiere", "premiere-icon.png"],
+    ["after_effects", "after-effects.png"],
+    ["davinci_resolve", "davinci-icon.png"],
+    ["final_cut_pro", "finalcut-icon.png"],
+  ];
+
+  for (const [tool, file] of map) {
+    await sharp(path.join(media, "enterprises", file))
+      .trim({ threshold: 1 })
+      .resize(64, 64, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(dir, `${tool}.png`));
+  }
+  return map.map(([tool]) => `public/ferramentas/${tool}.png`);
+}
+
 async function main() {
   await fs.mkdir(publicDir, { recursive: true });
 
@@ -217,7 +244,7 @@ async function main() {
   await fs.writeFile(path.join(appDir, "opengraph-image.png"), card);
   await fs.writeFile(path.join(appDir, "twitter-image.png"), card);
 
-  const icones = await platformIcons();
+  const icones = [...(await platformIcons()), ...(await toolIcons())];
 
   console.log("assets gerados a partir de", path.relative(frontend, SOURCE));
   for (const f of [

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchEditorBySlug } from "@/lib/api";
-import { NicheTag } from "@/components/niche-tag";
+import { InstagramLink } from "@/components/instagram-link";
+import { NicheTag, StyleTag, ToolTag } from "@/components/niche-tag";
 import { VideoThumb } from "@/components/video-thumb";
-import { formatPrice, formatTurnaround, toolLabel } from "@/lib/format";
+import { formatPrice, formatTurnaround } from "@/lib/format";
 
 type Params = Promise<{ slug: string }>;
 
@@ -35,7 +36,7 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
 
   return (
     <div className="mx-auto max-w-6xl px-6">
-      <Link href="/" className="mt-6 mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
+      <Link href="/editores" className="mt-6 mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
@@ -51,14 +52,17 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight">{editor.displayName}</h1>
               {editor.headline && <p className="text-muted">{editor.headline}</p>}
-              <span
-                className={`mt-2 inline-flex items-center gap-1.5 text-sm font-semibold ${
-                  editor.available ? "text-good" : "text-busy"
-                }`}
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${editor.available ? "bg-good" : "bg-busy"}`} />
-                {editor.available ? "Disponível pra novos projetos" : "Sem vaga no momento"}
-              </span>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                <span
+                  className={`inline-flex items-center gap-1.5 font-semibold ${
+                    editor.available ? "text-good" : "text-busy"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${editor.available ? "bg-good" : "bg-busy"}`} />
+                  {editor.available ? "Disponível pra novos projetos" : "Sem vaga no momento"}
+                </span>
+                {editor.instagram && <InstagramLink username={editor.instagram} />}
+              </div>
             </div>
           </header>
 
@@ -73,10 +77,11 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
             {editor.niches.map((n) => (
               <NicheTag key={n} niche={n} />
             ))}
+            {editor.styles.map((s) => (
+              <StyleTag key={s} style={s} />
+            ))}
             {editor.tools.map((t) => (
-              <span key={t} className="rounded-md bg-panel px-2.5 py-1 text-xs font-semibold text-muted">
-                {toolLabel(t)}
-              </span>
+              <ToolTag key={t} tool={t} />
             ))}
           </div>
 
@@ -112,7 +117,7 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
           )}
           <a
             href="#"
-            className="w-full rounded-full bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+            className="btn btn-primary btn-block btn-lg"
           >
             Falar com {firstName}
           </a>

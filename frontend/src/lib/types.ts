@@ -7,6 +7,8 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */
+  instagram: string | null;
   roles: UserRole[];
   active: boolean;
   createdAt: string;
@@ -26,6 +28,16 @@ export type EditorTool =
   | "DAVINCI_RESOLVE"
   | "FINAL_CUT_PRO"
   | "CAPCUT";
+/** Como o editor corta — ortogonal à plataforma. */
+export type EditorStyle =
+  | "DINAMICA"
+  | "LEGENDADA"
+  | "CLEAN"
+  | "CINEMATOGRAFICA"
+  | "MOTION_GRAPHICS"
+  | "STORYTELLING"
+  | "MEME"
+  | "DARK";
 export type PortfolioProvider = "YOUTUBE" | "VIMEO";
 
 export interface PortfolioItem {
@@ -43,6 +55,7 @@ export interface EditorSummary {
   headline: string | null;
   niches: EditorNiche[];
   tools: EditorTool[];
+  styles: EditorStyle[];
   priceMinCents: number | null;
   turnaroundDays: number | null;
   available: boolean;
@@ -56,11 +69,14 @@ export interface EditorProfile {
   userId: string;
   slug: string;
   displayName: string;
+  /** Vem da conta do usuário, não do perfil de editor. */
+  instagram: string | null;
   vertical: Vertical;
   headline: string | null;
   bio: string | null;
   niches: EditorNiche[];
   tools: EditorTool[];
+  styles: EditorStyle[];
   priceMinCents: number | null;
   priceMaxCents: number | null;
   turnaroundDays: number | null;

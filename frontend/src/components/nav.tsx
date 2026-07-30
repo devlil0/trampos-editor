@@ -54,7 +54,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
         </Link>
 
         <div className="ml-2 hidden gap-5 text-sm text-muted sm:flex">
-          <Link href="/" className="hover:text-fg">
+          <Link href="/editores" className="hover:text-fg">
             Editores
           </Link>
           <Link href="/como-funciona" className="hover:text-fg">
@@ -93,7 +93,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
             <>
               <Link
                 href="/painel"
-                className="hidden items-center gap-2 rounded-full border border-line py-1 pr-3.5 pl-1 text-sm font-semibold hover:border-accent sm:inline-flex"
+                className="hidden items-center gap-2 rounded-xl border border-line py-1 pr-3.5 pl-1 text-sm font-semibold hover:border-accent sm:inline-flex"
               >
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-accent text-xs font-bold text-accent-contrast">
                   {user.displayName.charAt(0).toUpperCase()}
@@ -103,7 +103,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
               <form action={logoutAction}>
                 <button
                   type="submit"
-                  className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-muted hover:border-busy hover:text-busy"
+                  className="btn btn-quiet btn-sm"
                 >
                   Sair
                 </button>
@@ -113,13 +113,13 @@ export function Nav({ user }: { user: AuthUser | null }) {
             <>
               <Link
                 href="/entrar"
-                className="hidden rounded-full border border-line px-4 py-2 text-sm font-semibold hover:border-accent hover:text-accent sm:inline-block"
+                className="hidden btn btn-ghost btn-sm sm:inline-block"
               >
                 Entrar
               </Link>
               <Link
                 href="/criar-conta"
-                className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+                className="btn btn-primary btn-sm"
               >
                 Criar conta
               </Link>

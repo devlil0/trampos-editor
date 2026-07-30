@@ -6,8 +6,8 @@ import {
   saveProfileAction,
   type ProfileFormState,
 } from "@/app/actions/editor-profile";
-import { NICHE_OPTIONS, TOOL_OPTIONS } from "@/lib/format";
-import { NicheIcon } from "./niche-tag";
+import { NICHE_OPTIONS, STYLE_OPTIONS, TOOL_OPTIONS } from "@/lib/format";
+import { NicheIcon, ToolIcon } from "./niche-tag";
 import type { EditorProfile } from "@/lib/types";
 
 const EMPTY: ProfileFormState = {};
@@ -103,6 +103,31 @@ export function EditorProfileForm({ profile }: { profile: EditorProfile | null }
       </fieldset>
 
       <fieldset>
+        <legend className={labelClass}>Seu estilo de edição</legend>
+        <p className="mb-2.5 text-xs text-muted">
+          É por aqui que muita gente procura — &ldquo;quero legenda animada&rdquo;, &ldquo;quero
+          algo clean&rdquo;. Marque quantos combinarem com você.
+        </p>
+        <div className="flex flex-wrap gap-2.5">
+          {STYLE_OPTIONS.map(([value, label]) => (
+            <label
+              key={value}
+              className="flex cursor-pointer items-center gap-2 rounded-full border border-line bg-panel px-3.5 py-2 text-sm font-medium hover:border-accent has-checked:border-accent has-checked:bg-accent-soft"
+            >
+              <input
+                type="checkbox"
+                name="styles"
+                value={value}
+                defaultChecked={profile?.styles.includes(value)}
+                className="accent-[var(--accent)]"
+              />
+              {label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
         <legend className={labelClass}>Ferramentas que você usa</legend>
         <div className="flex flex-wrap gap-2.5">
           {TOOL_OPTIONS.map(([value, label]) => (
@@ -117,6 +142,7 @@ export function EditorProfileForm({ profile }: { profile: EditorProfile | null }
                 defaultChecked={profile?.tools.includes(value)}
                 className="accent-[var(--accent)]"
               />
+              <ToolIcon tool={value} size={16} />
               {label}
             </label>
           ))}
@@ -187,7 +213,7 @@ export function EditorProfileForm({ profile }: { profile: EditorProfile | null }
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast hover:bg-accent-strong disabled:opacity-60"
+          className="btn btn-primary disabled:opacity-60"
         >
           {pending ? "Salvando…" : profile ? "Salvar alterações" : "Publicar meu perfil"}
         </button>
@@ -234,7 +260,7 @@ export function AddPortfolioForm() {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent disabled:opacity-60"
+          className="btn btn-ghost disabled:opacity-60"
         >
           {pending ? "Adicionando…" : "Adicionar"}
         </button>

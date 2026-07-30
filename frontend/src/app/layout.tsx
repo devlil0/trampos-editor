@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/nav";
@@ -60,13 +62,67 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col antialiased">
         <Nav user={user} />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-line text-muted text-sm">
-          <div className="mx-auto max-w-6xl px-6 py-7 flex flex-wrap justify-between gap-3">
-            <span>© 2026 TramposEditor</span>
-            <span>Reels, TikTok & Shorts</span>
+        <footer className="border-t border-line text-sm text-muted">
+          <div className="mx-auto max-w-6xl px-6 py-10">
+            <div className="flex flex-wrap gap-x-10 gap-y-7">
+              <div className="min-w-[200px] flex-1">
+                <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight text-fg">
+                  <Image src="/logo-mark.png" alt="" width={28} height={28} className="rounded-full" />
+                  Trampos<span className="-ml-2.5 text-accent">Editor</span>
+                </Link>
+                <p className="mt-3 max-w-[34ch]">
+                  Editores de vídeo para Reels, TikTok e Shorts. Sem lance, sem assinatura.
+                </p>
+              </div>
+
+              <nav aria-label="Para quem contrata">
+                <h2 className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.14em] text-fg">
+                  CONTRATAR
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  <FooterLink href="/editores">Ver editores</FooterLink>
+                  <FooterLink href="/painel/pedidos/novo">Solicitar serviço</FooterLink>
+                  <FooterLink href="/como-funciona">Como funciona</FooterLink>
+                </ul>
+              </nav>
+
+              <nav aria-label="Para quem edita">
+                <h2 className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.14em] text-fg">
+                  EDITAR
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  <FooterLink href="/criar-conta">Publicar meu perfil</FooterLink>
+                  <FooterLink href="/painel/trabalhos">Trabalhos abertos</FooterLink>
+                  <FooterLink href="/como-funciona#para-editores">Como funciona</FooterLink>
+                </ul>
+              </nav>
+
+              <nav aria-label="Conta">
+                <h2 className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.14em] text-fg">
+                  CONTA
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  <FooterLink href="/entrar">Entrar</FooterLink>
+                  <FooterLink href="/criar-conta">Criar conta</FooterLink>
+                  <FooterLink href="/painel">Painel</FooterLink>
+                </ul>
+              </nav>
+            </div>
+
+            <p className="mt-9 border-t border-line pt-6">© 2026 TramposEditor</p>
           </div>
         </footer>
       </body>
     </html>
+  );
+}
+
+function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link href={href} className="hover:text-accent">
+        {children}
+      </Link>
+    </li>
   );
 }

@@ -33,6 +33,13 @@ public class UserEntity {
     @Column(name = "display_name", nullable = false, length = 80)
     private String displayName;
 
+    /**
+     * Username do Instagram, sem "@" — normalizado no UserService. Vive na conta porque
+     * serve aos dois papéis: é vitrine do editor e identidade de quem contrata.
+     */
+    @Column(length = 30)
+    private String instagram;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role", nullable = false, length = 20)

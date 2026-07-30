@@ -1,6 +1,7 @@
 package com.devlil0.tramposeditor.dto;
 
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ public record EditorSummaryDTO(
         String headline,
         Set<EditorNiche> niches,
         Set<EditorTool> tools,
+        Set<EditorStyle> styles,
         Integer priceMinCents,
         Integer turnaroundDays,
         boolean available,

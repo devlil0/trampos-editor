@@ -6,8 +6,8 @@ export default function NotFound() {
       <h1 className="text-xl font-bold">Página não encontrada</h1>
       <p className="text-muted">Esse editor pode ter saído do ar ou o link está errado.</p>
       <Link
-        href="/"
-        className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+        href="/editores"
+        className="btn btn-primary"
       >
         Voltar pra vitrine
       </Link>

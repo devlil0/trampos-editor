@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { EditorSummary } from "@/lib/types";
-import { formatPrice, formatTurnaround, toolLabel } from "@/lib/format";
-import { NicheTag } from "./niche-tag";
+import { formatPrice, formatTurnaround } from "@/lib/format";
+import { NicheTag, StyleTag, ToolTag } from "./niche-tag";
 import { VideoThumb } from "./video-thumb";
 
 /**
@@ -50,10 +50,11 @@ export function EditorCard({ editor }: { editor: EditorSummary }) {
           {editor.niches.map((n) => (
             <NicheTag key={n} niche={n} />
           ))}
+          {editor.styles.map((s) => (
+            <StyleTag key={s} style={s} />
+          ))}
           {editor.tools.map((t) => (
-            <span key={t} className="rounded-md bg-panel px-2 py-1 text-xs font-semibold text-muted">
-              {toolLabel(t)}
-            </span>
+            <ToolTag key={t} tool={t} />
           ))}
         </div>
 

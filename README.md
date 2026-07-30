@@ -30,6 +30,7 @@ A API sobe em `http://localhost:8080`. Health: `GET /actuator/health`.
 | POST | `/v1/auth/register` | pública | Cadastro. `roles` aceita `EDITOR` e/ou `CLIENT` |
 | POST | `/v1/auth/login` | pública | Retorna access token |
 | GET | `/v1/users/me` | Bearer | Usuário autenticado |
+| PATCH | `/v1/users/me` | Bearer | Edita a própria conta. Hoje só `instagram` — aceita `@nome`, `nome` ou a URL colada; vazio remove |
 | GET | `/v1/editors` | pública | Vitrine: busca/filtro (`niche`, `tool`, `available`, `maxPriceCents`, `q`) + paginação (`page`, `size`) |
 | GET | `/v1/editors/{slug}` | pública | Perfil público do editor com portfólio |
 | GET | `/v1/me/editor-profile` | Bearer | Perfil de editor do usuário logado |

@@ -1,6 +1,7 @@
 package com.devlil0.tramposeditor.dto;
 
 import com.devlil0.tramposeditor.enums.EditorNiche;
+import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
 import com.devlil0.tramposeditor.enums.Vertical;
 
@@ -17,11 +18,14 @@ public record EditorProfileDTO(
         UUID userId,
         String slug,
         String displayName,
+        /** Vem da conta (users.instagram), não do perfil — ver UserEntity. */
+        String instagram,
         Vertical vertical,
         String headline,
         String bio,
         Set<EditorNiche> niches,
         Set<EditorTool> tools,
+        Set<EditorStyle> styles,
         Integer priceMinCents,
         Integer priceMaxCents,
         Integer turnaroundDays,

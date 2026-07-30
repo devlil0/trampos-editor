@@ -1,4 +1,4 @@
-import type { EditorNiche, EditorTool } from "./types";
+import type { EditorNiche, EditorStyle, EditorTool } from "./types";
 
 const NICHE_LABELS: Record<EditorNiche, string> = {
   TIKTOK: "TikTok",
@@ -26,6 +26,27 @@ const TOOL_LABELS: Record<EditorTool, string> = {
   CAPCUT: "CapCut",
 };
 
+/** Gerados de media/enterprises por scripts/gen-brand-assets.mjs. */
+const TOOL_ICONS: Record<EditorTool, string> = {
+  CAPCUT: "/ferramentas/capcut.png",
+  PREMIERE: "/ferramentas/premiere.png",
+  AFTER_EFFECTS: "/ferramentas/after_effects.png",
+  DAVINCI_RESOLVE: "/ferramentas/davinci_resolve.png",
+  FINAL_CUT_PRO: "/ferramentas/final_cut_pro.png",
+};
+
+const STYLE_LABELS: Record<EditorStyle, string> = {
+  DINAMICA: "Dinâmica",
+  LEGENDADA: "Legendada",
+  CLEAN: "Clean",
+  CINEMATOGRAFICA: "Cinematográfica",
+  MOTION_GRAPHICS: "Motion graphics",
+  STORYTELLING: "Storytelling",
+  MEME: "Meme",
+  // "dark" aqui é canal dark (sem rosto), não tema escuro — o rótulo tem que deixar claro.
+  DARK: "Dark (sem rosto)",
+};
+
 // Filtros da vitrine expõem os nichos como chips.
 export const NICHE_OPTIONS = Object.entries(NICHE_LABELS) as [EditorNiche, string][];
 
@@ -43,6 +64,17 @@ export function nicheIcon(n: EditorNiche): string | null {
 export function toolLabel(t: EditorTool): string {
   return TOOL_LABELS[t] ?? t;
 }
+
+export function toolIcon(t: EditorTool): string | null {
+  return TOOL_ICONS[t] ?? null;
+}
+
+export function styleLabel(s: EditorStyle): string {
+  return STYLE_LABELS[s] ?? s;
+}
+
+// Checkboxes do "monte seu perfil" e chips de filtro.
+export const STYLE_OPTIONS = Object.entries(STYLE_LABELS) as [EditorStyle, string][];
 
 /** Centavos de BRL -> "R$ 120". Sem casas quando é valor redondo. */
 export function formatPrice(cents: number | null): string | null {

@@ -101,6 +101,36 @@ class EditorDirectoryTest {
     }
 
     @Test
+    void filtroPorEstiloDeEdicaoRespeitaAsTags() throws Exception {
+        String token = registrarEditor("dark@teste.com", "Editor Dark");
+        upsertPerfil(token, """
+                {"niches": ["YOUTUBE"], "tools": ["PREMIERE"], "styles": ["DARK", "STORYTELLING"]}
+                """);
+
+        mockMvc.perform(get("/v1/editors").param("style", "DARK"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].styles", hasItems("DARK", "STORYTELLING")));
+
+        mockMvc.perform(get("/v1/editors").param("style", "MEME"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void perfilSemEstiloContinuaValido() throws Exception {
+        // styles é opcional — perfil criado antes da dimensão existir não pode quebrar.
+        String token = registrarEditor("semestilo@teste.com", "Sem Estilo");
+        upsertPerfil(token, """
+                {"niches": ["REELS"], "tools": ["CAPCUT"]}
+                """);
+
+        mockMvc.perform(get("/v1/editors"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].styles.length()").value(0));
+    }
+
+    @Test
     void clienteViraEditorAoCriarOPerfil() throws Exception {
         // A conta é uma só: quem entrou pra contratar se torna editor no ato de
         // publicar o perfil, sem cadastro separado.

@@ -53,7 +53,7 @@ export default function ComoFuncionaPage() {
     <div className="mx-auto max-w-6xl px-6">
       <section className="pt-14 pb-4">
         <h1 className="max-w-[18ch] text-balance text-4xl font-extrabold leading-[1.04] tracking-tight sm:text-5xl">
-          Achar um editor bom não devia ser <span className="text-accent">burocrático</span>.
+          Achar um editor bom não devia ser tão <span className="text-accent">burocrático</span>.
         </h1>
         <p className="mt-3.5 max-w-[56ch] text-lg text-muted">
           Aqui não tem proposta, lance nem assinatura. Você navega, vê o trabalho pronto e fala
@@ -79,7 +79,7 @@ export default function ComoFuncionaPage() {
         etiqueta="Pra quem precisa de vídeo editado"
         titulo="Do primeiro clique ao vídeo entregue"
         passos={PASSOS_CLIENTE}
-        cta={{ href: "/", label: "Ver editores disponíveis" }}
+        cta={{ href: "/editores", label: "Ver editores disponíveis" }}
       />
 
       <Passos
@@ -121,13 +121,13 @@ export default function ComoFuncionaPage() {
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
             href="/criar-conta"
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-contrast hover:bg-accent-strong"
+            className="btn btn-primary"
           >
             Criar conta
           </Link>
           <Link
-            href="/"
-            className="rounded-full border border-line px-5 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent"
+            href="/editores"
+            className="btn btn-ghost"
           >
             Ver editores
           </Link>
@@ -170,7 +170,7 @@ function Passos({
 
       <Link
         href={cta.href}
-        className="mt-6 inline-block rounded-full border border-line px-5 py-2.5 text-sm font-semibold hover:border-accent hover:text-accent"
+        className="mt-6 btn btn-ghost"
       >
         {cta.label}
       </Link>
