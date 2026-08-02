@@ -156,12 +156,21 @@ function InteresseItem({ jobId, interesse }: { jobId: string; interesse: JobInte
 
       <p className="mt-1.5 text-sm text-muted">{interesse.message}</p>
 
-      {aceito && interesse.editorEmail && (
+      {aceito && (
         <p className="mt-2 text-sm">
-          Contato:{" "}
-          <a href={`mailto:${interesse.editorEmail}`} className="font-semibold text-accent hover:underline">
-            {interesse.editorEmail}
-          </a>
+          {/* A conversa vem primeiro: o aceite já abriu uma, e é lá que a relação
+              deve acontecer. O e-mail fica como alternativa até ser aposentado. */}
+          <Link href="/painel/conversas" className="font-semibold text-accent hover:underline">
+            Abrir conversa
+          </Link>
+          {interesse.editorEmail && (
+            <>
+              {" · ou por e-mail: "}
+              <a href={`mailto:${interesse.editorEmail}`} className="text-muted hover:text-accent">
+                {interesse.editorEmail}
+              </a>
+            </>
+          )}
         </p>
       )}
     </li>

@@ -37,6 +37,7 @@ public class JobRequestService {
     private final IJobInterestRepository jobInterestRepository;
     private final IEditorProfileRepository editorProfileRepository;
     private final IUserRepository userRepository;
+    private final ConversationService conversationService;
 
     // ---------- Lado do cliente ----------
 
@@ -73,7 +74,15 @@ public class JobRequestService {
         return toOwnerDTO(job);
     }
 
-    /** Aceitar libera a troca de contato entre cliente e editor. */
+    /**
+     * Aceitar abre a conversa do pedido — a segunda porta da caixa de entrada
+     * (ESBOCO §7). É aqui que o Bloco 5 encosta no Bloco 7.
+     * <p>
+     * O e-mail das duas pontas continua sendo revelado por ora. A intenção registrada
+     * é que a conversa <i>substitua</i> essa revelação (FUNDACAO §11.9), mas a troca é
+     * feita depois que o chat estiver rodando na mão do usuário: tirar o e-mail antes
+     * disso deixaria quem já usa o fluxo sem caminho nenhum.
+     */
     @Transactional
     public JobRequestDTO acceptInterest(UUID clientId, UUID jobId, UUID interestId){
         JobRequestEntity job = loadOwnJob(clientId, jobId);
@@ -84,6 +93,7 @@ public class JobRequestService {
                 .orElseThrow(() -> new NotFoundException("Interesse não encontrado: " + interestId));
 
         interest.setStatus(JobInterestStatus.ACCEPTED);
+        conversationService.openForJob(job, interest.getEditor());
         return toOwnerDTO(job);
     }
 

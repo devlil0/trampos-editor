@@ -138,3 +138,39 @@ export interface Page<T> {
   totalPages: number;
   last: boolean;
 }
+
+/**
+ * Linha da caixa de entrada. O servidor já resolve o "outro lado" — a tela nunca
+ * precisa saber se, naquela conversa, o usuário contrata ou edita.
+ */
+export interface ConversationSummary {
+  id: string;
+  counterpartDisplayName: string;
+  /** Só existe quando o outro lado tem perfil público de editor. */
+  counterpartSlug: string | null;
+  /** Título do pedido de origem, ou null quando a conversa veio do perfil. */
+  jobTitle: string | null;
+  lastMessagePreview: string | null;
+  unread: boolean;
+  lastMessageAt: string | null;
+  createdAt: string;
+}
+
+/** `mine` vem pronto do backend: o browser nunca vê o JWT pra deduzir isso. */
+export interface Message {
+  id: string;
+  senderDisplayName: string;
+  mine: boolean;
+  body: string;
+  createdAt: string;
+}
+
+export interface ConversationDetail {
+  id: string;
+  counterpartDisplayName: string;
+  counterpartSlug: string | null;
+  jobRequestId: string | null;
+  jobTitle: string | null;
+  messages: Message[];
+  createdAt: string;
+}

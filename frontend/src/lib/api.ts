@@ -1,4 +1,6 @@
 import type {
+  ConversationDetail,
+  ConversationSummary,
   EditorProfile,
   EditorSummary,
   JobRequest,
@@ -78,6 +80,26 @@ export async function fetchMyEditorProfile(token: string): Promise<EditorProfile
   if (!res.ok) {
     throw new Error(`Falha ao carregar seu perfil (HTTP ${res.status})`);
   }
+  return res.json();
+}
+
+/** A caixa de entrada: conversas das duas portas, mais recente primeiro. */
+export function fetchMyConversations(token: string): Promise<ConversationSummary[]> {
+  return authGet<ConversationSummary[]>("/v1/me/conversations", token, []);
+}
+
+/**
+ * Abre uma conversa. Não é leitura pura: o backend marca como lida no mesmo passo,
+ * porque abrir *é* ler — não existe botão de "marcar como lida".
+ * Devolve null pra conversa inexistente ou de outra pessoa, e a página trata como 404.
+ */
+export async function fetchConversation(token: string, id: string): Promise<ConversationDetail | null> {
+  const res = await fetch(`${API_URL}/v1/me/conversations/${encodeURIComponent(id)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (res.status === 404 || res.status === 403 || res.status === 401) return null;
+  if (!res.ok) throw new Error(`Falha ao carregar a conversa (HTTP ${res.status})`);
   return res.json();
 }
 

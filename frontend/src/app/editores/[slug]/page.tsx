@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { fetchEditorBySlug } from "@/lib/api";
+import { fetchEditorBySlug, fetchMyEditorProfile } from "@/lib/api";
+import { StartConversationForm } from "@/components/conversation-forms";
 import { InstagramLink } from "@/components/instagram-link";
 import { NicheTag, StyleTag, ToolTag } from "@/components/niche-tag";
 import { VideoThumb } from "@/components/video-thumb";
 import { formatPrice, formatTurnaround } from "@/lib/format";
+import { getCurrentUser, getSessionToken } from "@/lib/session";
 
 type Params = Promise<{ slug: string }>;
 
@@ -21,9 +23,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function EditorProfilePage({ params }: { params: Params }) {
   const { slug } = await params;
-  const editor = await fetchEditorBySlug(slug);
+  const [editor, viewer, token] = await Promise.all([
+    fetchEditorBySlug(slug),
+    getCurrentUser(),
+    getSessionToken(),
+  ]);
 
   if (!editor) notFound();
+
+  // Quem está vendo o próprio perfil não recebe o campo de contato: o backend recusa
+  // conversa consigo mesmo, e mostrar o formulário só pra falhar seria pegadinha.
+  // A comparação é por slug, que é único — nome de exibição se repete.
+  const meuPerfil = token ? await fetchMyEditorProfile(token) : null;
+  const isOwnProfile = meuPerfil?.slug === editor.slug;
 
   const priceMin = formatPrice(editor.priceMinCents);
   const priceMax = formatPrice(editor.priceMaxCents);
@@ -115,12 +127,13 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
               <span className="text-sm font-medium text-muted"> / vídeo · a partir de</span>
             </div>
           )}
-          <a
-            href="#"
-            className="btn btn-primary btn-block btn-lg"
-          >
-            Falar com {firstName}
-          </a>
+          {isOwnProfile ? (
+            <Link href="/painel/meu-perfil" className="btn btn-ghost btn-block btn-lg">
+              Este perfil é seu — editar
+            </Link>
+          ) : (
+            <StartConversationForm slug={editor.slug} firstName={firstName} loggedIn={viewer != null} />
+          )}
           <Row label="Nota">
             <span className="text-amber-400">★</span> {editor.ratingAvg.toFixed(1)} · {editor.ratingCount}{" "}
             {editor.ratingCount === 1 ? "avaliação" : "avaliações"}

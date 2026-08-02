@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { fetchMyEditorProfile } from "@/lib/api";
+import { fetchMyConversations, fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
 import { InstagramForm } from "@/components/instagram-form";
 import { NicheTag } from "@/components/niche-tag";
@@ -23,7 +23,11 @@ export default async function PainelPage() {
   const token = await getSessionToken();
   // A conta é uma só: todo mundo é cliente, e é ter perfil publicado que faz de
   // alguém editor. Por isso o perfil é buscado sempre, não só pra quem tem o papel.
-  const profile = token ? await fetchMyEditorProfile(token) : null;
+  const [profile, conversas] = token
+    ? await Promise.all([fetchMyEditorProfile(token), fetchMyConversations(token)])
+    : [null, []];
+
+  const naoLidas = conversas.filter((c) => c.unread).length;
 
   const firstName = user.displayName.split(" ")[0];
 
@@ -32,8 +36,8 @@ export default async function PainelPage() {
       <h1 className="text-3xl font-extrabold tracking-tight">Olá, {firstName}</h1>
       <p className="mt-1 text-muted">
         {profile
-          ? "Você contrata e também recebe trabalhos por aqui."
-          : "Encontre um editor — ou publique seu perfil e comece a receber trabalhos."}
+          ? "Você contrata e também pega trampo por aqui."
+          : "Encontre um editor — ou publique seu perfil e comece a pegar trampo."}
       </p>
 
       <div className="mt-8 grid gap-5 md:grid-cols-2">
@@ -127,19 +131,42 @@ export default async function PainelPage() {
 
           {profile && (
             <section className="rounded-[18px] border border-line bg-card p-6">
-              <h2 className="text-lg font-bold tracking-tight">Trabalhos abertos</h2>
+              <h2 className="text-lg font-bold tracking-tight">Trampos abertos</h2>
               <p className="mt-1 text-sm text-muted">
                 Pedidos de quem está procurando editor agora. Diga que topa e o cliente libera o
                 contato.
               </p>
               <Link
-                href="/painel/trabalhos"
+                href="/painel/trampos"
                 className="mt-5 btn btn-ghost btn-sm"
               >
                 Ver pedidos abertos
               </Link>
             </section>
           )}
+
+        {/* Primeira resposta do painel pra "o que mudou desde que eu saí?". Sem isso
+            a pessoa só descobre uma mensagem nova se lembrar de abrir a caixa. */}
+        <section className="rounded-[18px] border border-line bg-card p-6">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h2 className="text-lg font-bold tracking-tight">Conversas</h2>
+            {naoLidas > 0 && (
+              <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-contrast tabular-nums">
+                {naoLidas} nova{naoLidas > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            {conversas.length === 0
+              ? "Nenhuma conversa ainda. Elas começam quando você chama alguém na vitrine ou aceita um interesse."
+              : naoLidas > 0
+                ? "Tem gente esperando sua resposta."
+                : "Tudo lido por aqui."}
+          </p>
+          <Link href="/painel/conversas" className="mt-5 btn btn-ghost btn-sm">
+            Abrir conversas
+          </Link>
+        </section>
 
         <section className="rounded-[18px] border border-line bg-card p-6">
           <h2 className="text-lg font-bold tracking-tight">Sua conta</h2>
