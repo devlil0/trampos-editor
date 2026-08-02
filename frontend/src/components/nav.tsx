@@ -54,21 +54,30 @@ export function Nav({ user }: { user: AuthUser | null }) {
         </Link>
 
         <div className="ml-2 hidden gap-5 text-sm text-muted sm:flex">
-          <Link href="/editores" className="hover:text-fg">
-            Editores
-          </Link>
-          <Link href="/como-funciona" className="hover:text-fg">
-            Como funciona
-          </Link>
+          {/* Duas portas simétricas em vez de um "Como funciona" genérico: a primeira
+              decisão de quem chega num marketplace de dois lados é "qual desses eu
+              sou?", e antes só o editor tinha porta. Somem pra quem está logado —
+              a essa altura a pessoa já entrou, e o lugar dela é o painel. */}
           {user ? (
             <Link href="/painel" className="hover:text-fg">
               Painel
             </Link>
           ) : (
-            <Link href="/como-funciona#para-editores" className="hover:text-fg">
-              Para editores
-            </Link>
+            <>
+              <Link href="/para-clientes" className="hover:text-fg">
+                Para clientes
+              </Link>
+              <Link href="/para-editores" className="hover:text-fg">
+                Para editores
+              </Link>
+            </>
           )}
+          {/* Por último: as portas de público vêm antes porque a pergunta "qual desses
+              eu sou?" precede o "me mostra quem tem". "Vitrine" e não "Editores" — é
+              o nome que o resto do produto já usa ("Voltar pra vitrine", no perfil). */}
+          <Link href="/editores" className="hover:text-fg">
+            Vitrine
+          </Link>
         </div>
 
         <div className="ml-auto flex items-center gap-2.5">

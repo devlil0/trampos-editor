@@ -82,7 +82,7 @@ export default async function RootLayout({
                 <ul className="flex flex-col gap-2">
                   <FooterLink href="/editores">Ver editores</FooterLink>
                   <FooterLink href="/painel/pedidos/novo">Solicitar serviço</FooterLink>
-                  <FooterLink href="/como-funciona">Como funciona</FooterLink>
+                  <FooterLink href="/para-clientes">Como funciona</FooterLink>
                 </ul>
               </nav>
 
@@ -93,7 +93,7 @@ export default async function RootLayout({
                 <ul className="flex flex-col gap-2">
                   <FooterLink href="/criar-conta">Publicar meu perfil</FooterLink>
                   <FooterLink href="/painel/trabalhos">Trabalhos abertos</FooterLink>
-                  <FooterLink href="/como-funciona#para-editores">Como funciona</FooterLink>
+                  <FooterLink href="/para-editores">Como funciona</FooterLink>
                 </ul>
               </nav>
 

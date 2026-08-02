@@ -89,8 +89,8 @@ export default async function LandingPage() {
                   não existe aqui (Fase 1 do FUNDACAO). Dizer o menos verdadeiro joga
                   fora o argumento mais forte contra Fiverr e Workana. */}
               <p className="mt-5 max-w-[46ch] text-lg text-muted">
-                Veja portfólio, prazo e preço antes de falar com alguém. Sem lance, sem assinatura e
-                sem nenhuma comissão sobre o que vocês combinarem.
+                Veja o portfólio, prazo e preço antes fechar algum um trampo. Sem burocracia,
+                taxas ou qualquer tipo de estresse. #TramposEditor
               </p>
 
               <div className="mt-8 flex flex-wrap gap-3">
@@ -101,23 +101,27 @@ export default async function LandingPage() {
                   Ver editores
                   <Seta />
                 </Link>
+                {/* Levava pra /painel/pedidos/novo, que é o formulário de POSTAR um
+                    pedido — fluxo de cliente. Quem clicava "sou editor" caía na tela
+                    de quem contrata. Agora vai pra porta do próprio público. */}
                 <Link
-                  href="/painel/pedidos/novo"
+                  href="/para-editores"
                   className="btn btn-ghost btn-lg"
                 >
                   Sou editor, quero aparecer
                 </Link>
               </div>
 
-              {/* A objeção de entrada não é preço, é "vou ter que me cadastrar pra
-                  bisbilhotar?". A vitrine é pública de verdade — dizer isso aqui custa
-                  uma linha e derruba o medo antes que ele apareça. O caminho do editor
-                  vem junto, mas como texto: um terceiro botão dividiria a atenção. */}
+              {/* O caminho do editor vem como texto, e não como um terceiro botão, pra
+                  não dividir a atenção do CTA principal.
+
+                  Aponta pro feed de trabalhos, e não pra /para-editores: a linha promete
+                  escolher um trampo, então mandar pra uma página de explicação quebraria
+                  a promessa. Deslogado cai no login e volta — e quem chega lá sem perfil
+                  publicado encontra o convite pra montar um, já tratado na própria tela. */}
               <p className="mt-4 text-sm text-muted">
-                Não precisa criar conta pra ver.{" "}
-                <span className="text-line">·</span>{" "}
-                <Link href="/criar-conta" className="font-semibold text-fg hover:text-accent">
-                  Você edita? Apareça na vitrine
+                <Link href="/painel/trabalhos" className="font-semibold text-fg hover:text-accent">
+                  Você edita? Pegue um trampo.
                 </Link>
               </p>
             </div>
@@ -161,13 +165,22 @@ export default async function LandingPage() {
           outra leriam como repetição. Aqui eles são parte da definição; ali, filtro. */}
       <section className="border-b border-line">
         <div className="mx-auto max-w-6xl px-6 py-16">
-          <p className="font-mono text-xs font-semibold tracking-[0.18em] text-accent">
-            O QUE É A TRAMPOSEDITOR?
-          </p>
-
-          <h2 className="mt-4 max-w-[20ch] text-balance text-3xl font-extrabold leading-[1.06] tracking-tight sm:text-4xl">
-            Um marketplace de <span className="text-accent">editores de vídeo</span>.
+          {/* A pergunta é o assunto da seção, então ela é o título — antes vinha como
+              rótulo miúdo em cima de um título maior, o que invertia a hierarquia.
+              Escala logo abaixo da do hero: é o segundo maior texto da página, e não
+              disputa com ele. O nome da marca sai em degradê, o único da landing: é o
+              lugar onde a marca se apresenta, e o resto da página usa roxo chapado. */}
+          <h2 className="max-w-[16ch] text-balance text-4xl font-extrabold leading-[1.02] tracking-[-0.03em] sm:text-5xl">
+            O que é a{" "}
+            <span className="bg-gradient-to-r from-accent to-accent-strong bg-clip-text text-transparent">
+              TramposEditor
+            </span>
+            ?
           </h2>
+
+          <p className="mt-6 max-w-[24ch] text-balance text-2xl font-bold leading-snug tracking-tight sm:text-3xl">
+            Um marketplace de editores de vídeo.
+          </p>
 
           <p className="mt-5 max-w-[52ch] text-lg">
             Você precisa de alguém pra cortar seu vídeo. A gente reúne os editores num lugar só,
@@ -319,8 +332,8 @@ export default async function LandingPage() {
             />
             <Acao
               titulo="Entender o fluxo"
-              texto="O passo a passo dos dois lados, sem letra miúda."
-              href="/como-funciona"
+              texto="O passo a passo de quem contrata, sem letra miúda."
+              href="/para-clientes"
               label="Como funciona"
             />
           </div>

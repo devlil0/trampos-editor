@@ -35,3 +35,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Ferramentas locais ###
+# Skills e settings do Claude Code: apontam pra caminhos desta máquina
+# (JDK, Docker), então não fazem sentido versionados.
+.claude/
