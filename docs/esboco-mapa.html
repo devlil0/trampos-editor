@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>*{margin:0;padding:0;box-sizing:border-box}</style>
+<title>TramposEditor — Esboço do Sistema</title>
+
+<style>
+  /* Tokens vindos do globals.css do próprio produto: o mapa deve parecer a
+     coisa que ele mapeia. Light é o :root; dark entra por preferência do SO e
+     os dois são sobrepostos pelo data-theme que o leitor escolher. */
+  :root {
+    --bg: #ffffff;
+    --card: #fbfafd;
+    --panel: #f3f1f8;
+    --line: #e9e7f0;
+    --fg: #1b1826;
+    --muted: #6e6a7c;
+    --accent: #7c3aed;
+    --accent-strong: #6d28d9;
+    --accent-soft: #f1ebfe;
+    --good: #15a34a;
+    --good-soft: rgba(21, 163, 74, 0.1);
+    --busy: #c2410c;
+    --busy-soft: rgba(194, 65, 12, 0.09);
+    --shadow: 0 1px 2px rgba(27, 24, 38, 0.05), 0 12px 32px -16px rgba(27, 24, 38, 0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0d14;
+      --card: #17151f;
+      --panel: #201d2b;
+      --line: #2b2838;
+      --fg: #eceaf2;
+      --muted: #9a96a8;
+      --accent: #8b5cf6;
+      --accent-strong: #a78bfa;
+      --accent-soft: rgba(139, 92, 246, 0.14);
+      --good: #34d399;
+      --good-soft: rgba(52, 211, 153, 0.12);
+      --busy: #fb923c;
+      --busy-soft: rgba(251, 146, 60, 0.12);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+    }
+  }
+
+  :root[data-theme="light"] {
+    --bg: #ffffff;
+    --card: #fbfafd;
+    --panel: #f3f1f8;
+    --line: #e9e7f0;
+    --fg: #1b1826;
+    --muted: #6e6a7c;
+    --accent: #7c3aed;
+    --accent-strong: #6d28d9;
+    --accent-soft: #f1ebfe;
+    --good: #15a34a;
+    --good-soft: rgba(21, 163, 74, 0.1);
+    --busy: #c2410c;
+    --busy-soft: rgba(194, 65, 12, 0.09);
+    --shadow: 0 1px 2px rgba(27, 24, 38, 0.05), 0 12px 32px -16px rgba(27, 24, 38, 0.18);
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0e0d14;
+    --card: #17151f;
+    --panel: #201d2b;
+    --line: #2b2838;
+    --fg: #eceaf2;
+    --muted: #9a96a8;
+    --accent: #8b5cf6;
+    --accent-strong: #a78bfa;
+    --accent-soft: rgba(139, 92, 246, 0.14);
+    --good: #34d399;
+    --good-soft: rgba(52, 211, 153, 0.12);
+    --busy: #fb923c;
+    --busy-soft: rgba(251, 146, 60, 0.12);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Stack de sistema em vez de webfont: o CSP do artifact bloqueia CDN de fonte,
+     e linkar Inter cairia num fallback silencioso. */
+  :root {
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px 96px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  /* ---------- Tipografia ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 2.85rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.03;
+    text-wrap: balance;
+    margin: 14px 0 0;
+    max-width: 18ch;
+  }
+
+  h2 {
+    font-size: clamp(1.35rem, 3vw, 1.6rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    text-wrap: balance;
+    margin: 0;
+  }
+
+  h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  p { margin: 0; max-width: 68ch; }
+  .lead { font-size: 1.075rem; color: var(--muted); margin-top: 16px; }
+  .note { font-size: 0.875rem; color: var(--muted); }
+
+  header.top {
+    padding: 72px 0 40px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 28px;
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  section.block {
+    padding: 56px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  .head { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ---------- Camadas ---------- */
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+
+  .layer {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--card);
+    padding: 22px 24px;
+    display: grid;
+    grid-template-columns: 190px 1fr;
+    gap: 22px;
+    align-items: start;
+  }
+
+  .layer-id { display: flex; flex-direction: column; gap: 5px; }
+  .layer-id .name { font-weight: 800; letter-spacing: -0.02em; font-size: 1.05rem; }
+  .layer-id .job { font-size: 0.8rem; color: var(--muted); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 999px;
+    padding: 5px 12px 5px 10px;
+    font-size: 0.815rem;
+    font-weight: 600;
+  }
+
+  .chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--good);
+  }
+
+  .chip code {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .chip.gap {
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--busy) 55%, transparent);
+    background: var(--busy-soft);
+  }
+  .chip.gap .dot { background: var(--busy); }
+
+  .chip.later { opacity: 0.62; }
+  .chip.later .dot { background: var(--muted); }
+
+  .flow {
+    text-align: center;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    padding: 1px 0;
+  }
+
+  /* ---------- Diagnóstico ---------- */
+  .verdict {
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    background: var(--accent-soft);
+    border-radius: 18px;
+    padding: 28px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .verdict .big {
+    font-size: clamp(1.15rem, 2.6vw, 1.45rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--accent-strong);
+    max-width: 44ch;
+    text-wrap: balance;
+  }
+
+  /* Mesmo formato do veredito, mas em laranja: sinaliza decisão pendente em vez
+     de conclusão fechada. Cor semântica, separada do acento da marca. */
+  .caution {
+    border: 1px solid color-mix(in srgb, var(--busy) 50%, transparent);
+    background: var(--busy-soft);
+    border-radius: 18px;
+    padding: 28px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .caution .big {
+    font-size: clamp(1.05rem, 2.3vw, 1.3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--busy);
+    max-width: 46ch;
+    text-wrap: balance;
+  }
+
+  /* ---------- Laços ---------- */
+  .loops { display: flex; flex-direction: column; gap: 14px; }
+
+  .loop {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--card);
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  .loop-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .loop-status {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .loop-status.ok { color: var(--good); background: var(--good-soft); }
+  .loop-status.broken { color: var(--busy); background: var(--busy-soft); }
+
+  .chain {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .node {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 6px 11px;
+    font-size: 0.815rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .node.broken {
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--busy) 60%, transparent);
+    background: var(--busy-soft);
+    color: var(--busy);
+  }
+
+  .link {
+    color: var(--muted);
+    font-size: 0.9rem;
+    flex: none;
+    user-select: none;
+  }
+  .link.cut { color: var(--busy); font-weight: 700; }
+
+  /* ---------- Tabelas ---------- */
+  .scroll { overflow-x: auto; border-radius: 18px; border: 1px solid var(--line); }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 580px;
+    background: var(--card);
+    font-size: 0.885rem;
+  }
+
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+
+  th {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--muted);
+    background: var(--panel);
+    white-space: nowrap;
+  }
+
+  td b { font-weight: 700; }
+  td .where { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+
+  .state {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .state.s-forte { color: var(--good); }
+  .state.s-meio { color: var(--accent-strong); }
+  .state.s-falta { color: var(--busy); }
+
+  /* ---------- Três colunas do 1% ---------- */
+  .cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+  }
+
+  .col {
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--card);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .col .k {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .col p { font-size: 0.875rem; color: var(--muted); }
+
+  /* ---------- Ordem ---------- */
+  .steps { display: flex; flex-direction: column; gap: 10px; counter-reset: step; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 16px;
+    align-items: start;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card);
+    padding: 16px 20px;
+  }
+
+  .step .n {
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    padding-top: 1px;
+  }
+  .step .body { display: flex; flex-direction: column; gap: 4px; }
+  .step p { font-size: 0.865rem; color: var(--muted); }
+
+  .step.now { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: var(--accent-soft); }
+  .step.now p { color: var(--fg); opacity: 0.82; }
+
+  footer.end {
+    margin-top: 64px;
+    padding-top: 26px;
+    border-top: 1px solid var(--line);
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--muted); }
+  .legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+  @media (max-width: 720px) {
+    .layer { grid-template-columns: 1fr; gap: 14px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">Esboço do sistema</p>
+    <h1>O mapa do que o TramposEditor vai ser</h1>
+    <p class="lead">
+      Cada superfície que o produto terá, os ciclos que o fazem girar, e os pontos onde
+      estética, ideologia e cultura encostam no software. Complementa o
+      <b>FUNDACAO.md</b>, que trata de estratégia — aqui é a forma.
+    </p>
+    <div class="meta">
+      <span>2026-08-02</span>
+      <span>Blocos 0–4 e 7 entregues</span>
+      <span>Blocos 5 e 6 em aberto</span>
+    </div>
+  </header>
+
+  <!-- ---------- Camadas ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">01 — Anatomia</p>
+      <h2>Quatro camadas, distinguidas por quem entra</h2>
+      <p class="note">
+        A camada pública é grande e a logada é pequena de propósito: o produto vive de SEO,
+        então o público é o funil inteiro e o logado só resolve quem já foi captado.
+      </p>
+    </div>
+
+    <div class="stack">
+      <div class="layer">
+        <div class="layer-id">
+          <span class="name">Pública</span>
+          <span class="job">Prova que existe oferta de verdade. Indexável.</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="dot"></i>Landing <code>/</code></span>
+          <span class="chip"><i class="dot"></i>Para clientes <code>/para-clientes</code></span>
+          <span class="chip"><i class="dot"></i>Para editores <code>/para-editores</code></span>
+          <span class="chip"><i class="dot"></i>Vitrine <code>/editores</code></span>
+          <span class="chip"><i class="dot"></i>Perfil <code>/editores/{slug}</code></span>
+          <span class="chip later"><i class="dot"></i>Páginas de tag <code>Fase 2</code></span>
+        </div>
+      </div>
+
+      <div class="flow" aria-hidden="true">↓ converte</div>
+
+      <div class="layer">
+        <div class="layer-id">
+          <span class="name">Entrada</span>
+          <span class="job">Tira o atrito do cadastro. Conta única.</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="dot"></i>Criar conta <code>/criar-conta</code></span>
+          <span class="chip"><i class="dot"></i>Entrar <code>/entrar</code></span>
+          <span class="chip gap"><i class="dot"></i>Verificar e-mail</span>
+          <span class="chip gap"><i class="dot"></i>Esqueci a senha</span>
+          <span class="chip later"><i class="dot"></i>Login com Google</span>
+        </div>
+      </div>
+
+      <div class="flow" aria-hidden="true">↓ vira conta</div>
+
+      <div class="layer">
+        <div class="layer-id">
+          <span class="name">Logada</span>
+          <span class="job">O coração: faz as duas pontas se acharem.</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="dot"></i>Painel <code>/painel</code></span>
+          <span class="chip"><i class="dot"></i>Meu perfil <code>/painel/meu-perfil</code></span>
+          <span class="chip"><i class="dot"></i>Meus pedidos <code>/painel/pedidos</code></span>
+          <span class="chip"><i class="dot"></i>Trabalhos <code>/painel/trabalhos</code></span>
+          <span class="chip gap"><i class="dot"></i>Conversas — a caixa de entrada</span>
+          <span class="chip gap"><i class="dot"></i>Trabalho fechado + avaliação</span>
+        </div>
+      </div>
+
+      <div class="flow" aria-hidden="true">↓ roda em cima de</div>
+
+      <div class="layer">
+        <div class="layer-id">
+          <span class="name">Motor</span>
+          <span class="job">Guarda o estado e faz as regras valerem.</span>
+        </div>
+        <div class="chips">
+          <span class="chip"><i class="dot"></i>User</span>
+          <span class="chip"><i class="dot"></i>EditorProfile</span>
+          <span class="chip"><i class="dot"></i>PortfolioItem</span>
+          <span class="chip"><i class="dot"></i>JobRequest</span>
+          <span class="chip"><i class="dot"></i>JobInterest</span>
+          <span class="chip gap"><i class="dot"></i>Conversation</span>
+          <span class="chip gap"><i class="dot"></i>Message</span>
+          <span class="chip gap"><i class="dot"></i>Deal</span>
+          <span class="chip gap"><i class="dot"></i>Review</span>
+          <span class="chip gap"><i class="dot"></i>Notification</span>
+          <span class="chip later"><i class="dot"></i>Boost <code>Fase 2</code></span>
+          <span class="chip later"><i class="dot"></i>Escrow <code>Fase 3</code></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background: var(--good)"></i>construído</span>
+      <span><i style="background: var(--busy)"></i>falta pro MVP</span>
+      <span><i style="background: var(--muted)"></i>fase posterior</span>
+    </div>
+  </section>
+
+  <!-- ---------- Laços ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">02 — Circulação</p>
+      <h2>Um marketplace não é telas, é ciclos</h2>
+      <p class="note">
+        Se um ciclo não fecha, o produto vaza pelo buraco. Estes são os quatro que
+        sustentam o TramposEditor — e onde cada um se rompe hoje.
+      </p>
+    </div>
+
+    <div class="loops">
+      <div class="loop">
+        <div class="loop-top">
+          <h3>Aquisição</h3>
+          <span class="loop-status broken">rompe no fim</span>
+        </div>
+        <div class="chain">
+          <span class="node">busca no Google</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">perfil indexado</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">vitrine</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">falar com o editor</span>
+        </div>
+        <p class="note">O botão “Falar com” do perfil é um <code>href="#"</code>. Todo o SEO desemboca nele.</p>
+      </div>
+
+      <div class="loop">
+        <div class="loop-top">
+          <h3>Oferta — o editor volta porque ganha</h3>
+          <span class="loop-status broken">rompe em dois pontos</span>
+        </div>
+        <div class="chain">
+          <span class="node">publica perfil</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">aparece</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">recebe contato</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">entrega</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">recebe nota</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">sobe na ordenação</span>
+        </div>
+        <p class="note">Sem contato e sem nota, o editor nunca descobre que valeu a pena estar aqui.</p>
+      </div>
+
+      <div class="loop">
+        <div class="loop-top">
+          <h3>Demanda — o cliente volta porque resolveu</h3>
+          <span class="loop-status ok">fecha fora do produto</span>
+        </div>
+        <div class="chain">
+          <span class="node">contrata</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">deu certo</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">volta ou indica</span>
+        </div>
+        <p class="note">Funciona, mas acontece fora da plataforma — nada disso é medido nem registrado.</p>
+      </div>
+
+      <div class="loop">
+        <div class="loop-top">
+          <h3>Reputação — o combustível de confiança</h3>
+          <span class="loop-status broken">não existe</span>
+        </div>
+        <div class="chain">
+          <span class="node broken">trabalho fechado</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">avaliação</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">nota</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">ordenação</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">visibilidade</span>
+        </div>
+        <p class="note">Enquanto não existir, todo card da vitrine anuncia “★ 0.0” — o que faz a vitrine parecer morta.</p>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <p class="eyebrow">O diagnóstico</p>
+      <p class="big">
+        Os quatro laços passam por conversa e avaliação — exatamente as duas peças que
+        não existem.
+      </p>
+      <p class="note">
+        O sistema hoje tem entrada e saída, mas não tem circulação. Por isso o que falta
+        não é <i>mais</i> painel: é o pedaço que faz o ciclo voltar ao começo.
+      </p>
+    </div>
+  </section>
+
+  <!-- ---------- Cultura ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">03 — Cultura</p>
+      <h2>Onde a ideologia encosta no software</h2>
+      <p class="note">
+        Cultura não é uma página “sobre nós”. Ela vive em lugares específicos do produto —
+        estes, do mais forte pro mais fraco.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Superfície de cultura</th>
+            <th>Onde fica</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>A recusa</b> — o que o produto se nega a fazer<br><span class="note">sem leilão, sem comissão, sem assinatura, sem pedágio</span></td>
+            <td class="where">landing, FAQ</td>
+            <td class="state s-forte">forte</td>
+          </tr>
+          <tr>
+            <td><b>O léxico</b> — como as coisas se chamam<br><span class="note">“trampo”, “vitrine”, “trabalhos abertos”</span></td>
+            <td class="where">tudo</td>
+            <td class="state s-meio">nascendo</td>
+          </tr>
+          <tr>
+            <td><b>A ordenação da vitrine</b> — quem aparece primeiro é uma declaração de valores</td>
+            <td class="where">/editores</td>
+            <td class="state s-meio">implícita</td>
+          </tr>
+          <tr>
+            <td><b>Estados vazios</b> — o que se diz quando não há nada</td>
+            <td class="where">todas as telas</td>
+            <td class="state s-meio">alguns bons</td>
+          </tr>
+          <tr>
+            <td><b>Erro e limite</b> — 404, sem resultado, sem permissão</td>
+            <td class="where">not-found, error</td>
+            <td class="state s-meio">genéricos</td>
+          </tr>
+          <tr>
+            <td><b>O ritual de entrada</b> — o momento de virar editor</td>
+            <td class="where">/painel/meu-perfil</td>
+            <td class="state s-falta">é um formulário</td>
+          </tr>
+          <tr>
+            <td><b>Status visível</b> — selo, nível, veterania</td>
+            <td class="where">card e perfil</td>
+            <td class="state s-falta">não existe</td>
+          </tr>
+          <tr>
+            <td><b>A voz fora do site</b> — e-mail, notificação</td>
+            <td class="where">—</td>
+            <td class="state s-falta">não existe</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      O <b>ritual de entrada</b> é o buraco mais caro. Publicar o perfil é o momento em que
+      alguém declara “eu sou editor” — a maior carga emocional do produto inteiro — e a
+      interface trata isso como cadastro de CEP. É ali que o pertencimento nasce ou não nasce,
+      e dá pra resolver sem tocar no backend.
+    </p>
+  </section>
+
+  <!-- ---------- 1% ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">04 — O que é ser 1%</p>
+      <h2>Fazer o que os 99% não fazem</h2>
+    </div>
+
+    <div class="verdict">
+      <p class="big">
+        Não é restringir quem entra. É ser diferente da manada, fora da curva, a melhor
+        versão de si mesmo.
+      </p>
+      <p class="note">
+        1% é um <b>ethos</b>, não um andar de prédio. Não é quem passa na porta — é quem a
+        pessoa decide ser depois de entrar. Por isso a porta aberta do FUNDACAO §11.9 não
+        conflita com o conceito: ela é <i>necessária</i>.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Não é</th>
+            <th>É</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>filtrar quem entra</td><td><b>mostrar o que separa</b></td></tr>
+          <tr><td>selo de elite concedido</td><td><b>padrão de conduta visível</b></td></tr>
+          <tr><td>escassez</td><td><b>exigência</b></td></tr>
+          <tr><td>status sobre os outros</td><td><b>superação de si</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="head">
+      <h3>O mesmo padrão vale para os dois lados</h3>
+      <p class="note">
+        Uma cultura só, não duas segmentadas — é isso que a torna coerente.
+      </p>
+    </div>
+
+    <div class="cols">
+      <div class="col">
+        <span class="k">Editor 1%</span>
+        <p>Portfólio real em vez de promessa. Disponibilidade honesta. Responde rápido. Entrega no prazo. <b>Não rebaixa o próprio preço pra ganhar no grito.</b></p>
+      </div>
+      <div class="col">
+        <span class="k">Cliente 1%</span>
+        <p>Briefa direito em vez de “faz aí bonito”. Respeita o preço publicado. Paga em dia. Dá retorno.</p>
+      </div>
+    </div>
+
+    <div class="head">
+      <h3>A plataforma também tem que ser 1%</h3>
+      <p class="note">
+        Um produto que prega isso e se comporta como os 99% dos marketplaces mata a própria
+        mensagem no primeiro contato. A recusa deixa de ser posicionamento e vira coerência.
+      </p>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>O que os 99% dos marketplaces fazem</th>
+            <th>O que aqui não se faz</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>cobram % do trabalho fechado</td><td><b>nenhuma comissão</b></td></tr>
+          <tr><td>leilão de propostas, corrida pro fundo</td><td><b>sem lance</b></td></tr>
+          <tr><td>assinatura pra aparecer</td><td><b>sem mensalidade</b></td></tr>
+          <tr><td>prometem garantia que não têm</td><td><b>admite o que ainda não existe</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="caution">
+      <p class="eyebrow" style="color: var(--busy)">Tensão a resolver antes da Fase 2</p>
+      <p class="big">O destaque pago deixa alguém comprar o que deveria merecer.</p>
+      <p class="note">
+        Vender posição é literalmente o que os 99% fazem. Três saídas, da mais fiel à menos:
+        <b>piso de conduta</b> (só destaca quem já cumpre o padrão) · <b>boost dentro do
+        recorte</b> (rotaciona entre os bem colocados, sem furar fila) · <b>assumir que é
+        anúncio</b> e dizer em voz alta. Decidir antes de construir, não depois.
+      </p>
+    </div>
+  </section>
+
+  <!-- ---------- Estética ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">05 — Estética</p>
+      <h2>A estética é parte do produto, não enfeite</h2>
+      <p class="note">
+        Os canais usados como referência na vitrine não são conteúdo aleatório de teste — são o
+        mundo do qual o produto fala: disciplina, superação, alta intensidade. A vitrine já
+        estava falando essa língua antes de existir manifesto.
+      </p>
+    </div>
+
+    <div class="cols">
+      <div class="col">
+        <span class="k">Fundo</span>
+        <h3>Dark de origem</h3>
+        <p>Não é modo alternativo — é o ponto de partida. Light existe, mas é opção.</p>
+      </div>
+      <div class="col">
+        <span class="k">Tipo</span>
+        <h3>Peso e contraste</h3>
+        <p>Extrabold, tracking fechado. O oposto do SaaS pastel e arredondado que todo mundo faz.</p>
+      </div>
+      <div class="col">
+        <span class="k">Dado</span>
+        <h3>Mono nos rótulos</h3>
+        <p>Leitura de instrumento e painel, não de brochura institucional.</p>
+      </div>
+      <div class="col">
+        <span class="k">Prova</span>
+        <h3>Sem ilustração</h3>
+        <p>Nada de boneco genérico. O hero mostra editores reais, porque o que precisa ser provado é a oferta.</p>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <p class="big">
+        Se a escolha pareceria natural num SaaS qualquer, ela não é 1%.
+      </p>
+      <p class="note">
+        Regra prática pra qualquer decisão visual daqui pra frente — inclusive o léxico, que é
+        estética tanto quanto a cor: “trampo” faz um trabalho que “projeto” e “job” não fazem.
+      </p>
+    </div>
+  </section>
+
+  <!-- ---------- Ordem ---------- -->
+  <section class="block">
+    <div class="head">
+      <p class="eyebrow">06 — Consequência</p>
+      <h2>O que construir, em ordem</h2>
+      <p class="note">Deriva dos laços do bloco 02. Não é lista de desejos.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step now">
+        <span class="n">1</span>
+        <div class="body">
+          <h3>Conversa, com duas portas de entrada</h3>
+          <p>Fecha o <code>href="#"</code> do perfil e faz o aceite de um interesse desembocar no mesmo lugar. Uma caixa de entrada, dois caminhos. É a tela que você chamou de coração.</p>
+        </div>
+      </div>
+      <div class="step now">
+        <span class="n">2</span>
+        <div class="body">
+          <h3>Notificação por e-mail</h3>
+          <p>Sem ela o item 1 não gira: as duas pontas agem em tempos diferentes e ninguém descobre que foi procurado. Um evento por lado basta.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>Esconder a nota até existir avaliação</h3>
+          <p>Meia hora de trabalho. Hoje “★ 0.0” em todo card é uma acusação; a ausência seria neutra.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">4</span>
+        <div class="body">
+          <h3>Trabalho fechado + avaliação</h3>
+          <p>Fecha o laço de reputação, liga a nota de volta e cria a base sobre a qual o 1% pode ser medido.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="n">5</span>
+        <div class="body">
+          <h3>Paginação do feed e os N+1</h3>
+          <p>Problemas de escala, não de MVP. Ficam pra depois de o marketplace girar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="end">
+    <p class="note">
+      Este mapa deliberadamente não decide a estética, o glossário final, o nome dos níveis
+      nem a monetização — só mostra onde cada uma dessas decisões vai encostar.
+      Detalhamento completo em <b>docs/ESBOCO.md</b>.
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>

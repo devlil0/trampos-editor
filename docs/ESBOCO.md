@@ -180,45 +180,113 @@ trabalho"**. Isso já é verdade na arquitetura — nunca foi dito em voz alta.
 
 ---
 
-## 6. A tensão do "1%" — e como resolver sem quebrar a liquidez
+## 6. "Ser 1%" — o que é e o que não é
 
-Você quer que pertencer ao TramposEditor signifique ser do 1%. Existe um conflito real
-entre isso e uma decisão já travada:
+> **Definição do fundador (2026-08-02):** ser 1% não é sobre restringir quantidade de
+> usuários nem sobre acesso fechado. É **ser diferente da manada, ser único, fora da
+> curva, a melhor versão de si mesmo — fazer o que os 99% não fazem.**
 
-> `FUNDACAO` §11.9: a conta é uma só, e **publicar o perfil é o que registra a pessoa
-> como editor**. Sem aprovação, sem análise. (`EditorProfileService.upsertMyProfile`
-> *concede* o papel EDITOR.)
+Isso muda a natureza do conceito: **1% é um ethos, não um andar de prédio.** Não é
+quem passa na porta; é quem a pessoa decide ser depois de entrar.
 
-**Se todo mundo entra, ninguém é 1%.** Exclusividade sem mecanismo é slogan.
+### A consequência imediata: não existe tensão com a porta aberta
 
-Mas fechar a porta agora seria pior: mataria a liquidez, que o próprio `FUNDACAO` §2
-define como o risco nº1. Editor é o lado fácil de atrair e o estoque que faz o cliente
-ficar. Não se filtra o que ainda não se tem.
+A decisão do `FUNDACAO` §11.9 — conta única, publicar o perfil já registra como editor,
+sem aprovação — **não conflita com o 1%.** Ao contrário: a porta aberta é *necessária*.
+Um ethos de superação exige que qualquer pessoa possa entrar; o que ele cobra vem depois
+da entrada, não antes.
 
-### A saída: porta aberta, status conquistado
+| Não é | É |
+|---|---|
+| filtrar quem entra | **mostrar o que separa** |
+| selo de elite concedido | **padrão de conduta visível** |
+| escassez | **exigência** |
+| status sobre os outros | **superação de si** |
 
-| Camada | Regra | Efeito |
-|---|---|---|
-| **Entrada** | livre — publicar perfil basta | preserva a liquidez |
-| **Hierarquia** | nota, entregas, tempo de casa, disponibilidade | o 1% é *conquistado*, não concedido |
-| **Recorte editorial** | uma seleção curada em cima da base | o 1% é *visível* |
+### O ethos vale para os dois lados — e é uma cultura só
 
-Assim o "1%" deixa de ser porta e vira **topo**. Quem entra vê onde dá pra chegar — o
-que é mais motivador que um portão, e não custa estoque.
+Aqui cai uma suposição anterior deste documento, que dizia que editor e cliente
+precisariam sentir coisas diferentes. Com o significado correto, não precisam: o mesmo
+padrão se aplica aos dois, e é isso que torna a cultura coerente em vez de segmentada.
 
-### Os dois sentimentos são diferentes — e é bom que sejam
+| Quem | O que é fazer o que os 99% não fazem |
+|---|---|
+| **Editor** | portfólio real em vez de promessa; disponibilidade honesta; responder rápido; entregar no prazo; **não rebaixar o próprio preço pra ganhar no grito** |
+| **Cliente** | briefar direito em vez de "faz aí bonito"; respeitar o preço publicado; pagar em dia; dar retorno |
 
-Um erro comum seria vender "seja 1%" para os dois lados. Não funciona: o cliente não quer
-ser do 1%, ele quer o vídeo cortado.
+### A plataforma também tem que ser 1% — senão a mensagem é oca
 
-| Lado | Sentimento | Como se produz |
-|---|---|---|
-| **Editor** | *"eu pertenço"* — status, ofício, orgulho | anti-leilão, hierarquia visível, léxico de guilda |
-| **Cliente** | *"eu tenho acesso"* — contratei do 1% | curadoria visível, prova de qualidade |
+Esta é a parte mais exigente. Um produto que prega "faça o que os 99% não fazem" e se
+comporta como os 99% dos marketplaces — comissão sobre o trabalho alheio, leilão de
+proposta, assinatura pra existir, promessa do que não entrega — **mata a própria
+mensagem no primeiro contato.**
 
-O mesmo mecanismo — curadoria e reputação — produz os dois. É por isso que o **Bloco 6
-(avaliações) não é só uma feature: é a infraestrutura da cultura.** Sem ela, "1%" não
-tem como ser medido nem mostrado.
+Com isso, a **recusa** do §4.2 deixa de ser posicionamento comercial e vira coerência:
+
+| O que os 99% dos marketplaces fazem | O que aqui não se faz |
+|---|---|
+| cobram % do trabalho fechado | nenhuma comissão |
+| leilão de propostas, corrida pro fundo | sem lance |
+| assinatura pra aparecer | sem mensalidade |
+| prometem garantia que não têm | admite o que ainda não existe |
+
+Isso já está no produto e é o ativo mais forte que existe. Só faltava perceber que a
+recusa **é** o 1% aplicado à própria plataforma.
+
+### Onde o ethos vira software
+
+1. **O anti-leilão já é isso**, escrito na arquitetura desde o §5.1 do `FUNDACAO`. É a
+   prova de que o conceito não é slogan: o produto foi construído sem o mecanismo que
+   rebaixa o ofício.
+2. **Disponibilidade honesta.** Marcar-se como ocupado quando a agenda encheu custa
+   visibilidade no curto prazo — e é exatamente o gesto que os 99% não fazem. A vitrine
+   deve premiar isso, não punir.
+3. **A ordenação é uma declaração.** Se ela premia comportamento (entrega, prazo,
+   honestidade de agenda), o ethos é real. Se premia quem pagou, é publicidade.
+4. **O ritual de entrada** (§4.3) ganha outro peso: publicar o perfil deixa de ser
+   cadastro e passa a ser **assumir um padrão**. É o momento exato de dizer o que se
+   espera de quem está entrando.
+5. **Avaliação continua sendo infraestrutura de cultura** — não pra criar hierarquia de
+   status, mas porque sem ela não há como *mostrar* quem está fazendo o que os outros
+   não fazem.
+
+### ⚠️ A tensão que aparece agora: o Boost da Fase 2
+
+Com o 1% definido como ethos, o **destaque pago** (`FUNDACAO` §3.3, Fase 2) entra em
+conflito direto: vender posição é deixar alguém **comprar** a aparência de destaque em
+vez de merecê-la — que é literalmente o que os 99% fazem.
+
+Não é fatal, mas exige desenho consciente. Três saídas, em ordem de fidelidade ao ethos:
+
+1. **Boost com piso de conduta:** só pode destacar quem já cumpre o padrão (entregas,
+   prazo, avaliação). Dinheiro amplifica quem merece, não substitui o mérito.
+2. **Boost dentro do recorte, não acima dele:** o pago rotaciona posição entre os que já
+   estão bem colocados, sem furar fila de quem tem melhor histórico.
+3. **Assumir a tensão e dizer em voz alta** que o destaque é anúncio — coerente com a
+   honestidade do §5.5, mas gasta um pouco do capital cultural.
+
+Decidir isso antes de construir a Fase 2, não depois.
+
+---
+
+## 6.1. A estética faz parte do produto
+
+O fundador registrou que a estética atual **é parte do SaaS**, não enfeite. Os canais
+usados como referência na vitrine não são conteúdo aleatório de teste — são o mundo do
+qual o produto fala: disciplina, superação, não-mediano, alta intensidade.
+
+Isso dá direção concreta ao visual, e o que já existe está alinhado:
+
+- **Dark como origem**, não como opção — já é a decisão do `FUNDACAO` §11.6.
+- **Alto contraste e peso tipográfico forte** (extrabold, tracking fechado) — o oposto do
+  SaaS pastel e arredondado que todo mundo faz.
+- **Mono para rótulo e dado** — leitura de painel, de instrumento, não de brochura.
+- **Sem firula:** nada de ilustração genérica; o hero mostra editores reais.
+- **O léxico** (§4.1) é parte da estética tanto quanto a cor: "trampo" faz um trabalho
+  que "projeto" e "job" não fazem.
+
+> Regra prática pra qualquer decisão visual daqui pra frente: **se a escolha pareceria
+> natural num SaaS qualquer, ela não é 1%.**
 
 ---
 
