@@ -162,7 +162,7 @@ export function InterestForm({ jobId }: { jobId: string }) {
         required
         rows={2}
         maxLength={500}
-        placeholder="Diga em uma linha por que você é boa escolha pra esse trabalho."
+        placeholder="Diga em uma linha por que você é boa escolha pra esse trampo."
         className={`${inputClass} resize-y`}
       />
       <div>

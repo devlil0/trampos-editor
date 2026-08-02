@@ -102,7 +102,7 @@ export async function expressInterestAction(
     return { error: "Servidor fora do ar. Tente de novo em alguns segundos." };
   }
 
-  revalidatePath("/painel/trabalhos");
+  revalidatePath("/painel/trampos");
   return { ok: true };
 }
 

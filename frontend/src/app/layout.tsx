@@ -92,7 +92,7 @@ export default async function RootLayout({
                 </h2>
                 <ul className="flex flex-col gap-2">
                   <FooterLink href="/criar-conta">Publicar meu perfil</FooterLink>
-                  <FooterLink href="/painel/trabalhos">Trabalhos abertos</FooterLink>
+                  <FooterLink href="/painel/trampos">Trampos abertos</FooterLink>
                   <FooterLink href="/para-editores">Como funciona</FooterLink>
                 </ul>
               </nav>

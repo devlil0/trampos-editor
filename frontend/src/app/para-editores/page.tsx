@@ -62,8 +62,8 @@ export default function ParaEditoresPage() {
         </Faq>
         {/* O anti-leilão é o diferencial mais forte pro lado da oferta (FUNDACAO §5.1):
             é o que separa daqui dos sites onde o freelancer compete derrubando preço. */}
-        <Faq pergunta="Preciso dar lance ou baixar meu preço pra ganhar o trabalho?">
-          Não existe leilão aqui. Você não disputa um trabalho derrubando preço contra outros
+        <Faq pergunta="Preciso dar lance ou baixar meu preço pra ganhar o trampo?">
+          Não existe leilão aqui. Você não disputa um trampo derrubando preço contra outros
           editores — você publica sua faixa e o cliente escolhe pelo portfólio. Quem contrata
           olhando trabalho pronto não contrata pelo menor lance.
         </Faq>
@@ -73,7 +73,7 @@ export default function ParaEditoresPage() {
         </Faq>
         <Faq pergunta="Sou editor e cliente ao mesmo tempo. Dá?">
           Dá, e é o padrão: a conta é uma só. Você entra podendo contratar, e no dia que quiser
-          receber trabalhos é só publicar seu perfil de editor no painel — sem cadastro separado.
+          pegar trampo é só publicar seu perfil de editor no painel — sem cadastro separado.
         </Faq>
         <Faq pergunta="Onde meu portfólio fica hospedado?">
           Nos seus links do YouTube ou Vimeo — a gente só embute. Você não sobe arquivo, não perde

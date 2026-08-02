@@ -9,11 +9,11 @@ import { getCurrentUser, getSessionToken } from "@/lib/session";
 import type { JobRequestFeedItem } from "@/lib/types";
 
 export const metadata: Metadata = {
-  title: "Trabalhos abertos — TramposEditor",
+  title: "Trampos abertos — TramposEditor",
   robots: { index: false },
 };
 
-export default async function TrabalhosPage() {
+export default async function TramposPage() {
   if (!(await getCurrentUser())) redirect("/entrar");
 
   const token = await getSessionToken();
@@ -34,7 +34,7 @@ export default async function TrabalhosPage() {
         Voltar pro painel
       </Link>
 
-      <h1 className="text-3xl font-extrabold tracking-tight">Trabalhos abertos</h1>
+      <h1 className="text-3xl font-extrabold tracking-tight">Trampos abertos</h1>
       <p className="mt-1 text-muted">
         Pedidos publicados por quem precisa de edição. Diga que topa — o cliente escolhe e libera o
         contato.
@@ -70,7 +70,7 @@ export default async function TrabalhosPage() {
 
         {feed.length === 0 ? (
           <p className="rounded-[18px] border border-line bg-card p-6 text-muted">
-            Nenhum pedido aberto agora. Enquanto isso, deixe seu perfil afiado — é por ele que a
+            Nenhum trampo aberto agora. Enquanto isso, deixe seu perfil afiado — é por ele que a
             maioria dos clientes chega.
           </p>
         ) : (
@@ -143,15 +143,16 @@ function StatusCandidatura({ job }: { job: JobRequestFeedItem }) {
     return (
       <p className="mt-3 rounded-xl border border-good/40 bg-good/10 px-3.5 py-2.5 text-sm">
         <b className="text-good">Aceito.</b>{" "}
-        {job.clientEmail ? (
+        <Link href="/painel/conversas" className="font-semibold text-accent hover:underline">
+          Falar com {job.clientDisplayName}
+        </Link>
+        {job.clientEmail && (
           <>
-            Fale com {job.clientDisplayName}:{" "}
-            <a href={`mailto:${job.clientEmail}`} className="font-semibold text-accent hover:underline">
+            {" · ou por e-mail: "}
+            <a href={`mailto:${job.clientEmail}`} className="text-muted hover:text-accent">
               {job.clientEmail}
             </a>
           </>
-        ) : (
-          "O cliente vai te chamar."
         )}
       </p>
     );

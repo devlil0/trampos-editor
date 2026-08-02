@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/como-funciona", destination: "/para-clientes", permanent: true },
+      // "Trabalhos" virou "Trampos" — a palavra do produto. A rota antiga não era
+      // indexada (o painel inteiro é noindex), então isto serve só pra favorito
+      // salvo antes da troca.
+      { source: "/painel/trabalhos", destination: "/painel/trampos", permanent: true },
     ];
   },
 };

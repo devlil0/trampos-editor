@@ -85,7 +85,7 @@ export default async function LandingPage() {
               </h1>
 
               {/* "Nenhuma comissão" e não "sem taxa pra conversar": a taxa que assusta
-                  quem contrata é a que incide no trabalho fechado, e é justamente a que
+                  quem contrata é a que incide no trampo fechado, e é justamente a que
                   não existe aqui (Fase 1 do FUNDACAO). Dizer o menos verdadeiro joga
                   fora o argumento mais forte contra Fiverr e Workana. */}
               <p className="mt-5 max-w-[46ch] text-lg text-muted">
@@ -115,12 +115,12 @@ export default async function LandingPage() {
               {/* O caminho do editor vem como texto, e não como um terceiro botão, pra
                   não dividir a atenção do CTA principal.
 
-                  Aponta pro feed de trabalhos, e não pra /para-editores: a linha promete
+                  Aponta pro feed de trampos, e não pra /para-editores: a linha promete
                   escolher um trampo, então mandar pra uma página de explicação quebraria
                   a promessa. Deslogado cai no login e volta — e quem chega lá sem perfil
                   publicado encontra o convite pra montar um, já tratado na própria tela. */}
               <p className="mt-4 text-sm text-muted">
-                <Link href="/painel/trabalhos" className="font-semibold text-fg hover:text-accent">
+                <Link href="/painel/trampos" className="font-semibold text-fg hover:text-accent">
                   Você edita? Pegue um trampo.
                 </Link>
               </p>
@@ -322,7 +322,7 @@ export default async function LandingPage() {
               titulo="Postar um pedido"
               texto="Descreva o que você precisa e deixe os editores virem até você."
               href="/painel/pedidos/novo"
-              label="Descrever o trabalho"
+              label="Descrever o trampo"
             />
             <Acao
               titulo="Publicar meu perfil"
@@ -360,7 +360,7 @@ const ANOTACOES = [
     titulo: "O trabalho primeiro",
     texto: "A capa é um vídeo que ela já entregou — e o selo diz se ela está livre agora.",
   },
-  { titulo: "O preço, sem pedir", texto: "A partir de quanto ela pega o trabalho." },
+  { titulo: "O preço, sem pedir", texto: "A partir de quanto ela pega o trampo." },
   { titulo: "O prazo, declarado", texto: "Quanto tempo até o vídeo estar na sua mão." },
 ];
 

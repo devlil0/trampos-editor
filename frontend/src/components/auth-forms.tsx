@@ -141,7 +141,7 @@ export function RegisterForm() {
       {/* Sem escolher papel: a conta é uma só. Editar é uma condição que a pessoa
           assume depois, publicando o perfil de editor. */}
       <p className="rounded-xl border border-line bg-panel px-3.5 py-2.5 text-xs text-muted">
-        Uma conta serve pros dois lados: você já sai contratando, e se quiser receber trabalhos é
+        Uma conta serve pros dois lados: você já sai contratando, e se quiser pegar trampo é
         só publicar seu perfil de editor depois — no painel.
       </p>
 
