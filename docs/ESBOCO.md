@@ -4,6 +4,8 @@
 > onde a estética, a ideologia e a cultura encostam no software.
 > Complementa o `FUNDACAO.md` (estratégia e decisões) — aqui é a forma do sistema.
 > Data: 2026-08-03 · Estado: Blocos 0–5 e 7 entregues; 6 em aberto.
+> Pilares: **anatomia** (§1–2) e **circulação** (§3) fechados; **cultura** (§4–6) é do
+> fundador e segue viva.
 
 ---
 
@@ -106,19 +108,59 @@ da vitrine. O gesto custa visibilidade do dia, não a existência do perfil.
 | `/editores` vitrine | ✅ | cliente | busca, filtro, comparação | MVP |
 | `/editores/{slug}` perfil | ✅ | cliente | **decisão de contratar** | MVP |
 | `/criar-conta` `/entrar` | ✅ | ambos | conta única | MVP |
+| `/esqueci-senha` `/redefinir-senha` | ✅ | ambos | conta perdida = usuário perdido | MVP |
+| login com Google e GitHub | ✅ | ambos | tira o atrito do cadastro; vincula por e-mail | MVP |
+| verificar e-mail | ⬜ | ambos | e-mail confiável — pré-requisito da notificação | 1.5 |
 | `/painel` | ✅ | ambos | hub por papel | MVP |
 | `/painel/meu-perfil` | ✅ | editor | virar editor, editar vitrine | MVP |
 | `/painel/pedidos` | ✅ | cliente | postar, ver interessados, aceitar | 1.5 |
 | `/painel/trampos` feed da demanda | ✅ | editor | categoria, paginado, candidatar | **MVP** |
 | `/painel/editores` feed da oferta | ✅ | cliente | quem está livre agora, por categoria | **MVP** |
 | `/painel/conversas` | ✅ | ambos | onde a relação acontece | MVP |
-| **trabalho fechado + review** | ⬜ | ambos | fecha o laço de reputação | **MVP** |
-| notificação por e-mail | ⬜ | ambos | faz o assíncrono funcionar | **MVP** |
+| `/painel/trampos-fechados` | ✅ | ambos | histórico, avaliação e **chamar de novo** (§3.2) | MVP |
+| notificação por e-mail | ✅ | ambos | faz o assíncrono funcionar | MVP |
 | páginas de tag (`/editores/tiktok`) | ⬜ | cliente | SEO long-tail dedicado | 2 |
 | destaque / boost | ⬜ | editor | monetização pay-per-use | 2 |
 | pagamento protegido | ⬜ | ambos | take-rate como seguro | 3 |
 | vertical áudio | ⬜ | ambos | mesma máquina, outra `Vertical` | 4 |
-| moderação / curadoria | ⬜ | admin | sustenta a promessa de qualidade | 2 |
+| `/admin` moderação | ⬜ | admin | sustenta a promessa de qualidade — ver §2.2 | 2 |
+
+### 2.1. A ordenação da vitrine, escrita
+
+O §4 lista a ordenação como ponto de contato de cultura e a chama de "implícita". Ela não
+é implícita — ela existe, é uma linha de JPQL no `IEditorProfileRepository`, e ninguém
+que lê este documento saberia disso. Escrever aqui é o que a torna uma decisão em vez de
+um efeito colateral:
+
+```
+order by e.available desc, e.ratingAvg desc, e.ratingCount desc, e.createdAt desc
+```
+
+Lida em português: **primeiro quem está livre, depois quem é bem avaliado, depois quem
+tem mais avaliações, e por último quem chegou primeiro.** Três coisas decorrem disso:
+
+- ela já premia comportamento, não pagamento — é o §6 ("a ordenação é uma declaração")
+  cumprido antes de ser dito;
+- `ratingAvg` ainda é sempre `0.0`, então hoje o segundo e o terceiro critério não fazem
+  nada e o desempate real é `createdAt` — ou seja, **a vitrine hoje ordena por antiguidade**;
+- é aqui que o Boost da Fase 2 vai bater (§6, a tensão). A regra que estiver escrita neste
+  bloco é a que ele vai ter que furar ou respeitar.
+
+### 2.2. Moderação: quem tira alguém da vitrine
+
+Era uma linha solta de fase 2. Para um produto cuja tese é "aqui não é commodity", quem
+sai e por quê é anatomia, não detalhe — a promessa de qualidade sem mecanismo é só texto.
+
+O mínimo que precisa existir antes de virar problema:
+
+| Peça | O que faz | Por quê |
+|---|---|---|
+| **Denúncia** | qualquer conta reporta perfil, portfólio ou mensagem | sem entrada, moderação depende de sorte |
+| **Estado do perfil** | `PUBLISHED` / `SUSPENDED` em vez de só existir | suspender não pode ser apagar — o histórico fica |
+| **Portfólio roubado** | o caso concreto mais provável aqui | é vídeo de terceiro; a defesa do editor honesto é a plataforma agir |
+| **Registro da decisão** | quem suspendeu, quando, por quê | a recusa do §4.2 só vale se ela for auditável |
+
+Isso continua Fase 2 — mas fica nomeado, e não é mais um traço na tabela.
 
 ---
 
@@ -127,17 +169,57 @@ da vitrine. O gesto custa visibilidade do dia, não a existência do perfil.
 Um marketplace não é um conjunto de telas, é um conjunto de **ciclos**. Se um ciclo não
 fecha, o produto vaza pelo buraco.
 
-**Laço de aquisição** — o único que já fecha
-`busca no Google → perfil indexado → vitrine → ???`
+**Laço de aquisição** (o desconhecido vira conta)
+`busca no Google → perfil indexado → vitrine → perfil → conversa → conta`
 
 **Laço da oferta** (o editor volta porque ganha)
 `publica perfil → aparece → recebe contato → entrega → recebe nota → sobe na ordenação → aparece mais`
 
 **Laço da demanda** (o cliente volta porque resolveu)
-`contrata → deu certo → volta / indica`
+`posta trampo ou acha no feed → escolhe → deu certo → volta / indica`
 
 **Laço de reputação** (o combustível de confiança)
-`trabalho fechado → avaliação → nota → ordenação → visibilidade`
+`trampo fechado → avaliação → nota → ordenação → visibilidade`
+
+### 3.1. O que faz cada laço dar a volta
+
+Nomear o ciclo não faz ele girar. Cada laço precisa de duas coisas que este documento não
+tinha: um **gatilho de retorno** — o que traz a pessoa de volta sem ela ter decidido
+voltar — e um **evento que prova que fechou**, senão "o marketplace funciona" é opinião,
+não fato verificável.
+
+| Laço | Gatilho de retorno | Prova de que fechou | Existe? |
+|---|---|---|:---:|
+| **Aquisição** | não precisa — é de mão única, o Google é o gatilho | uma visita orgânica virou conta | ⬜ nada registra a origem do cadastro |
+| **Oferta** | e-mail: "procuraram você", "seu interesse foi aceito" | o editor voltou e respondeu | ✅ |
+| **Demanda** | e-mail no fecho + "chamar de novo" no histórico | o mesmo cliente publicou um segundo trampo | ✅ o gatilho existe; falta medir |
+| **Reputação** | e-mail pedindo a avaliação quando o trampo fecha | nota preenchida e ordenação mexeu | ✅ |
+
+### 3.2. O buraco que não estava mapeado: o cliente não tem por que voltar
+
+Os laços da oferta e da reputação estão só esperando peças já previstas — notificação e
+avaliação. O **laço da demanda não está esperando nada**, porque nada no plano faz um
+cliente satisfeito voltar.
+
+O desenho hoje termina no aceite. Depois disso o produto não tem evento de "acabou": não
+existe `Deal`, então ninguém sabe que o trampo terminou, e sem esse marco não há como
+pedir avaliação, não há como dizer "quer publicar outro?", e não há como contar quantos
+clientes voltaram. O laço não vaza — ele nem começa a dar a volta.
+
+Isso reordena o §7 sem inventar item novo: **o `Deal` do Bloco 6 não é só a base da
+avaliação, é o gatilho do laço da demanda.** É o mesmo trabalho servindo dois laços, o
+que o torna a peça de maior alavancagem que sobrou.
+
+Três gatilhos possíveis, do mais barato ao mais caro, para decidir junto com o Bloco 6:
+
+1. **E-mail quando o trampo fecha** — pede a nota e oferece publicar outro. Reusa a mesma
+   infra de notificação do item 3 do §7; custo quase zero se ela existir.
+2. **Histórico com repetição** — `/painel/trampos-fechados` mostra com quem já deu certo e
+   deixa chamar de novo em um clique. É a repetição de fornecedor, que é o que mais barato
+   traz cliente de volta num marketplace de serviço.
+3. **Reconvite por inatividade** — cliente que não posta há N semanas recebe o que há de
+   novo na categoria dele. É o mais caro e o mais fácil de virar spam; só depois dos dois
+   primeiros, e coerente com a recusa do §4.2 (nada de pressão artificial).
 
 ### O diagnóstico em uma frase
 
@@ -148,13 +230,26 @@ fecha, o produto vaza pelo buraco.
 é *mais* painel, é o pedaço que faz o ciclo voltar ao começo.
 
 **Onde o diagnóstico está hoje (2026-08-03).** A conversa existe (Bloco 5) e os dois
-feeds existem — então as duas pontas já se acham e já se falam. Sobram dois furos, e
-os dois são no mesmo lugar do ciclo:
+feeds existem — então as duas pontas já se acham e já se falam. O que sobra tem um nome
+só: **o ciclo não tem fim registrado nem voz fora da aba.**
 
-- **avaliação** (§7 item 5) — sem ela o laço de reputação não fecha e a ordenação não
-  tem no que se apoiar;
 - **notificação** (§7 item 3) — sem ela o que foi construído gira só enquanto a pessoa
-  está com a aba aberta. É o furo mais barato de tapar e o que mais custa deixar aberto.
+  está com a aba aberta. É o furo mais barato de tapar e o que mais custa deixar aberto;
+- **`Deal` + avaliação** (§7 item 5) — sem o marco de "acabou" nada fecha: nem o laço de
+  reputação (§3.1) nem o da demanda (§3.2).
+
+Os dois se cruzam: a notificação é o **canal**, o `Deal` é o **motivo** de usá-lo. Um sem
+o outro entrega metade do ciclo.
+
+**Atualização do fim do dia.** Os dois saíram, junto do resto do §7. Com isso os quatro
+laços têm as peças, e o furo que sobra **mudou de natureza: não é mecanismo, é medição.**
+Nenhum laço registra que deu a volta — não se sabe de onde veio um cadastro, quantos
+clientes voltaram, nem se a ordenação mexeu depois da primeira nota. O produto passou a
+girar sem instrumento, o que é bem melhor que não girar, mas deixa a próxima pergunta
+("está funcionando?") sem resposta em lugar nenhum.
+
+Isso é trabalho de outra natureza — evento, origem de cadastro, contagem — e por isso não
+entrou no §7: aquela lista é do que faz o sistema andar, não do que o observa.
 
 ---
 
@@ -169,7 +264,7 @@ pro mais fraco:
 | 1 | **O léxico** — como as coisas se chamam | tudo | 🟡 nascendo |
 | 2 | **A recusa** — o que o produto se nega a fazer | FAQ, landing | 🟢 forte |
 | 3 | **O ritual de entrada** — virar editor | `/painel/meu-perfil` | 🔴 é um formulário |
-| 4 | **A ordenação da vitrine** — quem aparece primeiro | `/editores` | 🟡 implícita |
+| 4 | **A ordenação da vitrine** — quem aparece primeiro | `/editores`, escrita no §2.1 | 🟢 explícita, mas inerte sem nota |
 | 5 | **Status visível** — selo, nível, veterania | card e perfil | 🔴 não existe |
 | 6 | **Estados vazios** — o que se diz quando não há nada | todas | 🟡 alguns bons |
 | 7 | **A voz fora do site** — e-mail, notificação | ⬜ | 🔴 não existe |
@@ -350,12 +445,19 @@ Deriva direto dos laços do §3 — não é lista de desejos.
 |---|---|---|---|:---:|
 | 1 | **Conversa, com duas portas de entrada** | fecha o `href="#"` do perfil e unifica os dois fluxos numa caixa de entrada só | 5 | ✅ |
 | 2 | **Os dois feeds, com categoria e paginação** | os dois lados precisam de uma tela de "o que tem hoje" — e o feed sem limite não escala | 5.5 | ✅ |
-| 3 | **Notificação por e-mail** | sem ela os itens 1 e 2 não giram: ninguém sabe que foi procurado | novo | ⬜ |
-| 4 | **Esconder a nota até existir review** | hoje todo card anuncia "★ 0.0", que faz a vitrine parecer morta | — | ⬜ |
-| 5 | **Trabalho fechado + avaliação** | fecha o laço de reputação e liga a nota de volta; é a base do "1%" (§6) | 6 | ⬜ |
-| 6 | N+1 da vitrine (`@EntityGraph` nas coleções) | escala, não MVP — mas dói primeiro na página indexada | — | ⬜ |
+| 3 | **Notificação por e-mail** | sem ela os itens 1 e 2 não giram: ninguém sabe que foi procurado. É o **canal** | novo | ✅ |
+| 4 | **`Deal` + avaliação + histórico** | o marco de "acabou": fecha reputação (§3.1) **e** demanda (§3.2). É o **motivo** | 6 | ✅ |
+| 5 | **Esconder a nota até existir review** | hoje todo card anuncia "★ 0.0", que faz a vitrine parecer morta | — | ✅ |
+| 6 | **Esqueci a senha** | conta perdida é usuário perdido, e não custa quase nada | novo | ✅ |
+| 7 | N+1 da vitrine | escala, não MVP — mas dói primeiro na página indexada | — | ✅ |
+| 8 | Login com Google e GitHub | tira o atrito do cadastro; era Fase 2 e subiu a pedido do fundador | — | ✅ |
 
-Os itens 1 a 3 separam "as peças existem" de "o marketplace funciona".
+Os itens 1 a 4 separam "as peças existem" de "o marketplace funciona". **3 e 4 são um par**:
+o canal sem o motivo manda e-mail de nada; o motivo sem o canal fica esperando a aba abrir.
+
+O item 5 mudou de posição na ordem: era item 3, e desceu porque é cosmético perto de 3 e 4
+— mas continua sendo o de menor esforço do lote, e é o único que melhora a vitrine sem
+tocar no motor.
 
 ### Por que o feed virou MVP (decisão de 2026-08-03)
 
@@ -389,3 +491,28 @@ junto).
 - **O glossário final.** O §4.1 diz que ele precisa existir e por quê, não quais palavras.
 - **O nome dos níveis do 1%.** O §6 define o mecanismo, não o rótulo.
 - **Monetização.** Já resolvida no `FUNDACAO` §3 e não muda com nada daqui.
+- **Qual gatilho de retorno da demanda entra primeiro.** O §3.2 lista os três e os ordena
+  por custo; escolher é decisão de produto, e ela depende de quanto e-mail você acha que
+  este produto tem o direito de mandar.
+
+---
+
+## 9. Estado dos três pilares (2026-08-03)
+
+O esboço se sustenta em três pilares, e eles não amadurecem no mesmo ritmo:
+
+| Pilar | Onde mora | Estado |
+|---|---|---|
+| **Anatomia** — que superfícies existem | §1, §2 | ✅ fechado: toda superfície tem nome, papel e fase |
+| **Circulação** — o que faz o sistema girar | §3 | ✅ fechado: todo laço tem gatilho de retorno e prova de fechamento |
+| **Cultura** — onde a ideologia encosta | §4, §5, §6, §6.1 | 🟡 mapeado, e por decisão do fundador é o pilar que fica com ele |
+
+"Fechado" aqui quer dizer **mapeado**, não construído — é o que um esboço pode terminar.
+O que ainda não existe em código está no §7, em ordem, com o porquê de cada posição.
+
+Sobre o terceiro: cultura foi deliberadamente deixada com o fundador, e a divisão útil é
+esta — dos 8 pontos de contato do §4, quatro são **mecânicos** (a ordenação do §2.1, os
+estados vazios, as telas de erro e esconder o `★ 0.0`) e podem ser executados por
+qualquer um; os outros quatro são **voz** (léxico, ritual de entrada, status visível e o
+tom fora do site) e só ficam de pé se saírem de quem tem a convicção. Não é uma
+lacuna do documento: é uma fronteira dele.

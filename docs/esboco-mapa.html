@@ -433,6 +433,11 @@
   .step.now { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: var(--accent-soft); }
   .step.now p { color: var(--fg); opacity: 0.82; }
 
+  /* Entregue: continua na lista porque a ordem é o argumento — some o destaque, não o item. */
+  .step.done { opacity: 0.62; }
+  .step.done .n { color: var(--good); }
+  .step.done h3 { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 55%, transparent); }
+
   footer.end {
     margin-top: 64px;
     padding-top: 26px;
@@ -528,7 +533,7 @@
           <span class="chip"><i class="dot"></i>Feed da demanda <code>/painel/trampos</code></span>
           <span class="chip"><i class="dot"></i>Feed da oferta <code>/painel/editores</code></span>
           <span class="chip"><i class="dot"></i>Conversas <code>/painel/conversas</code></span>
-          <span class="chip gap"><i class="dot"></i>Trabalho fechado + avaliação</span>
+          <span class="chip gap"><i class="dot"></i>Trampos fechados + avaliação <code>/painel/trampos-fechados</code></span>
         </div>
       </div>
 
@@ -578,44 +583,46 @@
       <div class="loop">
         <div class="loop-top">
           <h3>Aquisição</h3>
-          <span class="loop-status broken">rompe no fim</span>
+          <span class="loop-status ok">fecha</span>
         </div>
         <div class="chain">
           <span class="node">busca no Google</span><span class="link" aria-hidden="true">→</span>
           <span class="node">perfil indexado</span><span class="link" aria-hidden="true">→</span>
-          <span class="node">vitrine</span><span class="link cut" aria-hidden="true">⇥</span>
-          <span class="node broken">falar com o editor</span>
+          <span class="node">vitrine</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">falar com o editor</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">conta</span>
         </div>
-        <p class="note">O botão “Falar com” do perfil é um <code>href="#"</code>. Todo o SEO desemboca nele.</p>
+        <p class="note">O <code>href="#"</code> do perfil virou conversa no Bloco 5. Falta só saber de onde veio o cadastro — nada registra a origem.</p>
       </div>
 
       <div class="loop">
         <div class="loop-top">
           <h3>Oferta — o editor volta porque ganha</h3>
-          <span class="loop-status broken">rompe em dois pontos</span>
+          <span class="loop-status broken">rompe no fim</span>
         </div>
         <div class="chain">
           <span class="node">publica perfil</span><span class="link" aria-hidden="true">→</span>
-          <span class="node">aparece</span><span class="link cut" aria-hidden="true">⇥</span>
-          <span class="node broken">recebe contato</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">aparece</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">recebe contato</span><span class="link" aria-hidden="true">→</span>
           <span class="node">entrega</span><span class="link cut" aria-hidden="true">⇥</span>
           <span class="node broken">recebe nota</span><span class="link" aria-hidden="true">→</span>
           <span class="node">sobe na ordenação</span>
         </div>
-        <p class="note">Sem contato e sem nota, o editor nunca descobre que valeu a pena estar aqui.</p>
+        <p class="note">O contato já chega (conversa e feed de trampos). Falta a nota — e falta o e-mail: hoje o editor só descobre que foi procurado se abrir a aba.</p>
       </div>
 
       <div class="loop">
         <div class="loop-top">
           <h3>Demanda — o cliente volta porque resolveu</h3>
-          <span class="loop-status ok">fecha fora do produto</span>
+          <span class="loop-status broken">nem começa a dar a volta</span>
         </div>
         <div class="chain">
-          <span class="node">contrata</span><span class="link" aria-hidden="true">→</span>
-          <span class="node">deu certo</span><span class="link" aria-hidden="true">→</span>
-          <span class="node">volta ou indica</span>
+          <span class="node">posta ou acha no feed</span><span class="link" aria-hidden="true">→</span>
+          <span class="node">escolhe</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">deu certo</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">volta ou indica</span>
         </div>
-        <p class="note">Funciona, mas acontece fora da plataforma — nada disso é medido nem registrado.</p>
+        <p class="note">O buraco que não estava mapeado. O produto termina no aceite: sem <code>Deal</code> ninguém sabe que o trampo acabou, então não há o que pedir, medir nem oferecer depois. Nada no plano faz um cliente satisfeito voltar.</p>
       </div>
 
       <div class="loop">
@@ -624,7 +631,7 @@
           <span class="loop-status broken">não existe</span>
         </div>
         <div class="chain">
-          <span class="node broken">trabalho fechado</span><span class="link cut" aria-hidden="true">⇥</span>
+          <span class="node broken">trampo fechado</span><span class="link cut" aria-hidden="true">⇥</span>
           <span class="node broken">avaliação</span><span class="link" aria-hidden="true">→</span>
           <span class="node">nota</span><span class="link" aria-hidden="true">→</span>
           <span class="node">ordenação</span><span class="link" aria-hidden="true">→</span>
@@ -637,12 +644,13 @@
     <div class="verdict">
       <p class="eyebrow">O diagnóstico</p>
       <p class="big">
-        Os quatro laços passam por conversa e avaliação — exatamente as duas peças que
-        não existem.
+        A conversa existe e os dois feeds existem. O que falta agora é o fim do ciclo:
+        nada registra que o trampo acabou, e nada fala com quem está longe da aba.
       </p>
       <p class="note">
-        O sistema hoje tem entrada e saída, mas não tem circulação. Por isso o que falta
-        não é <i>mais</i> painel: é o pedaço que faz o ciclo voltar ao começo.
+        O canal é a <b>notificação por e-mail</b>; o motivo é o <b>Deal</b>. Um sem o outro
+        entrega metade do ciclo — e o <code>Deal</code> é o único item que fecha dois laços
+        de uma vez, o de reputação e o da demanda.
       </p>
     </div>
   </section>
@@ -866,39 +874,53 @@
     </div>
 
     <div class="steps">
-      <div class="step now">
+      <div class="step done">
         <span class="n">1</span>
         <div class="body">
-          <h3>Conversa, com duas portas de entrada</h3>
+          <h3>Conversa, com duas portas de entrada ✅</h3>
           <p>Fecha o <code>href="#"</code> do perfil e faz o aceite de um interesse desembocar no mesmo lugar. Uma caixa de entrada, dois caminhos. É a tela que você chamou de coração.</p>
         </div>
       </div>
-      <div class="step now">
+      <div class="step done">
         <span class="n">2</span>
         <div class="body">
-          <h3>Notificação por e-mail</h3>
-          <p>Sem ela o item 1 não gira: as duas pontas agem em tempos diferentes e ninguém descobre que foi procurado. Um evento por lado basta.</p>
+          <h3>Os dois feeds, com categoria e paginação ✅</h3>
+          <p>Trampos abertos e editores disponíveis, um por lado do mercado. Não é escala: é a tela de “o que tem hoje”, sem a qual nenhum dos dois lados tem de onde partir.</p>
+        </div>
+      </div>
+      <div class="step now">
+        <span class="n">3</span>
+        <div class="body">
+          <h3>Notificação por e-mail — o canal</h3>
+          <p>Sem ela nada gira: as duas pontas agem em tempos diferentes e ninguém descobre que foi procurado. Um evento por lado basta.</p>
+        </div>
+      </div>
+      <div class="step now">
+        <span class="n">4</span>
+        <div class="body">
+          <h3>Deal + avaliação + histórico — o motivo</h3>
+          <p>O marco de “acabou”. É o único item que fecha dois laços de uma vez: o de reputação e o da demanda. Sem ele a notificação não tem o que anunciar.</p>
         </div>
       </div>
       <div class="step">
-        <span class="n">3</span>
+        <span class="n">5</span>
         <div class="body">
           <h3>Esconder a nota até existir avaliação</h3>
           <p>Meia hora de trabalho. Hoje “★ 0.0” em todo card é uma acusação; a ausência seria neutra.</p>
         </div>
       </div>
       <div class="step">
-        <span class="n">4</span>
+        <span class="n">6</span>
         <div class="body">
-          <h3>Trabalho fechado + avaliação</h3>
-          <p>Fecha o laço de reputação, liga a nota de volta e cria a base sobre a qual o 1% pode ser medido.</p>
+          <h3>Esqueci a senha</h3>
+          <p>Conta perdida é usuário perdido. Barato, e hoje não existe saída nenhuma.</p>
         </div>
       </div>
       <div class="step">
-        <span class="n">5</span>
+        <span class="n">7</span>
         <div class="body">
-          <h3>Paginação do feed e os N+1</h3>
-          <p>Problemas de escala, não de MVP. Ficam pra depois de o marketplace girar.</p>
+          <h3>N+1 da vitrine</h3>
+          <p>Escala, não MVP — mas dói primeiro na página indexada, que é a que traz gente.</p>
         </div>
       </div>
     </div>
