@@ -68,10 +68,11 @@ class JobRequestTest {
         // O editor vê o pedido no feed, ainda sem contato do cliente.
         mockMvc.perform(get("/v1/job-requests").header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].clientDisplayName").value("Cliente Maria"))
-                .andExpect(jsonPath("$[0].clientEmail").value(nullValue()))
-                .andExpect(jsonPath("$[0].myInterestStatus").value(nullValue()));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].clientDisplayName").value("Cliente Maria"))
+                .andExpect(jsonPath("$.content[0].clientEmail").value(nullValue()))
+                .andExpect(jsonPath("$.content[0].myInterestStatus").value(nullValue()));
 
         String candidatura = mockMvc.perform(post("/v1/job-requests/" + jobId + "/interests")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor)
@@ -148,7 +149,7 @@ class JobRequestTest {
 
         mockMvc.perform(get("/v1/job-requests").header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.content.length()").value(0));
 
         mockMvc.perform(post("/v1/job-requests/" + jobId + "/interests")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor)
@@ -181,6 +182,56 @@ class JobRequestTest {
     }
 
     // ---------- Helpers ----------
+
+    @Test
+    void feedDeTramposPaginaEEscondeOPedidoDeQuemEstaLendo() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente Maria");
+        String editor = registrar("editor@teste.com", "Editor Bruno");
+        publicarPerfilDeEditor(editor);
+
+        criarPedido(cliente);
+        criarPedido(cliente);
+        criarPedido(cliente);
+        // O editor também é cliente de si mesmo — mas o próprio pedido não entra no
+        // feed dele, e não pode contar no total nem furar o tamanho da página.
+        criarPedido(editor);
+
+        mockMvc.perform(get("/v1/job-requests?size=2")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.last").value(false));
+
+        mockMvc.perform(get("/v1/job-requests?size=2&page=1")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    void feedDeTramposFiltraPorCategoria() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente Maria");
+        String editor = registrar("editor@teste.com", "Editor Bruno");
+        publicarPerfilDeEditor(editor);
+
+        criarPedido(cliente); // PODCAST
+
+        mockMvc.perform(get("/v1/job-requests?niche=PODCAST")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1));
+
+        mockMvc.perform(get("/v1/job-requests?niche=TIKTOK")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
 
     private String registrar(String email, String displayName) throws Exception {
         String body = mockMvc.perform(post("/v1/auth/register")

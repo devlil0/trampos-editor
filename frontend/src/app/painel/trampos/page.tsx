@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CategoryChips, FeedPager } from "@/components/feed-nav";
 import { InterestForm } from "@/components/job-forms";
 import { NicheTag } from "@/components/niche-tag";
 import { fetchJobFeed, fetchMyEditorProfile, fetchMyJobInterests } from "@/lib/api";
@@ -13,15 +14,26 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
-export default async function TramposPage() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
+
+function pick(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/** Feed da demanda — o que os clientes estão pedindo. Par de `/painel/editores`. */
+export default async function TramposPage({ searchParams }: { searchParams: SearchParams }) {
   if (!(await getCurrentUser())) redirect("/entrar");
 
   const token = await getSessionToken();
   if (!token) redirect("/entrar");
 
+  const sp = await searchParams;
+  const niche = pick(sp.niche);
+  const page = pick(sp.page);
+
   const perfil = await fetchMyEditorProfile(token);
   const [feed, candidaturas] = await Promise.all([
-    fetchJobFeed(token),
+    fetchJobFeed(token, { niche, page }),
     fetchMyJobInterests(token),
   ]);
 
@@ -64,22 +76,35 @@ export default async function TramposPage() {
       )}
 
       <section className="mt-8">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.09em] text-muted">
-          Pedidos abertos
-        </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xs font-bold uppercase tracking-[0.09em] text-muted">
+            Pedidos abertos
+          </h2>
+          <span className="text-sm text-muted tabular-nums">
+            <b className="text-fg">{feed.totalElements}</b>{" "}
+            {feed.totalElements === 1 ? "trampo" : "trampos"}
+          </span>
+        </div>
 
-        {feed.length === 0 ? (
+        <div className="mb-6">
+          <CategoryChips basePath="/painel/trampos" active={niche} />
+        </div>
+
+        {feed.content.length === 0 ? (
           <p className="rounded-[18px] border border-line bg-card p-6 text-muted">
-            Nenhum trampo aberto agora. Enquanto isso, deixe seu perfil afiado — é por ele que a
-            maioria dos clientes chega.
+            {niche
+              ? "Nenhum trampo aberto nessa categoria agora. Tente outra — ou deixe em “Todas”."
+              : "Nenhum trampo aberto agora. Enquanto isso, deixe seu perfil afiado — é por ele que a maioria dos clientes chega."}
           </p>
         ) : (
           <div className="flex flex-col gap-5">
-            {feed.map((job) => (
+            {feed.content.map((job) => (
               <FeedCard key={job.id} job={job} podeCandidatar={perfil != null} />
             ))}
           </div>
         )}
+
+        <FeedPager basePath="/painel/trampos" page={feed} niche={niche} />
       </section>
     </div>
   );

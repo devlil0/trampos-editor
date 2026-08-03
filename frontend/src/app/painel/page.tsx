@@ -104,8 +104,8 @@ export default async function PainelPage() {
           <section className="rounded-[18px] border border-line bg-card p-6">
             <h2 className="text-lg font-bold tracking-tight">Preciso de um editor</h2>
             <p className="mt-1 text-sm text-muted">
-              Poste o que você precisa e deixe os editores virem até você — ou procure na vitrine e
-              chame quem gostou.
+              Poste o que você precisa e deixe os editores virem até você — ou veja quem está livre
+              agora e chame direto.
             </p>
             <div className="mt-5 flex flex-wrap gap-2.5">
               <Link
@@ -120,11 +120,12 @@ export default async function PainelPage() {
               >
                 Meus pedidos
               </Link>
+              {/* Feed, não vitrine: aqui dentro o que importa é quem pega trampo hoje. */}
               <Link
-                href="/editores"
+                href="/painel/editores"
                 className="btn btn-ghost btn-sm"
               >
-                Ver editores
+                Editores disponíveis
               </Link>
             </div>
           </section>

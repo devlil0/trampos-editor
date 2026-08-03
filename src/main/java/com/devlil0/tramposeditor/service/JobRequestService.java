@@ -15,6 +15,9 @@ import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.ForbiddenException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +35,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class JobRequestService {
+
+    /** Teto do `size` do feed — impede que `?size=100000` vire uma consulta sem limite. */
+    private static final int MAX_FEED_SIZE = 50;
 
     private final IJobRequestRepository jobRequestRepository;
     private final IJobInterestRepository jobInterestRepository;
@@ -99,17 +105,24 @@ public class JobRequestService {
 
     // ---------- Lado do editor ----------
 
+    /**
+     * O feed de trampos: a demanda que o editor navega, uma página por vez.
+     * <p>
+     * O pedido de quem está lendo nunca aparece — quem publicou não se candidata ao
+     * próprio trampo. Isso vai na consulta, não num filtro depois.
+     */
     @Transactional(readOnly = true)
-    public List<JobRequestFeedDTO> feed(UUID editorUserId, EditorNiche niche){
-        List<JobRequestEntity> jobs = niche == null
-                ? jobRequestRepository.findByStatusOrderByCreatedAtDesc(JobRequestStatus.OPEN)
-                : jobRequestRepository.findByStatusAndNicheOrderByCreatedAtDesc(JobRequestStatus.OPEN, niche);
+    public PageResponseDTO<JobRequestFeedDTO> feed(UUID editorUserId, EditorNiche niche, int page, int size){
+        int safeSize = Math.min(Math.max(size, 1), MAX_FEED_SIZE);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), safeSize);
 
-        return jobs.stream()
-                // O próprio pedido não aparece no feed de quem o publicou.
-                .filter(job -> !job.getClient().getId().equals(editorUserId))
-                .map(job -> toFeedDTO(job, editorUserId))
-                .toList();
+        Page<JobRequestEntity> jobs = niche == null
+                ? jobRequestRepository.findByStatusAndClientIdNotOrderByCreatedAtDesc(
+                        JobRequestStatus.OPEN, editorUserId, pageable)
+                : jobRequestRepository.findByStatusAndNicheAndClientIdNotOrderByCreatedAtDesc(
+                        JobRequestStatus.OPEN, niche, editorUserId, pageable);
+
+        return PageResponseDTO.from(jobs, job -> toFeedDTO(job, editorUserId));
     }
 
     @Transactional

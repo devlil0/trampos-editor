@@ -3,7 +3,7 @@
 > O mapa do todo: cada superfície que o produto vai ter, o que faz o sistema girar, e
 > onde a estética, a ideologia e a cultura encostam no software.
 > Complementa o `FUNDACAO.md` (estratégia e decisões) — aqui é a forma do sistema.
-> Data: 2026-08-02 · Estado: Blocos 0–4 e 7 entregues; 5 e 6 em aberto.
+> Data: 2026-08-03 · Estado: Blocos 0–5 e 7 entregues; 6 em aberto.
 
 ---
 
@@ -29,18 +29,32 @@ O sistema inteiro cabe em quatro camadas. Elas se distinguem por **quem entra** 
 │  /painel                    hub                             │
 │  /painel/meu-perfil         editor monta sua vitrine        │
 │  /painel/pedidos            cliente posta e recebe          │
-│  /painel/trabalhos          editor escolhe trampo           │
-│  /painel/conversas    ⬜    A CAIXA DE ENTRADA (falta)      │
-│  /painel/trabalhos-fechados ⬜  histórico + review (falta)  │
+│  /painel/trampos      ✅    FEED DA DEMANDA                 │
+│  /painel/editores     ✅    FEED DA OFERTA                  │
+│  /painel/conversas    ✅    a caixa de entrada              │
+│  /painel/trampos-fechados ⬜    histórico + review (falta)  │
 └─────────────────────────────────────────────────────────────┘
                             ↓ roda em cima de
 ┌─ MOTOR ───────────────────────── guarda e faz cumprir ─────┐
 │  User · EditorProfile · PortfolioItem                       │
 │  JobRequest · JobInterest                                   │
-│  Conversation · Message ⬜   Deal ⬜   Review ⬜             │
+│  Conversation · Message ✅   Deal ⬜   Review ⬜             │
 │  Notification ⬜   Boost (F2)   Escrow (F3)                 │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Os dois feeds são um par, não duas telas
+
+A camada logada tem **dois feeds simétricos**, um por lado do mercado:
+
+| Feed | Rota | Mostra | Pra quem |
+|---|---|---|---|
+| **Demanda** | `/painel/trampos` | trampos abertos — clientes pedindo edição | quem edita |
+| **Oferta** | `/painel/editores` | editores disponíveis agora | quem contrata |
+
+Mesma forma nos dois: **um seletor de categoria, uma página por vez, só pra quem tem
+conta.** A simetria não é estética — é o que faz a plataforma parecer um mercado em vez
+de um catálogo com um formulário do lado.
 
 ### Por que a camada pública é grande e a logada é pequena
 
@@ -51,6 +65,34 @@ ela não capta ninguém, ela **resolve** quem já foi captado.
 
 O erro clássico seria inflar a camada logada com dashboards. O coração não é mais telas:
 é **uma tela onde as duas pontas se falam**.
+
+### Feed não é dashboard — e feed de editores não é a vitrine de novo
+
+Os dois feeds parecem contrariar o parágrafo acima. Não contrariam, e vale dizer por quê,
+senão a próxima pessoa "corrige" isso.
+
+Dashboard é tela que **descreve** o que já aconteceu — gráfico, contador, resumo. Feed é
+tela que **oferece o próximo passo**: aqui está o que tem hoje, escolha. O que infla a
+camada logada é o primeiro tipo; o segundo é circulação, que é justamente o que o §3
+diagnostica como faltando.
+
+Já o feed de editores não duplica a vitrine, porque as duas respondem a perguntas
+diferentes:
+
+| | Vitrine `/editores` | Feed `/painel/editores` |
+|---|---|---|
+| Quem entra | qualquer um, e o Google | só quem tem conta |
+| Pergunta | "quem é o editor certo pro meu vídeo?" | "quem está livre agora?" |
+| Mostra | todo mundo, ocupado inclusive | só quem está **disponível** |
+| Recorte | busca, nicho, ferramenta, estilo, preço | categoria, e só |
+| Papel | aquisição — é o ativo de SEO | circulação — é uso recorrente |
+
+A vitrine é para **decidir**, e por isso é generosa em filtro e indexável. O feed é para
+**voltar**, e por isso é enxuto e fechado. Uma capta, a outra retém.
+
+Consequência de desenho que vale fixar: o feed lista só quem está disponível. Isso dá
+dente à "disponibilidade honesta" do §6 — marcar-se ocupado tira você do feed, mas nunca
+da vitrine. O gesto custa visibilidade do dia, não a existência do perfil.
 
 ---
 
@@ -67,8 +109,9 @@ O erro clássico seria inflar a camada logada com dashboards. O coração não �
 | `/painel` | ✅ | ambos | hub por papel | MVP |
 | `/painel/meu-perfil` | ✅ | editor | virar editor, editar vitrine | MVP |
 | `/painel/pedidos` | ✅ | cliente | postar, ver interessados, aceitar | 1.5 |
-| `/painel/trabalhos` | ✅ | editor | feed, candidatar, acompanhar | 1.5 |
-| **`/painel/conversas`** | ⬜ | ambos | **onde a relação acontece** | **MVP** |
+| `/painel/trampos` feed da demanda | ✅ | editor | categoria, paginado, candidatar | **MVP** |
+| `/painel/editores` feed da oferta | ✅ | cliente | quem está livre agora, por categoria | **MVP** |
+| `/painel/conversas` | ✅ | ambos | onde a relação acontece | MVP |
 | **trabalho fechado + review** | ⬜ | ambos | fecha o laço de reputação | **MVP** |
 | notificação por e-mail | ⬜ | ambos | faz o assíncrono funcionar | **MVP** |
 | páginas de tag (`/editores/tiktok`) | ⬜ | cliente | SEO long-tail dedicado | 2 |
@@ -98,11 +141,20 @@ fecha, o produto vaza pelo buraco.
 
 ### O diagnóstico em uma frase
 
-> Os quatro laços passam por **conversa** e **avaliação** — que são exatamente as duas
-> peças que não existem. O sistema hoje tem entrada e saída, mas não tem circulação.
+> Os quatro laços passam por **conversa** e **avaliação** — que eram exatamente as duas
+> peças que não existiam. O sistema tinha entrada e saída, mas não tinha circulação.
 
 É por isso que "faltam as janelas do pós-login" está certo em espírito: o que falta não
 é *mais* painel, é o pedaço que faz o ciclo voltar ao começo.
+
+**Onde o diagnóstico está hoje (2026-08-03).** A conversa existe (Bloco 5) e os dois
+feeds existem — então as duas pontas já se acham e já se falam. Sobram dois furos, e
+os dois são no mesmo lugar do ciclo:
+
+- **avaliação** (§7 item 5) — sem ela o laço de reputação não fecha e a ordenação não
+  tem no que se apoiar;
+- **notificação** (§7 item 3) — sem ela o que foi construído gira só enquanto a pessoa
+  está com a aba aberta. É o furo mais barato de tapar e o que mais custa deixar aberto.
 
 ---
 
@@ -126,7 +178,7 @@ pro mais fraco:
 ### 4.1. O léxico já começou sozinho
 
 "Trampo" entrou na interface ("Você edita? Pegue um trampo"), "vitrine" substituiu
-"editores" na nav, "trabalhos abertos" em vez de "vagas". Isso **é** cultura, e é o
+"editores" na nav, "trampos abertos" em vez de "vagas". Isso **é** cultura, e é o
 vetor mais barato que existe: nenhuma linha de layout muda.
 
 Vale fixar um glossário curto e obedecê-lo em todo lugar — inclusive nos e-mails e nos
@@ -294,15 +346,27 @@ Isso dá direção concreta ao visual, e o que já existe está alinhado:
 
 Deriva direto dos laços do §3 — não é lista de desejos.
 
-| # | O quê | Por que agora | Bloco |
-|---|---|---|---|
-| 1 | **Conversa, com duas portas de entrada** | fecha o `href="#"` do perfil e unifica os dois fluxos numa caixa de entrada só | 5 |
-| 2 | **Notificação por e-mail** | sem ela o item 1 não gira: ninguém sabe que foi procurado | novo |
-| 3 | **Esconder a nota até existir review** | hoje todo card anuncia "★ 0.0", que faz a vitrine parecer morta | — |
-| 4 | **Trabalho fechado + avaliação** | fecha o laço de reputação e liga a nota de volta; é a base do "1%" (§6) | 6 |
-| 5 | Paginação do feed, N+1 da vitrine | escala, não MVP | — |
+| # | O quê | Por que agora | Bloco | Estado |
+|---|---|---|---|:---:|
+| 1 | **Conversa, com duas portas de entrada** | fecha o `href="#"` do perfil e unifica os dois fluxos numa caixa de entrada só | 5 | ✅ |
+| 2 | **Os dois feeds, com categoria e paginação** | os dois lados precisam de uma tela de "o que tem hoje" — e o feed sem limite não escala | 5.5 | ✅ |
+| 3 | **Notificação por e-mail** | sem ela os itens 1 e 2 não giram: ninguém sabe que foi procurado | novo | ⬜ |
+| 4 | **Esconder a nota até existir review** | hoje todo card anuncia "★ 0.0", que faz a vitrine parecer morta | — | ⬜ |
+| 5 | **Trabalho fechado + avaliação** | fecha o laço de reputação e liga a nota de volta; é a base do "1%" (§6) | 6 | ⬜ |
+| 6 | N+1 da vitrine (`@EntityGraph` nas coleções) | escala, não MVP — mas dói primeiro na página indexada | — | ⬜ |
 
-Os itens 1 e 2 separam "as peças existem" de "o marketplace funciona".
+Os itens 1 a 3 separam "as peças existem" de "o marketplace funciona".
+
+### Por que o feed virou MVP (decisão de 2026-08-03)
+
+Este documento tratava paginação como "escala, não MVP". Estava olhando pro problema
+errado: o que faltava não era aguentar volume, era **existir a tela**. Um marketplace
+onde cada lado não tem onde olhar o que o outro lado está oferecendo hoje não fecha o
+laço da demanda nem o da oferta (§3) — a conversa existe, mas não há de onde ela partir.
+
+A paginação entrou junto porque é a mesma consulta: o feed nasceu paginado em vez de
+nascer devendo. O N+1 da vitrine ficou de fora — é otimização de verdade, e a vitrine
+já pagina.
 
 ### Sobre o custo do chat (dúvida levantada em 2026-08-02)
 

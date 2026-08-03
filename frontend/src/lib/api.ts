@@ -59,10 +59,53 @@ export function fetchMyJobRequests(token: string): Promise<JobRequest[]> {
   return authGet<JobRequest[]>("/v1/me/job-requests", token, []);
 }
 
-/** Pedidos abertos de outras pessoas — o feed de quem edita. */
-export function fetchJobFeed(token: string, niche?: string): Promise<JobRequestFeedItem[]> {
-  const qs = niche ? `?niche=${encodeURIComponent(niche)}` : "";
-  return authGet<JobRequestFeedItem[]>(`/v1/job-requests${qs}`, token, []);
+/**
+ * Os dois feeds da área logada têm o mesmo recorte de propósito: uma categoria e uma
+ * página. Filtro fino é assunto da vitrine pública, que existe pra ser garimpada.
+ */
+export interface FeedQuery {
+  niche?: string;
+  page?: string;
+}
+
+function feedParams(query: FeedQuery): string {
+  const params = new URLSearchParams();
+  if (query.niche) params.set("niche", query.niche);
+  if (query.page && query.page !== "0") params.set("page", query.page);
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+/** Sessão caída não derruba a tela — devolve página vazia com a forma do envelope real. */
+function emptyPage<T>(): Page<T> {
+  return { content: [], page: 0, size: 0, totalElements: 0, totalPages: 0, last: true };
+}
+
+/** Feed da demanda: trampos abertos que outras pessoas publicaram. */
+export function fetchJobFeed(
+  token: string,
+  query: FeedQuery = {},
+): Promise<Page<JobRequestFeedItem>> {
+  return authGet<Page<JobRequestFeedItem>>(
+    `/v1/job-requests${feedParams(query)}`,
+    token,
+    emptyPage<JobRequestFeedItem>(),
+  );
+}
+
+/**
+ * Feed da oferta: editores disponíveis agora. Não é a vitrine — mora atrás do login e
+ * só lista quem está livre (ver o javadoc do `FeedController`).
+ */
+export function fetchEditorFeed(
+  token: string,
+  query: FeedQuery = {},
+): Promise<Page<EditorSummary>> {
+  return authGet<Page<EditorSummary>>(
+    `/v1/feed/editors${feedParams(query)}`,
+    token,
+    emptyPage<EditorSummary>(),
+  );
 }
 
 /** Pedidos em que eu me candidatei. */

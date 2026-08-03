@@ -176,6 +176,43 @@ class EditorDirectoryTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void feedDeEditoresExigeLoginEMostraSoQuemEstaDisponivel() throws Exception {
+        String livre = registrarEditor("livre@teste.com", "Editor Livre");
+        upsertPerfil(livre, """
+                {"niches": ["REELS"], "tools": ["PREMIERE"], "available": true}
+                """);
+
+        String ocupado = registrarEditor("ocupado@teste.com", "Editor Ocupado");
+        upsertPerfil(ocupado, """
+                {"niches": ["REELS"], "tools": ["PREMIERE"], "available": false}
+                """);
+
+        // Sem token o feed não existe — é o que o separa da vitrine pública.
+        mockMvc.perform(get("/v1/feed/editors"))
+                .andExpect(status().isUnauthorized());
+
+        // A vitrine, essa sim, mostra os dois sem login nenhum.
+        mockMvc.perform(get("/v1/editors"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+
+        String cliente = registrar("cliente@teste.com", "Cliente Maria", "CLIENT");
+
+        mockMvc.perform(get("/v1/feed/editors")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].displayName").value("Editor Livre"))
+                .andExpect(jsonPath("$.content[0].available").value(true));
+
+        // Mesmo recorte, agora por categoria.
+        mockMvc.perform(get("/v1/feed/editors?niche=PODCAST")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
     // ---------- Helpers ----------
 
     private String registrarEditor(String email, String displayName) throws Exception {

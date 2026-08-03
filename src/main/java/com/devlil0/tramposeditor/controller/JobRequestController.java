@@ -2,6 +2,7 @@ package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.dto.JobInterestCreateDTO;
 import com.devlil0.tramposeditor.dto.JobRequestFeedDTO;
+import com.devlil0.tramposeditor.dto.PageResponseDTO;
 import com.devlil0.tramposeditor.enums.EditorNiche;
 import com.devlil0.tramposeditor.service.JobRequestService;
 import jakarta.validation.Valid;
@@ -11,7 +12,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,9 +27,11 @@ public class JobRequestController {
 
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
-    public List<JobRequestFeedDTO> feed(@AuthenticationPrincipal Jwt jwt,
-                                        @RequestParam(required = false) EditorNiche niche){
-        return jobRequestService.feed(userId(jwt), niche);
+    public PageResponseDTO<JobRequestFeedDTO> feed(@AuthenticationPrincipal Jwt jwt,
+                                                   @RequestParam(required = false) EditorNiche niche,
+                                                   @RequestParam(defaultValue = "0") int page,
+                                                   @RequestParam(defaultValue = "20") int size){
+        return jobRequestService.feed(userId(jwt), niche, page, size);
     }
 
     @PostMapping("/{jobId}/interests")
