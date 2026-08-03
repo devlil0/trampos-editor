@@ -14,6 +14,7 @@ import com.devlil0.tramposeditor.enums.JobRequestStatus;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.ForbiddenException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
+import com.devlil0.tramposeditor.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -44,6 +45,8 @@ public class JobRequestService {
     private final IEditorProfileRepository editorProfileRepository;
     private final IUserRepository userRepository;
     private final ConversationService conversationService;
+    private final DealService dealService;
+    private final NotificationService notificationService;
 
     // ---------- Lado do cliente ----------
 
@@ -99,7 +102,13 @@ public class JobRequestService {
                 .orElseThrow(() -> new NotFoundException("Interesse não encontrado: " + interestId));
 
         interest.setStatus(JobInterestStatus.ACCEPTED);
-        conversationService.openForJob(job, interest.getEditor());
+        var conversation = conversationService.openForJob(job, interest.getEditor());
+        // Aceitar já é o gesto de "fechamos": o trampo nasce aqui em vez de pedir o
+        // mesmo combinado numa segunda tela (ESBOCO §3.2).
+        dealService.openForJob(conversation, job, interest.getEditor());
+        // A conversa do aceite nasce sem mensagem, então nenhum aviso sairia por ela —
+        // este é o único momento em que o editor descobre que foi escolhido.
+        notificationService.interestAccepted(interest.getEditor(), job.getClient(), job.getTitle());
         return toOwnerDTO(job);
     }
 
@@ -153,6 +162,7 @@ public class JobRequestService {
                 .build());
 
         jobRequestRepository.save(job);
+        notificationService.newInterest(job.getClient(), editor, job.getTitle());
         return toFeedDTO(job, editorUserId);
     }
 

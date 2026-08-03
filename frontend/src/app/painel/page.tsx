@@ -169,6 +169,18 @@ export default async function PainelPage() {
           </Link>
         </section>
 
+        {/* O fim do ciclo (ESBOCO §3.2): é daqui que sai a avaliação e o "chamar de novo". */}
+        <section className="rounded-[18px] border border-line bg-card p-6">
+          <h2 className="text-lg font-bold tracking-tight">Trampos</h2>
+          <p className="mt-1 text-sm text-muted">
+            O que está em andamento e o que já foi entregue. É a avaliação daqui que mexe na
+            ordenação da vitrine.
+          </p>
+          <Link href="/painel/trampos-fechados" className="mt-5 btn btn-ghost btn-sm">
+            Ver meus trampos
+          </Link>
+        </section>
+
         <section className="rounded-[18px] border border-line bg-card p-6">
           <h2 className="text-lg font-bold tracking-tight">Sua conta</h2>
           <dl className="mt-3.5 flex flex-col gap-2.5 text-sm">

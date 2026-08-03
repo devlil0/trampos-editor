@@ -38,10 +38,14 @@ export function EditorCard({ editor }: { editor: EditorSummary }) {
       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:py-1 sm:pr-1">
         <div className="flex items-baseline justify-between gap-2.5">
           <span className="truncate text-lg font-bold tracking-tight">{editor.displayName}</span>
-          <span className="shrink-0 whitespace-nowrap text-sm text-muted tabular-nums">
-            <span className="text-amber-400">★</span>{" "}
-            <b className="text-fg">{editor.ratingAvg.toFixed(1)}</b> ({editor.ratingCount})
-          </span>
+          {/* Sem avaliação nenhuma, o card não diz nada sobre nota: "★ 0.0" lê como
+              acusação, e a ausência é neutra (ESBOCO §7 item 5). */}
+          {editor.ratingCount > 0 && (
+            <span className="shrink-0 whitespace-nowrap text-sm text-muted tabular-nums">
+              <span className="text-amber-400">★</span>{" "}
+              <b className="text-fg">{editor.ratingAvg.toFixed(1)}</b> ({editor.ratingCount})
+            </span>
+          )}
         </div>
 
         {editor.headline && <p className="text-sm text-muted">{editor.headline}</p>}

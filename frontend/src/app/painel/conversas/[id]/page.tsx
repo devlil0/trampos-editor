@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { SendMessageForm } from "@/components/conversation-forms";
-import { fetchConversation } from "@/lib/api";
+import { OpenDealForm } from "@/components/deal-forms";
+import { fetchConversation, fetchMyDeals } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
 import type { Message } from "@/lib/types";
 
@@ -28,6 +29,10 @@ export default async function ConversaPage({ params }: { params: Params }) {
   // Conversa de outra pessoa devolve o mesmo 404 de conversa inexistente: quem não
   // participa não deve nem descobrir que ela existe.
   if (!conversa) notFound();
+
+  // O trampo mais recente desta conversa, se houver. O histórico já vem ordenado do
+  // servidor, então o primeiro encontrado é o que interessa.
+  const trampo = (await fetchMyDeals(token)).find((d) => d.conversationId === conversa.id);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
@@ -78,6 +83,26 @@ export default async function ConversaPage({ params }: { params: Params }) {
           Pra mandar material, cole o link — o site não recebe arquivo, do mesmo jeito que o
           portfólio funciona por link.
         </p>
+      </div>
+
+      {/* O trampo da conversa direta (ESBOCO §3.2): sem este registro, o caminho da
+          vitrine tem começo e não tem fim, e nada nunca vira avaliação. */}
+      <div className="mt-6 rounded-[18px] border border-line bg-card p-5">
+        {trampo ? (
+          <p className="text-sm text-muted">
+            Trampo registrado: <b className="text-fg">{trampo.title}</b>{" "}
+            <Link href="/painel/trampos-fechados" className="font-semibold text-accent hover:underline">
+              {trampo.status === "OPEN" ? "encerrar e avaliar" : "ver no histórico"}
+            </Link>
+          </p>
+        ) : conversa.iAmClient ? (
+          <OpenDealForm conversationId={conversa.id} />
+        ) : (
+          <p className="text-sm text-muted">
+            Quando {conversa.counterpartDisplayName} registrar o trampo, ele aparece aqui e
+            vocês dois podem se avaliar no fim.
+          </p>
+        )}
       </div>
     </div>
   );

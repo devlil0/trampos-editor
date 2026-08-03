@@ -171,6 +171,36 @@ export interface ConversationDetail {
   counterpartSlug: string | null;
   jobRequestId: string | null;
   jobTitle: string | null;
+  /** Sou o lado que contrata — decide quem registra e encerra o trampo. */
+  iAmClient: boolean;
   messages: Message[];
   createdAt: string;
+}
+
+export type DealStatus = "OPEN" | "DONE" | "CANCELLED";
+
+export interface Review {
+  id: string;
+  authorName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
+/**
+ * Um trampo combinado. O `counterpartSlug` é o que faz o "chamar de novo" funcionar
+ * em um clique — repetição de fornecedor é o gatilho do laço da demanda (ESBOCO §3.2).
+ */
+export interface Deal {
+  id: string;
+  conversationId: string;
+  title: string;
+  status: DealStatus;
+  counterpartName: string;
+  counterpartSlug: string | null;
+  iAmClient: boolean;
+  reviewedByMe: boolean;
+  reviewOfMe: Review | null;
+  createdAt: string;
+  closedAt: string | null;
 }

@@ -1,6 +1,7 @@
 import type {
   ConversationDetail,
   ConversationSummary,
+  Deal,
   EditorProfile,
   EditorSummary,
   JobRequest,
@@ -10,6 +11,30 @@ import type {
 
 // Lido só no servidor (SSR). Nunca exposto ao browser.
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
+
+/**
+ * Endereço do backend **como o browser o alcança**. Diferente de `API_URL`, que pode ser
+ * um host interno: o login social manda a pessoa direto pro backend
+ * (`/oauth2/authorization/google`), então esse endereço precisa existir do lado de fora.
+ * Em dev os dois coincidem.
+ */
+export const PUBLIC_API_URL = process.env.PUBLIC_API_URL ?? API_URL;
+
+/**
+ * Quais provedores de login estão ligados. Lista vazia quando o ambiente não tem
+ * credencial — aí as telas de login ficam só com e-mail e senha.
+ */
+export async function fetchSocialProviders(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_URL}/v1/auth/social/providers`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    // Backend fora do ar não pode derrubar a tela de login: sem provedor, ela ainda
+    // serve pra entrar com senha.
+    return [];
+  }
+}
 
 export interface EditorQuery {
   niche?: string;
@@ -124,6 +149,11 @@ export async function fetchMyEditorProfile(token: string): Promise<EditorProfile
     throw new Error(`Falha ao carregar seu perfil (HTTP ${res.status})`);
   }
   return res.json();
+}
+
+/** O histórico: trampos combinados pelos dois lados, mais recente primeiro. */
+export function fetchMyDeals(token: string): Promise<Deal[]> {
+  return authGet<Deal[]>("/v1/me/deals", token, []);
 }
 
 /** A caixa de entrada: conversas das duas portas, mais recente primeiro. */

@@ -14,6 +14,7 @@ import com.devlil0.tramposeditor.dto.MessageDTO;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.ForbiddenException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
+import com.devlil0.tramposeditor.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +47,7 @@ public class ConversationService {
     private final IConversationRepository conversationRepository;
     private final IEditorProfileRepository editorProfileRepository;
     private final IUserRepository userRepository;
+    private final NotificationService notificationService;
 
     // ---------- Porta 1: vitrine ----------
 
@@ -121,8 +123,15 @@ public class ConversationService {
     // ---------- Helpers ----------
 
     private MessageEntity appendMessage(ConversationEntity conversation, UUID senderId, String body){
+        UserEntity sender = loadUser(senderId);
+        UserEntity recipient = conversation.counterpartOf(senderId);
+
+        // Lido ANTES de anexar: depois de `addMessage` o `lastMessageAt` já mudou e todo
+        // destinatário pareceria ter pendência, o que mataria a regra de um aviso por vez.
+        boolean jaAvisado = conversation.hasUnreadFor(recipient.getId());
+
         MessageEntity message = MessageEntity.builder()
-                .sender(loadUser(senderId))
+                .sender(sender)
                 .body(body.trim())
                 .createdAt(LocalDateTime.now())
                 .build();
@@ -132,6 +141,8 @@ public class ConversationService {
         // apareceria como não lida pro próprio autor.
         conversation.markReadBy(senderId, message.getCreatedAt());
         conversationRepository.save(conversation);
+
+        notificationService.newMessage(recipient, sender, jaAvisado);
         return message;
     }
 
@@ -185,6 +196,7 @@ public class ConversationService {
                 slugOf(other.getId()),
                 job != null ? job.getId() : null,
                 job != null ? job.getTitle() : null,
+                c.isClient(userId),
                 c.getMessages().stream().map(m -> toMessageDTO(m, userId)).toList(),
                 c.getCreatedAt()
         );

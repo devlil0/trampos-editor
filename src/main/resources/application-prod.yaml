@@ -2,7 +2,26 @@ spring:
   jpa:
     show-sql: false
 
+  # Credenciais só do ambiente — nenhum default aqui, mesma regra do JWT_SECRET.
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 logging:
   level:
     root: INFO
     com.devlil0.tramposeditor: INFO
+
+tramposeditor:
+  notifications:
+    # Em produção o canal manda de verdade. Se as credenciais não vierem, o
+    # SmtpEmailSender registra a falha e segue — a ação do usuário nunca cai por e-mail.
+    transport: ${NOTIFICATIONS_TRANSPORT:smtp}

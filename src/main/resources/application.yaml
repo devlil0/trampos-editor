@@ -17,6 +17,17 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        # Mata o N+1 da vitrine (ESBOCO §7 item 7). Cada EditorProfile tem três
+        # @ElementCollection (nicho, ferramenta, estilo) mais o user: listar 20 editores
+        # disparava uma consulta por coleção por editor.
+        #
+        # Batch fetch e não @EntityGraph de propósito: fetch join de três coleções junto
+        # com paginação faz o Hibernate trazer tudo e paginar em memória (HHH000104), e
+        # ainda multiplica linhas em produto cartesiano. Batch agrupa em `in (...)` e
+        # deixa a paginação acontecer no banco, onde ela tem que acontecer.
+        default_batch_fetch_size: 25
 
   flyway:
     enabled: true
@@ -25,6 +36,32 @@ spring:
   threads:
     virtual:
       enabled: true
+
+  # ---------------------------------------------------------------------------------
+  # Login social (Google e GitHub) — configurado SÓ por variável de ambiente.
+  #
+  # Não há bloco `security.oauth2.client.registration` aqui de propósito: o Spring
+  # valida os registros na subida e um `client-id` vazio derruba a aplicação inteira com
+  # "Client id of registration 'google' must not be empty". Registro com valor vazio é
+  # pior que registro ausente — sem nada declarado, a autoconfiguração simplesmente não
+  # cria o repositório, o SecurityConfig não liga o oauth2Login, e sobe sem provedor.
+  #
+  # Pra ligar, exporte (o nome longo é o binding relaxado do Spring):
+  #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID
+  #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET
+  #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_ID
+  #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_CLIENT_SECRET
+  #   SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GITHUB_SCOPE=read:user,user:email
+  #
+  # Endpoints e escopos vêm do CommonOAuth2Provider quando o nome do registro é `google`
+  # ou `github`. O escopo do GitHub é o único que precisa de override: o padrão dele é
+  # só `read:user`, e sem `user:email` quem tem e-mail privado chega aqui sem e-mail —
+  # e sem e-mail não dá pra aplicar a conta única do FUNDACAO §11.9.
+  #
+  # Callback a cadastrar no console de cada provedor:
+  #   http://localhost:8080/login/oauth2/code/google
+  #   http://localhost:8080/login/oauth2/code/github
+  # ---------------------------------------------------------------------------------
 
 management:
   endpoints:
@@ -37,6 +74,13 @@ management:
         enabled: true
 
 tramposeditor:
+  notifications:
+    # `log` escreve o e-mail no console; `smtp` manda de verdade. O default é `log` pra
+    # que rodar local nunca exija credencial — prod troca isso explicitamente.
+    transport: ${NOTIFICATIONS_TRANSPORT:log}
+    from: ${NOTIFICATIONS_FROM:TramposEditor <nao-responda@tramposeditor.com>}
+    # Raiz do frontend: todo link de e-mail leva a uma tela, não a um JSON.
+    base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
   security:
     jwt:
       # Sem default de propósito: em prod a aplicação DEVE falhar se JWT_SECRET não vier do ambiente.

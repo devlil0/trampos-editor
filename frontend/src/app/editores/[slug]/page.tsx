@@ -134,10 +134,14 @@ export default async function EditorProfilePage({ params }: { params: Params }) 
           ) : (
             <StartConversationForm slug={editor.slug} firstName={firstName} loggedIn={viewer != null} />
           )}
-          <Row label="Nota">
-            <span className="text-amber-400">★</span> {editor.ratingAvg.toFixed(1)} · {editor.ratingCount}{" "}
-            {editor.ratingCount === 1 ? "avaliação" : "avaliações"}
-          </Row>
+          {/* Perfil sem nota não mostra linha de nota — dizer "★ 0.0" seria pior que
+              não dizer nada (ESBOCO §7 item 5). */}
+          {editor.ratingCount > 0 && (
+            <Row label="Nota">
+              <span className="text-amber-400">★</span> {editor.ratingAvg.toFixed(1)} · {editor.ratingCount}{" "}
+              {editor.ratingCount === 1 ? "avaliação" : "avaliações"}
+            </Row>
+          )}
           {turnaround && <Row label="Prazo médio">{turnaround}</Row>}
           {priceRange && <Row label="Faixa de preço">{priceRange}</Row>}
           <Row label="Vertical">{editor.vertical === "VIDEO" ? "Vídeo" : "Áudio"}</Row>

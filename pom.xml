@@ -50,9 +50,22 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
         </dependency>
+        <!-- Login com Google e GitHub. A autoconfiguração só registra provedor se houver
+             credencial no ambiente, e o SecurityConfig só liga o oauth2Login se houver
+             provedor — então sem segredo nenhum a aplicação sobe igual. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- O canal de notificação (ESBOCO §7 item 3). Em dev não há SMTP nenhum:
+             o EmailSender cai no adaptador de log, então rodar local não pede segredo. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
 
         <!-- No Spring Boot 4 a autoconfiguração do Flyway mora neste módulo;
