@@ -55,9 +55,15 @@ export function LoginForm() {
       </div>
 
       <div>
-        <label htmlFor="password" className={labelClass}>
-          Senha
-        </label>
+        <div className="flex items-baseline justify-between gap-2">
+          <label htmlFor="password" className={labelClass}>
+            Senha
+          </label>
+          {/* A saída precisa estar onde a pessoa trava, não numa página de ajuda. */}
+          <Link href="/esqueci-senha" className="text-sm text-muted hover:text-accent">
+            Esqueci
+          </Link>
+        </div>
         <input
           id="password"
           name="password"

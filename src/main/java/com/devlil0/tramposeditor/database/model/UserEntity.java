@@ -27,7 +27,11 @@ public class UserEntity {
     @Column(nullable = false, unique = true, length = 180)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 100)
+    /**
+     * Nulo em conta que só existe por provedor (Google/GitHub). Todo caminho de login
+     * por senha precisa tratar isso como "esta conta não entra por senha".
+     */
+    @Column(name = "password_hash", length = 100)
     private String passwordHash;
 
     @Column(name = "display_name", nullable = false, length = 80)

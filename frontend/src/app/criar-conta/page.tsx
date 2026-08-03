@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth-forms";
 import { AuthShell } from "@/components/auth-shell";
+import { SocialLogin } from "@/components/social-login";
 import { getCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -18,7 +19,12 @@ export default async function CriarContaPage() {
       title="Criar conta"
       subtitle="É de graça, leva um minuto e não pede cartão."
     >
-      <RegisterForm />
+      <div className="flex flex-col gap-5">
+        <RegisterForm />
+        {/* Mesmo componente do login: entrar pelo provedor num e-mail que já tem conta
+            vincula em vez de duplicar, então as duas telas podem oferecer o mesmo botão. */}
+        <SocialLogin />
+      </div>
     </AuthShell>
   );
 }

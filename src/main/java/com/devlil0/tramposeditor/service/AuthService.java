@@ -61,7 +61,11 @@ public class AuthService {
         UserEntity user = userRepository.findByEmail(normalizeEmail(dto.email()))
                 .orElseThrow(() -> new UnauthorizedException(INVALID_CREDENTIALS));
 
-        if (!passwordEncoder.matches(dto.password(), user.getPasswordHash())) {
+        // Conta criada só pelo Google/GitHub não tem senha. Devolve a MESMA mensagem de
+        // credencial inválida: dizer "essa conta usa Google" contaria a um estranho como
+        // a pessoa entra, e ela mesma descobre isso pelo botão do provedor.
+        if (user.getPasswordHash() == null
+                || !passwordEncoder.matches(dto.password(), user.getPasswordHash())) {
             throw new UnauthorizedException(INVALID_CREDENTIALS);
         }
 
@@ -72,7 +76,12 @@ public class AuthService {
         return buildResponse(user);
     }
 
-    private AuthResponseDTO buildResponse(UserEntity user){
+    /**
+     * A sessão de uma conta já resolvida. Público porque o login social termina fora
+     * daqui ({@link SocialLoginService}) e precisa emitir exatamente o mesmo token —
+     * entrar pelo Google não pode produzir uma sessão de segunda classe.
+     */
+    public AuthResponseDTO buildResponse(UserEntity user){
         return new AuthResponseDTO(
                 jwtService.generateToken(user),
                 TOKEN_TYPE,

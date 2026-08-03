@@ -113,3 +113,70 @@ export async function logoutAction(): Promise<void> {
   await destroySession();
   redirect("/");
 }
+
+/** Estado das telas de senha — `sent`/`done` porque aqui o sucesso não redireciona. */
+export interface PasswordResetState {
+  error?: string;
+  sent?: boolean;
+  done?: boolean;
+  values?: { email?: string };
+}
+
+/**
+ * Pede o link. A resposta é a mesma exista a conta ou não, e a tela diz isso na cara —
+ * é o backend não entregando quais e-mails estão cadastrados (ESBOCO §7 item 6).
+ */
+export async function requestPasswordResetAction(
+  _prev: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const values = { email };
+
+  if (!email) return { error: "Diga o e-mail da conta.", values };
+
+  try {
+    const res = await fetch(`${API_URL}/v1/auth/password-reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { error: await readError(res, "Não deu pra enviar o link agora."), values };
+    }
+  } catch {
+    return { error: "Servidor fora do ar. Tente de novo em alguns segundos.", values };
+  }
+
+  return { sent: true };
+}
+
+export async function confirmPasswordResetAction(
+  _prev: PasswordResetState,
+  formData: FormData,
+): Promise<PasswordResetState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const confirm = String(formData.get("confirm") ?? "");
+
+  if (!token) return { error: "Link inválido. Peça outro." };
+  if (password.length < 8) return { error: "A senha precisa de pelo menos 8 caracteres." };
+  if (password !== confirm) return { error: "As duas senhas não batem." };
+
+  try {
+    const res = await fetch(`${API_URL}/v1/auth/password-reset/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { error: await readError(res, "Esse link expirou ou já foi usado. Peça outro.") };
+    }
+  } catch {
+    return { error: "Servidor fora do ar. Tente de novo em alguns segundos." };
+  }
+
+  return { done: true };
+}

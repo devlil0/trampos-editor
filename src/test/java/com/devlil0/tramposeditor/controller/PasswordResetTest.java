@@ -1,0 +1,181 @@
+package com.devlil0.tramposeditor.controller;
+
+import com.devlil0.tramposeditor.TestcontainersConfiguration;
+import com.devlil0.tramposeditor.database.model.PasswordResetTokenEntity;
+import com.devlil0.tramposeditor.database.repository.IPasswordResetTokenRepository;
+import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.notification.EmailSender;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Esqueci a senha (ESBOCO §7 item 6).
+ * <p>
+ * O que estes testes protegem é o princípio do serviço: o e-mail é a única prova de posse
+ * que existe, então pedir redefinição não pode virar uma forma de descobrir quais contas
+ * existem, e o link não pode servir duas vezes.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
+class PasswordResetTest {
+
+    private static final Pattern TOKEN_NO_LINK = Pattern.compile("redefinir-senha\\?token=(\\S+)");
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private IPasswordResetTokenRepository tokenRepository;
+
+    @Autowired
+    private IUserRepository userRepository;
+
+    @MockitoBean
+    private EmailSender emailSender;
+
+    @BeforeEach
+    void limpar(){
+        tokenRepository.deleteAll();
+        userRepository.deleteAll();
+        reset(emailSender);
+    }
+
+    @Test
+    void pedirParaEmailDesconhecidoRespondeIgualENaoMandaNada() throws Exception {
+        pedirReset("nao-existe@teste.com").andExpect(status().isNoContent());
+
+        // Nenhum e-mail, e — o que importa — nenhuma resposta diferente da do e-mail
+        // que existe. Enumerar contas cadastradas seria de graça.
+        verify(emailSender, never()).send(any(), any(), any());
+    }
+
+    @Test
+    void linkRedefineASenhaEValeUmaVezSo() throws Exception {
+        registrar("dono@teste.com");
+
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String token = capturarTokenDoEmail();
+
+        // A senha nova entra...
+        confirmar(token, "senhanova12345").andExpect(status().isNoContent());
+        entrar("dono@teste.com", "senhanova12345").andExpect(status().isOk());
+
+        // ...e a antiga morre junto.
+        entrar("dono@teste.com", "senhaforte123").andExpect(status().isUnauthorized());
+
+        // O mesmo link não serve de novo.
+        confirmar(token, "outrasenha12345").andExpect(status().isConflict());
+    }
+
+    @Test
+    void pedirDeNovoDerrubaOLinkAnterior() throws Exception {
+        registrar("dono@teste.com");
+
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String primeiro = capturarTokenDoEmail();
+
+        reset(emailSender);
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String segundo = capturarTokenDoEmail();
+
+        assertThat(segundo).isNotEqualTo(primeiro);
+        confirmar(primeiro, "senhanova12345").andExpect(status().isConflict());
+        confirmar(segundo, "senhanova12345").andExpect(status().isNoContent());
+    }
+
+    @Test
+    void linkExpiradoNaoServe() throws Exception {
+        registrar("dono@teste.com");
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String token = capturarTokenDoEmail();
+
+        // Envelhece o token na marra: uma hora e um minuto atrás.
+        PasswordResetTokenEntity entity = tokenRepository.findAll().get(0);
+        entity.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        tokenRepository.save(entity);
+
+        confirmar(token, "senhanova12345").andExpect(status().isConflict());
+        entrar("dono@teste.com", "senhaforte123").andExpect(status().isOk());
+    }
+
+    @Test
+    void senhaCurtaNaoPassaPelaPortaDosFundos() throws Exception {
+        registrar("dono@teste.com");
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String token = capturarTokenDoEmail();
+
+        // O cadastro exige 8 caracteres; redefinir não pode aceitar menos.
+        confirmar(token, "curta").andExpect(status().isBadRequest());
+    }
+
+    // ---------- Helpers ----------
+
+    private String capturarTokenDoEmail(){
+        ArgumentCaptor<String> corpo = ArgumentCaptor.forClass(String.class);
+        verify(emailSender).send(eq("dono@teste.com"), any(), corpo.capture());
+
+        Matcher matcher = TOKEN_NO_LINK.matcher(corpo.getValue());
+        assertThat(matcher.find()).as("o e-mail precisa carregar o link com o token").isTrue();
+        return matcher.group(1);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions pedirReset(String email) throws Exception {
+        return mockMvc.perform(post("/v1/auth/password-reset/request")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email": "%s"}
+                        """.formatted(email)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions confirmar(String token, String senha) throws Exception {
+        return mockMvc.perform(post("/v1/auth/password-reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"token": "%s", "password": "%s"}
+                        """.formatted(token, senha)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions entrar(String email, String senha) throws Exception {
+        return mockMvc.perform(post("/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email": "%s", "password": "%s"}
+                        """.formatted(email, senha)));
+    }
+
+    private void registrar(String email) throws Exception {
+        mockMvc.perform(post("/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "password": "senhaforte123",
+                                  "displayName": "Dono da Conta",
+                                  "roles": ["CLIENT"]
+                                }
+                                """.formatted(email)))
+                .andExpect(status().isCreated());
+    }
+}

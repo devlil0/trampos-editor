@@ -26,6 +26,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -39,20 +42,38 @@ public class SecurityConfig {
     private static final int MIN_SECRET_BYTES = 32;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
-        return http
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationConverter jwtAuthenticationConverter,
+                                                   ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+                                                   ObjectProvider<OAuth2SuccessHandler> oauth2SuccessHandler) throws Exception {
+        http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // O handshake do OAuth precisa guardar o `state` entre o redirecionamento
+                // de ida e a volta, então a política não pode ser STATELESS. O resto da
+                // API continua sem sessão: nenhuma requisição autenticada por JWT cria uma.
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/v1/auth/**").permitAll()
+                        // O vaivém com o provedor acontece deslogado, por definição.
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Vitrine pública: só leitura. A gestão do perfil mora em /v1/me/** e segue autenticada.
                         .requestMatchers(HttpMethod.GET, "/v1/editors", "/v1/editors/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
-                .build();
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
+
+        // Login social só entra na cadeia quando há provedor configurado. Sem isto, subir
+        // sem GOOGLE_CLIENT_ID quebraria a aplicação inteira por falta de
+        // ClientRegistrationRepository — e rodar local não pode exigir credencial de
+        // ninguém, mesma regra do SMTP.
+        ClientRegistrationRepository registrations = clientRegistrations.getIfAvailable();
+        if (registrations != null) {
+            http.oauth2Login(login -> login.successHandler(oauth2SuccessHandler.getObject()));
+        }
+
+        return http.build();
     }
 
     @Bean
