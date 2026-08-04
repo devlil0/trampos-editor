@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useSyncExternalStore } from "react";
 import { logoutAction } from "@/app/actions/auth";
+import { NavSearch } from "./nav-search";
 import type { AuthUser } from "@/lib/types";
 
 /**
@@ -37,8 +38,10 @@ export function Nav({ user }: { user: AuthUser | null }) {
 
   return (
     <nav className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-md backdrop-saturate-150">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-6">
-        <Link href="/" className="flex items-center gap-2.5 font-bold tracking-tight">
+      {/* Largura de marketplace, não de site institucional: a barra acompanha a vitrine,
+          que é a tela mais larga do produto. */}
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-5 px-4 sm:px-6">
+        <Link href="/" className="flex flex-none items-center gap-2.5 font-bold tracking-tight">
           {/* alt vazio: o wordmark ao lado já nomeia o link, evita leitura duplicada */}
           <Image
             src="/logo-mark.png"
@@ -53,7 +56,12 @@ export function Nav({ user }: { user: AuthUser | null }) {
           </span>
         </Link>
 
-        <div className="ml-2 hidden gap-5 text-sm text-muted sm:flex">
+        {/* Suspense porque a busca lê a query string (useSearchParams). */}
+        <Suspense fallback={<div className="hidden flex-1 md:block" />}>
+          <NavSearch />
+        </Suspense>
+
+        <div className="hidden flex-none gap-5 text-sm text-muted lg:flex">
           {/* Duas portas simétricas em vez de um "Como funciona" genérico: a primeira
               decisão de quem chega num marketplace de dois lados é "qual desses eu
               sou?", e antes só o editor tinha porta. Somem pra quem está logado —
@@ -80,7 +88,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
           </Link>
         </div>
 
-        <div className="ml-auto flex items-center gap-2.5">
+        <div className="ml-auto flex flex-none items-center gap-2.5">
           <button
             type="button"
             onClick={toggle}

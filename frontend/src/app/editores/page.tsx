@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { fetchEditors, type EditorQuery } from "@/lib/api";
 import { EditorCard } from "@/components/editor-card";
-import { VitrineControls } from "@/components/vitrine-controls";
+import { ToolStrip, VitrineSidebar } from "@/components/vitrine-controls";
 
 export const metadata: Metadata = {
   title: "Editores de vídeo para Reels, TikTok e Shorts | TramposEditor",
@@ -38,44 +38,49 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
   const result = await fetchEditors(query);
 
   return (
-    <div className="mx-auto max-w-6xl px-6">
-      <section className="pt-14 pb-6">
-        <h1 className="max-w-[18ch] text-balance text-4xl font-extrabold leading-[1.04] tracking-tight sm:text-5xl">
-          Encontre o editor certo pro seu <span className="font-mono text-accent">vídeo</span>.
-        </h1>
-        <p className="mt-3.5 mb-6 max-w-[52ch] text-lg text-muted">
-          Veja o portfólio, o prazo de entrega e o preço de cada um. Quando gostar, fale direto —
-          sem burocracia.
-        </p>
+    /* Largura de marketplace e respiro curto nas bordas: é o que empurra a sidebar pro
+       canto esquerdo, como nas referências. Acompanha a largura da nav. */
+    <div className="mx-auto max-w-[1440px] px-4 pt-7 sm:px-6">
+      {/* Sidebar à esquerda e resultado à direita: o filtro fica visível junto com o que
+          ele filtra. Vira uma coluna só no mobile, onde os filtros vêm antes da lista. */}
+      <div className="grid grid-cols-1 items-start gap-x-8 gap-y-6 pb-16 lg:grid-cols-[210px_1fr]">
         <Suspense fallback={null}>
-          <VitrineControls />
+          <VitrineSidebar />
         </Suspense>
-      </section>
 
-      <section>
-        <div className="flex items-center py-2 text-sm text-muted">
-          <span>
-            <b className="text-fg tabular-nums">{result.totalElements}</b>{" "}
-            {result.totalElements === 1 ? "editor encontrado" : "editores encontrados"}
-          </span>
-        </div>
+        <section>
+          <Suspense fallback={null}>
+            <ToolStrip />
+          </Suspense>
 
-        {result.content.length === 0 ? (
-          <div className="my-16 text-center">
-            <p className="text-lg font-semibold">Nenhum editor por aqui ainda.</p>
-            <p className="mt-1 text-muted">
-              Tente limpar os filtros ou volte em breve — estamos trazendo editores todo dia.
+          {/* O hero de marketing saiu daqui, mas o h1 não podia sair junto: esta é a
+              página de aquisição do produto (§11.2.6) e página sem h1 rankeia pior. Ele
+              ficou no formato das referências — título curto com a contagem embaixo. */}
+          <div className="mt-6 border-t border-line pt-4">
+            <h1 className="text-2xl font-extrabold tracking-tight">Editores de vídeo</h1>
+            <p className="mt-0.5 text-sm text-muted">
+              <b className="text-fg tabular-nums">{result.totalElements}</b>{" "}
+              {result.totalElements === 1 ? "editor encontrado" : "editores encontrados"}
             </p>
           </div>
-        ) : (
-          // Lista vertical: um editor embaixo do outro, capa à esquerda.
-          <div className="flex flex-col gap-3.5 pb-16 pt-3">
-            {result.content.map((editor) => (
-              <EditorCard key={editor.id} editor={editor} />
-            ))}
-          </div>
-        )}
-      </section>
+
+          {result.content.length === 0 ? (
+            <div className="my-16 text-center">
+              <p className="text-lg font-semibold">Nenhum editor por aqui ainda.</p>
+              <p className="mt-1 text-muted">
+                Tente limpar os filtros ou volte em breve — estamos trazendo editores todo dia.
+              </p>
+            </div>
+          ) : (
+            // Lista vertical: um editor embaixo do outro, capa à esquerda.
+            <div className="flex flex-col gap-3.5 pt-4">
+              {result.content.map((editor) => (
+                <EditorCard key={editor.id} editor={editor} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

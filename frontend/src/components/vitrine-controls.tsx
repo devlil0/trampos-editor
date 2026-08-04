@@ -1,22 +1,23 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
 import { NICHE_OPTIONS, STYLE_OPTIONS, TOOL_OPTIONS } from "@/lib/format";
 import { NicheIcon, ToolIcon } from "./niche-tag";
-import type { EditorNiche, EditorTool } from "@/lib/types";
+import type { EditorNiche } from "@/lib/types";
 
 /**
- * Controles da vitrine.
+ * Controles da vitrine, em duas peças que moram em lugares diferentes do layout:
+ * `ToolStrip` no topo dos resultados e `VitrineSidebar` na coluna da esquerda. A busca
+ * saiu daqui e virou `NavSearch`, na barra de navegação — busca é entrada, e agora
+ * funciona de qualquer página.
  *
- * A vitrine é a ÚNICA lista de editores do produto desde que o feed da oferta saiu
- * (2026-08-04) — "quem está livre agora" virou o toggle daqui, não outra tela. Por isso
- * todo filtro que a API aceita precisa ter controle visível: antes, `tool`, `style`,
- * `available` e `maxPriceCents` existiam em `/v1/editors` e não tinham como ser acionados
- * pela interface, o que fazia a vitrine parecer mais pobre do que era.
+ * A divisão segue a forma de marketplace grande (Mercado Livre, Shopee), e não é só
+ * estética: filtro em coluna fixa fica **visível junto com o resultado**, então dá pra
+ * refinar vendo o que muda. Empilhado acima da lista, cada ajuste empurra o resultado pra
+ * fora da tela — que era o problema da versão anterior.
  *
- * Ferramenta ganha círculo com marca, e não chip de texto como nicho: são duas dimensões
- * diferentes e a pessoa precisa distinguir "onde publico" de "com o que é feito" sem ler.
+ * A vitrine é a única lista de editores do produto desde que o feed da oferta saiu
+ * (2026-08-04), então todo filtro que a API aceita precisa ter controle visível aqui.
  */
 
 /** Faixas prontas em vez de campo livre: preço é filtro de triagem, não de precisão. */
@@ -27,15 +28,10 @@ const FAIXAS_DE_PRECO: [string, string][] = [
   ["100000", "até R$ 1.000"],
 ];
 
-export function VitrineControls() {
+/** Navegação compartilhada pelas três peças — todas escrevem na mesma query string. */
+function useFiltros() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeNiche = searchParams.get("niche") ?? "";
-  const activeTool = searchParams.get("tool") ?? "";
-  const activeStyle = searchParams.get("style") ?? "";
-  const activePrice = searchParams.get("maxPriceCents") ?? "";
-  const onlyAvailable = searchParams.get("available") === "true";
-  const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
   function pushWith(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -43,14 +39,6 @@ export function VitrineControls() {
     params.delete("page"); // qualquer mudança de filtro volta pra primeira página
     const qs = params.toString();
     router.push(qs ? `/editores?${qs}` : "/editores");
-  }
-
-  function onSearch(e: React.FormEvent) {
-    e.preventDefault();
-    pushWith((p) => {
-      if (query.trim()) p.set("q", query.trim());
-      else p.delete("q");
-    });
   }
 
   /** Clicar no filtro ativo desliga — sem isso não há como voltar pra "todos". */
@@ -61,95 +49,88 @@ export function VitrineControls() {
     });
   }
 
-  const temFiltro = Boolean(activeNiche || activeTool || activeStyle || activePrice || onlyAvailable);
+  return { router, searchParams, pushWith, toggle };
+}
+
+/**
+ * Faixa horizontal de ferramentas, no topo dos resultados — é onde o Mercado Livre põe as
+ * marcas. Fica fora da sidebar de propósito: marca se reconhece pelo logo, e logo em lista
+ * de texto perde justamente o que o torna rápido de achar.
+ */
+export function ToolStrip() {
+  const { searchParams, toggle } = useFiltros();
+  const activeTool = searchParams.get("tool") ?? "";
 
   return (
-    <>
-      <form onSubmit={onSearch} className="flex max-w-xl items-center gap-2 rounded-2xl border border-line bg-card p-[7px] pl-4 shadow-[var(--shadow)]">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0 text-muted" aria-hidden="true">
-          <circle cx="11" cy="11" r="7" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Busque por nome, estilo ou nicho…"
-          aria-label="Buscar editores"
-          className="flex-1 bg-transparent py-2 text-base outline-none placeholder:text-muted"
-        />
-        <button type="submit" className="btn btn-primary btn-sm">
-          Buscar
-        </button>
-      </form>
-
-      <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filtrar por nicho">
-        <Chip label="Todos" active={activeNiche === ""} onClick={() => toggle("niche", "")} />
-        {NICHE_OPTIONS.map(([value, label]) => (
-          <Chip
+    <div
+      className="flex gap-x-6 gap-y-4 overflow-x-auto pb-1"
+      role="group"
+      aria-label="Filtrar por ferramenta"
+    >
+      {TOOL_OPTIONS.map(([value, label]) => {
+        const active = activeTool === value;
+        return (
+          <button
             key={value}
-            label={label}
-            niche={value}
-            active={activeNiche === value}
-            onClick={() => toggle("niche", value)}
-          />
-        ))}
-      </div>
+            type="button"
+            onClick={() => toggle("tool", value)}
+            aria-pressed={active}
+            className="group flex w-[68px] flex-none flex-col items-center gap-1.5"
+          >
+            <span
+              className={`grid h-15 w-15 place-items-center rounded-full border bg-card transition ${
+                active ? "border-accent ring-2 ring-accent/40" : "border-line group-hover:border-accent"
+              }`}
+            >
+              <ToolIcon tool={value} size={30} />
+            </span>
+            <span className={`text-center text-[11px] font-semibold leading-tight ${active ? "text-fg" : "text-muted"}`}>
+              {label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-      {/* Ferramentas como círculos de marca: a leitura é pelo logo, o rótulo é apoio. */}
-      <div className="mt-7">
-        <h2 className="mb-3 font-mono text-[11px] font-semibold tracking-[0.14em] text-muted">
-          FERRAMENTA
+/** Coluna da esquerda: as dimensões que se lêem como lista, não como marca. */
+export function VitrineSidebar() {
+  const { router, searchParams, toggle } = useFiltros();
+  const activeNiche = searchParams.get("niche") ?? "";
+  const activeStyle = searchParams.get("style") ?? "";
+  const activePrice = searchParams.get("maxPriceCents") ?? "";
+  const activeTool = searchParams.get("tool") ?? "";
+  const onlyAvailable = searchParams.get("available") === "true";
+  const busca = searchParams.get("q") ?? "";
+
+  const temFiltro = Boolean(
+    activeNiche || activeTool || activeStyle || activePrice || onlyAvailable || busca,
+  );
+
+  return (
+    <aside className="lg:sticky lg:top-[84px] lg:self-start">
+      <div className="flex items-center justify-between gap-2 border-b border-line pb-3">
+        <h2 className="flex items-center gap-2 font-mono text-[11px] font-bold tracking-[0.14em] text-fg">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M3 5h18l-7 8v6l-4 2v-8z" />
+          </svg>
+          FILTROS
         </h2>
-        <div className="flex flex-wrap gap-x-5 gap-y-4" role="group" aria-label="Filtrar por ferramenta">
-          {TOOL_OPTIONS.map(([value, label]) => (
-            <ToolCircle
-              key={value}
-              tool={value}
-              label={label}
-              active={activeTool === value}
-              onClick={() => toggle("tool", value)}
-            />
-          ))}
-        </div>
+        {temFiltro && (
+          <button
+            type="button"
+            onClick={() => router.push("/editores")}
+            className="text-xs text-muted underline-offset-4 hover:text-accent hover:underline"
+          >
+            Limpar
+          </button>
+        )}
       </div>
 
-      <div className="mt-7 flex flex-col gap-5 sm:flex-row sm:gap-9">
-        <div>
-          <h2 className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.14em] text-muted">
-            ESTILO
-          </h2>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por estilo">
-            {STYLE_OPTIONS.map(([value, label]) => (
-              <SmallChip
-                key={value}
-                label={label}
-                active={activeStyle === value}
-                onClick={() => toggle("style", value)}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="mb-2.5 font-mono text-[11px] font-semibold tracking-[0.14em] text-muted">
-            PREÇO
-          </h2>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por preço">
-            {FAIXAS_DE_PRECO.map(([value, label]) => (
-              <SmallChip
-                key={value}
-                label={label}
-                active={activePrice === value}
-                onClick={() => toggle("maxPriceCents", value)}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-7 flex flex-wrap items-center gap-4">
-        {/* Era o feed inteiro; virou um toggle. */}
+      {/* Disponibilidade vem primeiro: é o recorte que substituiu o feed da oferta, e o
+          mais provável de quem chega querendo alguém pra hoje. */}
+      <Grupo titulo="Disponibilidade">
         <button
           type="button"
           role="switch"
@@ -158,8 +139,8 @@ export function VitrineControls() {
           className="inline-flex items-center gap-2.5 text-sm font-semibold"
         >
           <span
-            className={`relative h-5 w-9 rounded-full transition ${
-              onlyAvailable ? "bg-good" : "bg-panel border border-line"
+            className={`relative h-5 w-9 flex-none rounded-full transition ${
+              onlyAvailable ? "bg-good" : "border border-line bg-panel"
             }`}
           >
             <span
@@ -168,24 +149,63 @@ export function VitrineControls() {
               }`}
             />
           </span>
-          Só quem está livre agora
+          Livres agora
         </button>
+      </Grupo>
 
-        {temFiltro && (
-          <button
-            type="button"
-            onClick={() => router.push("/editores")}
-            className="text-sm text-muted underline-offset-4 hover:text-accent hover:underline"
-          >
-            Limpar filtros
-          </button>
-        )}
-      </div>
-    </>
+      <Grupo titulo="Categorias">
+        <Opcao label="Todas" active={activeNiche === ""} onClick={() => toggle("niche", "")} />
+        {NICHE_OPTIONS.map(([value, label]) => (
+          <Opcao
+            key={value}
+            label={label}
+            niche={value}
+            active={activeNiche === value}
+            onClick={() => toggle("niche", value)}
+          />
+        ))}
+      </Grupo>
+
+      <Grupo titulo="Estilo">
+        {STYLE_OPTIONS.map(([value, label]) => (
+          <Opcao
+            key={value}
+            label={label}
+            active={activeStyle === value}
+            onClick={() => toggle("style", value)}
+          />
+        ))}
+      </Grupo>
+
+      <Grupo titulo="Preço por vídeo">
+        {FAIXAS_DE_PRECO.map(([value, label]) => (
+          <Opcao
+            key={value}
+            label={label}
+            active={activePrice === value}
+            onClick={() => toggle("maxPriceCents", value)}
+          />
+        ))}
+      </Grupo>
+    </aside>
   );
 }
 
-function Chip({
+function Grupo({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  return (
+    <section className="border-b border-line py-4 last:border-b-0">
+      <h3 className="mb-2.5 text-xs font-bold uppercase tracking-[0.08em] text-muted">{titulo}</h3>
+      <div className="flex flex-col items-start gap-1.5">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * Uma linha da sidebar. É botão, e não checkbox de verdade, porque a seleção é única por
+ * dimensão e vive na URL — o quadradinho é só a leitura visual de "marcado", como nas
+ * referências.
+ */
+function Opcao({
   label,
   niche,
   active,
@@ -201,59 +221,23 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={
-        active
-          ? "inline-flex items-center gap-1.5 rounded-full border border-accent bg-accent px-4 py-[7px] text-sm font-medium text-accent-contrast"
-          : "inline-flex items-center gap-1.5 rounded-full border border-line bg-card px-4 py-[7px] text-sm font-medium text-muted hover:border-accent hover:text-fg"
-      }
+      className={`flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-sm transition ${
+        active ? "font-semibold text-accent-strong" : "text-muted hover:text-fg"
+      }`}
     >
-      {niche && <NicheIcon niche={niche} size={15} />}
-      {label}
-    </button>
-  );
-}
-
-/** Chip miúdo pra estilo e preço — dimensões secundárias não podem competir com nicho. */
-function SmallChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        active
-          ? "rounded-md border border-accent bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent-strong"
-          : "rounded-md border border-line bg-card px-2.5 py-1 text-xs font-semibold text-muted hover:border-accent hover:text-fg"
-      }
-    >
-      {label}
-    </button>
-  );
-}
-
-function ToolCircle({
-  tool,
-  label,
-  active,
-  onClick,
-}: {
-  tool: EditorTool;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={active} className="group flex w-16 flex-col items-center gap-1.5">
       <span
-        className={`grid h-14 w-14 place-items-center rounded-full border bg-card transition ${
-          active ? "border-accent ring-2 ring-accent/40" : "border-line group-hover:border-accent"
+        className={`grid h-4 w-4 flex-none place-items-center rounded border transition ${
+          active ? "border-accent bg-accent" : "border-line bg-card"
         }`}
       >
-        <ToolIcon tool={tool} size={28} />
+        {active && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent-contrast" aria-hidden="true">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        )}
       </span>
-      <span className={`text-center text-[11px] font-semibold leading-tight ${active ? "text-fg" : "text-muted"}`}>
-        {label}
-      </span>
+      {niche && <NicheIcon niche={niche} size={14} />}
+      <span className="flex-1">{label}</span>
     </button>
   );
 }
