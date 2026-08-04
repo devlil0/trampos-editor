@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { removePortfolioAction } from "@/app/actions/editor-profile";
-import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
-import { InstagramForm } from "@/components/instagram-form";
-import { VideoThumb } from "@/components/video-thumb";
+import { BotaoConfiguracoes, EditorProfileView } from "@/components/editor-profile-view";
 import { fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
 
@@ -13,6 +10,17 @@ export const metadata: Metadata = {
   robots: { index: false },
 };
 
+/**
+ * Meu perfil — o editor vendo o próprio perfil **como o cliente vê**.
+ *
+ * Era um formulário (2026-08-04). O problema não era o formulário existir, era ele ser a
+ * tela: o editor nunca via o que estava publicando, só os campos que o alimentam. Num
+ * produto cuja tese é "o trabalho fala" (FUNDACAO §5.1), a pessoa precisa olhar a própria
+ * vitrine com os olhos de quem contrata.
+ *
+ * O formulário virou `/painel/meu-perfil/configuracoes`, atrás da engrenagem — mesma
+ * divisão que rede social faz entre perfil e ajustes.
+ */
 export default async function MeuPerfilPage() {
   // Sem trava de papel: publicar este perfil é o que torna a conta editora.
   const user = await getCurrentUser();
@@ -22,79 +30,42 @@ export default async function MeuPerfilPage() {
   const profile = token ? await fetchMyEditorProfile(token) : null;
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <Link href="/painel" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
+    <div className="mx-auto max-w-4xl px-6 pt-6 pb-16">
+      <Link href="/painel" className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
         Voltar pro painel
       </Link>
 
-      <h1 className="text-3xl font-extrabold tracking-tight">
-        {profile ? "Meu perfil" : "Monte seu perfil"}
-      </h1>
-      <p className="mt-1 text-muted">
-        {profile ? (
-          <>
-            É isso que o cliente vê em{" "}
+      {profile ? (
+        <>
+          <EditorProfileView
+            profile={profile}
+            viewerLoggedIn
+            isOwnProfile
+            headerExtra={<BotaoConfiguracoes />}
+          />
+
+          <p className="mt-10 text-center text-sm text-muted">
+            Seu endereço público é{" "}
             <Link href={`/editores/${profile.slug}`} className="font-semibold text-accent hover:underline">
               /editores/{profile.slug}
             </Link>
-            .
-          </>
-        ) : (
-          "Publicar este perfil é o que te registra como editor — sua conta continua a mesma. Leva dois minutos e dá pra editar depois."
-        )}
-      </p>
-
-      <section className="mt-8 rounded-[18px] border border-line bg-card p-6">
-        <EditorProfileForm profile={profile} />
-      </section>
-
-      {/* Formulário próprio, e não mais um campo lá em cima: o Instagram é da conta e
-          salva por outro endpoint. Junto no mesmo submit, um erro de username faria o
-          perfil inteiro parecer que não salvou. */}
-      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
-        <InstagramForm instagram={user.instagram} />
-        <p className="mt-2.5 text-xs text-muted">
-          Fica visível no seu perfil público — é onde o cliente vê seu trabalho do dia a dia.
-        </p>
-      </section>
-
-      {/* Portfólio só existe depois que o perfil existe — é ele que dá o id no backend. */}
-      {profile && (
-        <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
-          <h2 className="text-lg font-bold tracking-tight">Portfólio</h2>
-          <p className="mt-1 mb-5 text-sm text-muted">
-            O primeiro vídeo vira a capa do seu card na vitrine.
           </p>
-
-          <AddPortfolioForm />
-
-          {profile.portfolio.length > 0 && (
-            <ul className="mt-6 grid gap-3.5 sm:grid-cols-2">
-              {profile.portfolio.map((item) => (
-                <li key={item.id} className="flex flex-col gap-2">
-                  <div className="overflow-hidden rounded-2xl border border-line">
-                    <VideoThumb url={item.videoUrl} alt={item.title} seed={item.id} />
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold">{item.title}</span>
-                    <form action={removePortfolioAction}>
-                      <input type="hidden" name="itemId" value={item.id} />
-                      <button
-                        type="submit"
-                        className="text-xs font-semibold text-muted hover:text-busy"
-                      >
-                        Remover
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        </>
+      ) : (
+        /* Sem perfil não há o que visualizar — aqui a tela é convite, não vitrine vazia. */
+        <div className="rounded-[18px] border border-line bg-card p-8 text-center">
+          <h1 className="text-2xl font-extrabold tracking-tight">Monte seu perfil</h1>
+          <p className="mx-auto mt-2 max-w-[46ch] text-muted">
+            Publicar este perfil é o que te registra como editor — sua conta continua a mesma. Leva
+            dois minutos e dá pra editar depois.
+          </p>
+          <Link href="/painel/meu-perfil/configuracoes" className="btn btn-primary mt-6">
+            Começar
+          </Link>
+        </div>
       )}
     </div>
   );

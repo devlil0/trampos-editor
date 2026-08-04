@@ -41,6 +41,7 @@ public class SocialLoginService {
     private final IUserIdentityRepository identityRepository;
     private final IAuthExchangeCodeRepository codeRepository;
     private final AuthService authService;
+    private final UsernameService usernameService;
 
     /**
      * Resolve quem entrou e devolve o código de uso único pro redirecionamento.
@@ -94,9 +95,14 @@ public class SocialLoginService {
      * definir a primeira.
      */
     private UserEntity createUser(String email, String displayName){
+        String nome = displayName == null || displayName.isBlank()
+                ? email.split("@")[0]
+                : displayName.trim();
+
         return userRepository.saveAndFlush(UserEntity.builder()
                 .email(email)
-                .displayName(displayName == null || displayName.isBlank() ? email.split("@")[0] : displayName.trim())
+                .displayName(nome)
+                .username(usernameService.gerarPara(nome))
                 // Todo mundo entra como cliente; virar editor continua sendo publicar o
                 // perfil, exatamente como no cadastro por senha (FUNDACAO §11.9).
                 .roles(Set.of(UserRole.CLIENT))

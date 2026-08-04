@@ -32,6 +32,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserMapper userMapper;
+    private final UsernameService usernameService;
 
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO dto){
@@ -41,10 +42,15 @@ public class AuthService {
             throw new BusinessException("Já existe uma conta com este e-mail");
         }
 
+        String displayName = dto.displayName().trim();
+
         UserEntity user = UserEntity.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(dto.password()))
-                .displayName(dto.displayName().trim())
+                .displayName(displayName)
+                // Username automático no cadastro pra não cobrar mais um campo de quem
+                // está entrando; trocar depois é um clique nas configurações.
+                .username(usernameService.gerarPara(displayName))
                 .roles(sanitizeRoles(dto.roles()))
                 .active(true)
                 .build();

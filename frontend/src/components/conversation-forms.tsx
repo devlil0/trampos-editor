@@ -22,42 +22,32 @@ function Erro({ state }: { state: ConversationFormState }) {
 }
 
 /**
- * Porta 1 — o formulário que substitui o antigo `href="#"` do perfil.
+ * Abertura da conversa a partir do perfil. Um botão só.
  *
- * Fica no próprio perfil, e não atrás de um clique que leva pra outra tela: pedir
- * pra pessoa navegar antes de escrever é a fricção que o produto inteiro evita.
+ * Tinha um campo de texto antes do botão (até 2026-08-04), e ele cobrava a redação da
+ * primeira mensagem no meio da leitura do perfil — quem está decidindo se gosta do
+ * trabalho ainda não sabe o que pedir. Agora o clique abre a conversa com uma linha de
+ * apresentação e leva a pessoa pra tela de conversa, que é onde há espaço pra detalhar.
+ *
+ * O `body` continua obrigatório no backend, então ele vai daqui pronto — a conversa não
+ * pode nascer vazia, senão o editor recebe notificação de nada.
  */
-export function StartConversationForm({
-  slug,
-  firstName,
-  loggedIn,
-}: {
-  slug: string;
-  firstName: string;
-  loggedIn: boolean;
-}) {
+const PRIMEIRA_MENSAGEM = "Olá! Vi seu perfil e quero solicitar um trampo.";
+
+export function StartConversationForm({ slug, loggedIn }: { slug: string; loggedIn: boolean }) {
   const [state, formAction, pending] = useActionState(startConversationAction, EMPTY);
 
   return (
     <form action={formAction} className="flex flex-col gap-2.5">
       <Erro state={state} />
       <input type="hidden" name="slug" value={slug} />
-      <textarea
-        name="body"
-        required
-        rows={3}
-        maxLength={2000}
-        placeholder={`Diga o que você precisa. Ex.: "Tenho 4 Reels por semana, topa?"`}
-        className={`${inputClass} resize-y`}
-      />
+      <input type="hidden" name="body" value={PRIMEIRA_MENSAGEM} />
       <button type="submit" disabled={pending} className="btn btn-primary btn-block btn-lg disabled:opacity-60">
-        {pending ? "Enviando…" : `Falar com ${firstName}`}
+        {pending ? "Abrindo…" : "Solicitar um Trampo"}
       </button>
       {!loggedIn && (
-        // Não escondemos o formulário de quem está deslogado: ver o campo é o que
-        // mostra que dá pra falar direto. O login vira um passo no caminho, não um portão.
         <p className="text-center text-xs text-muted">
-          Você entra na conta ao enviar — leva alguns segundos.
+          Você entra na conta ao solicitar — leva alguns segundos.
         </p>
       )}
     </form>

@@ -11,4 +11,9 @@ public interface IUserRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /** O caminho de toda página de perfil — `/{username}` resolve por aqui. */
+    Optional<UserEntity> findByUsername(String username);
+
+    boolean existsByUsername(String username);
 }

@@ -38,6 +38,20 @@ public class UserEntity {
     private String displayName;
 
     /**
+     * Identidade da pessoa no produto e endereço dela em {@code /{username}}.
+     * <p>
+     * Vive na conta, e não no perfil de editor, porque os dois papéis precisam existir
+     * como página: quem edita e quem contrata. O {@code slug} do editor continua na tabela
+     * dele, mas só como histórico — quem manda no endereço é este campo (V12).
+     * <p>
+     * Nomes que colidem com rota do produto são recusados no {@code UsernameService}:
+     * a raiz virou namespace de usuário, então {@code /entrar} e {@code /editores} não
+     * podem ser username de ninguém.
+     */
+    @Column(nullable = false, unique = true, length = 30)
+    private String username;
+
+    /**
      * Username do Instagram, sem "@" — normalizado no UserService. Vive na conta porque
      * serve aos dois papéis: é vitrine do editor e identidade de quem contrata.
      */
