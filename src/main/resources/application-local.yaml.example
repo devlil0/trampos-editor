@@ -1,0 +1,34 @@
+# Credenciais locais — MODELO. Copie para `application-local.yaml` (sem `.example`) e
+# preencha. O arquivo real está no .gitignore e nunca deve ser comitado.
+#
+# Pra subir com ele:
+#   .\mvnw.cmd -o spring-boot:run -Dspring-boot.run.profiles=dev,local
+#
+# O perfil `local` vem DEPOIS de `dev` de propósito: o último da lista ganha, então o que
+# estiver aqui sobrescreve o default. Sem `local` na lista, a aplicação sobe exatamente
+# como antes — este arquivo é aditivo, não obrigatório.
+
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          # Console: https://console.cloud.google.com → APIs & Services → Credentials
+          # Callback a cadastrar lá: http://localhost:8080/login/oauth2/code/google
+          google:
+            client-id: COLE_AQUI
+            client-secret: COLE_AQUI
+
+          # Console: GitHub → Settings → Developer settings → OAuth Apps
+          # Callback a cadastrar lá: http://localhost:8080/login/oauth2/code/github
+          github:
+            client-id: COLE_AQUI
+            client-secret: COLE_AQUI
+            # Obrigatório: o escopo padrão do GitHub é só `read:user`, e sem `user:email`
+            # quem tem e-mail privado chega aqui sem e-mail — e sem e-mail não dá pra
+            # aplicar a conta única do FUNDACAO §11.9.
+            scope: read:user,user:email
+
+# Deixe fora deste arquivo o provedor que você ainda não criou: registro pela metade
+# derruba a aplicação na subida com "Client id of registration 'x' must not be empty".
+# Só Google configurado é um estado válido — o botão do GitHub simplesmente não aparece.

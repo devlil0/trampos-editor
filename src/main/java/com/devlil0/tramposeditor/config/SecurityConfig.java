@@ -45,7 +45,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationConverter jwtAuthenticationConverter,
                                                    ObjectProvider<ClientRegistrationRepository> clientRegistrations,
-                                                   ObjectProvider<OAuth2SuccessHandler> oauth2SuccessHandler) throws Exception {
+                                                   ObjectProvider<OAuth2SuccessHandler> oauth2SuccessHandler,
+                                                   GitHubEmailOAuth2UserService gitHubEmailUserService) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -70,7 +71,11 @@ public class SecurityConfig {
         // ninguém, mesma regra do SMTP.
         ClientRegistrationRepository registrations = clientRegistrations.getIfAvailable();
         if (registrations != null) {
-            http.oauth2Login(login -> login.successHandler(oauth2SuccessHandler.getObject()));
+            http.oauth2Login(login -> login
+                    // O serviço customizado existe só pelo GitHub, que esconde e-mail
+                    // privado do /user — ver GitHubEmailOAuth2UserService.
+                    .userInfoEndpoint(userInfo -> userInfo.userService(gitHubEmailUserService))
+                    .successHandler(oauth2SuccessHandler.getObject()));
         }
 
         return http.build();

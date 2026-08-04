@@ -104,13 +104,13 @@ class EditorDirectoryTest {
     void filtroPorEstiloDeEdicaoRespeitaAsTags() throws Exception {
         String token = registrarEditor("dark@teste.com", "Editor Dark");
         upsertPerfil(token, """
-                {"niches": ["YOUTUBE"], "tools": ["PREMIERE"], "styles": ["DARK", "STORYTELLING"]}
+                {"niches": ["YOUTUBE"], "tools": ["PREMIERE"], "styles": ["CLEAN", "STORYTELLING"]}
                 """);
 
-        mockMvc.perform(get("/v1/editors").param("style", "DARK"))
+        mockMvc.perform(get("/v1/editors").param("style", "CLEAN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].styles", hasItems("DARK", "STORYTELLING")));
+                .andExpect(jsonPath("$.content[0].styles", hasItems("CLEAN", "STORYTELLING")));
 
         mockMvc.perform(get("/v1/editors").param("style", "MEME"))
                 .andExpect(status().isOk())
@@ -177,7 +177,7 @@ class EditorDirectoryTest {
     }
 
     @Test
-    void feedDeEditoresExigeLoginEMostraSoQuemEstaDisponivel() throws Exception {
+    void disponivelERecorteDaVitrineENaoOutraSuperficie() throws Exception {
         String livre = registrarEditor("livre@teste.com", "Editor Livre");
         upsertPerfil(livre, """
                 {"niches": ["REELS"], "tools": ["PREMIERE"], "available": true}
@@ -188,27 +188,21 @@ class EditorDirectoryTest {
                 {"niches": ["REELS"], "tools": ["PREMIERE"], "available": false}
                 """);
 
-        // Sem token o feed não existe — é o que o separa da vitrine pública.
-        mockMvc.perform(get("/v1/feed/editors"))
-                .andExpect(status().isUnauthorized());
-
-        // A vitrine, essa sim, mostra os dois sem login nenhum.
+        // O `/v1/feed/editors` saiu em 2026-08-04: mostrava esta mesma lista com um filtro
+        // a menos. "Quem está livre agora" é valor de filtro, não superfície.
         mockMvc.perform(get("/v1/editors"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2));
 
-        String cliente = registrar("cliente@teste.com", "Cliente Maria", "CLIENT");
-
-        mockMvc.perform(get("/v1/feed/editors")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+        // Sem login, como o resto da vitrine: o recorte não é área logada.
+        mockMvc.perform(get("/v1/editors").param("available", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].displayName").value("Editor Livre"))
                 .andExpect(jsonPath("$.content[0].available").value(true));
 
-        // Mesmo recorte, agora por categoria.
-        mockMvc.perform(get("/v1/feed/editors?niche=PODCAST")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+        // E combina com os outros filtros — o que o feed antigo não fazia.
+        mockMvc.perform(get("/v1/editors").param("available", "true").param("niche", "PODCAST"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(0));
     }

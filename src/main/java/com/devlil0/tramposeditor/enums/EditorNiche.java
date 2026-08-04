@@ -10,5 +10,11 @@ public enum EditorNiche {
     TIKTOK,
     REELS,
     YOUTUBE,
-    PODCAST
+    PODCAST,
+    /**
+     * Canal sem rosto, narração sobre imagem de apoio. Era {@code EditorStyle.DARK} até a
+     * V11: estilo é <b>como</b> se corta, e canal dark é <b>que tipo</b> de canal é — a
+     * mesma natureza de YOUTUBE e PODCAST.
+     */
+    DARK
 }

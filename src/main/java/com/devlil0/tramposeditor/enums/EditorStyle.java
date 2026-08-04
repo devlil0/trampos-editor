@@ -22,7 +22,7 @@ public enum EditorStyle {
     /** Montagem que constrói narrativa. */
     STORYTELLING,
     /** Efeito engraçado e referência de internet. */
-    MEME,
-    /** Canal dark: sem rosto, narração sobre imagem de apoio. */
-    DARK
+    MEME
+    // DARK saiu daqui na V11: virou EditorNiche. Canal dark é tipo de canal, não jeito
+    // de cortar — e como nicho ele ganha página de tag indexável.
 }

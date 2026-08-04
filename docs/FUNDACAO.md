@@ -15,7 +15,8 @@ Uma plataforma de **duas pontas (two-sided marketplace)** que conecta:
 
 Posicionamento: o **"anti-Workana"** — simples, sem burocracia, sem plano/assinatura, focado em experiência. Um *life saver* dos dois lados.
 
-O segundo produto (mix/master/beats — "studio session") é **a MESMA máquina com outra vertical**. Fica pra depois (ver §8).
+Áudio (mix/master/beats) **não é deste produto**: mesma finalidade, outro SaaS, com marca e
+domínio próprios. Decisão de 2026-08-04 — a TramposEditor é de vídeo, ponto.
 
 ---
 
@@ -120,12 +121,9 @@ JobRequest (opcional / Modelo B leve)
 
 Conversation / Message      (chat interno — ponto de contato)
 Review (rating + comentário, pós-serviço)
-Category / Vertical          ← CHAVE p/ expandir pra "studio session" depois
 Boost / FeaturedPlacement    (monetização Fase 2)
 Transaction / Escrow         (monetização Fase 3 — só quando chegar lá)
 ```
-
-> ⚠️ Decisão de arquitetura importante: modelar **Category/Vertical como dimensão desde já** (mesmo que só exista "vídeo"). Isso permite plugar "áudio (mix/master/beats)" depois **sem reescrever o núcleo** (§8).
 
 ### 5.3. Stack (ancorada no que já existe)
 - **Backend:** Spring Boot 4.1.0 + Java 17 (já no repo). Spring Web, Spring Data JPA, Spring Security, Validation.
@@ -154,16 +152,20 @@ Seus diferenciais (simplificado, descomplicado, sem burocracia, life saver dos d
 **NÃO incluir no MVP** (evitar over-engineering):
 - Pagamento/escrow (Fase 3).
 - Sistema de lances/propostas estilo Workana.
-- Studio session (áudio).
 - App mobile nativo (web mobile-first basta).
 
 ---
 
-## 8. Segunda versão — Studio Session (mix / master / beats)
-Mesmo motor, outra vertical (áudio em vez de vídeo). **Não construir agora.**
-- Validar o marketplace de vídeo primeiro (provar liquidez e monetização).
-- Arquitetar com `Category/Vertical` como dimensão (§5.2) pra que a expansão seja **configuração, não reescrita**.
-- Portfólio de áudio = embed SoundCloud/Spotify em vez de YouTube — mesma abstração de `PortfolioItem`.
+## 8. ~~Segunda versão — Studio Session~~ (removido em 2026-08-04)
+
+Era "mesmo motor, outra vertical: áudio em vez de vídeo". **Saiu do escopo da TramposEditor.**
+
+Mix/master/beats vira um SaaS próprio — mesma finalidade, público diferente (mixing
+engineers, beatmakers, produtores musicais), marca e domínio separados. A seção fica aqui
+como registro porque o resto do documento referencia §8; não há mais nada a construir nela.
+
+Consequência: a TramposEditor não é mais um guarda-chuva. O cuidado do §10.4 sobre a marca
+ficar apertada quando áudio entrasse deixou de existir.
 
 ---
 
@@ -175,7 +177,6 @@ Mesmo motor, outra vertical (áudio em vez de vídeo). **Não construir agora.**
 | **1 — MVP** | Liquidez | Diretório + perfis + portfólio + chat + reviews. Semear 30–50 editores à mão | Grátis |
 | **2 — Monetizar** | R$ 2k/mês | Destaque/Boost avulso; Google Ads ligado | Boost pay-per-use |
 | **3 — Escalar** | Confiança + take-rate | Pagamento protegido (escrow opcional) | % como "seguro" |
-| **4 — Expandir** | Nova vertical | Studio Session (áudio) | Mesma máquina |
 
 ---
 
@@ -185,7 +186,7 @@ Mesmo motor, outra vertical (áudio em vez de vídeo). **Não construir agora.**
    - MVP = só **Diretório/vitrine**.
    - Fase 1.5 = adicionar **"postar pedido rápido"** leve (sem lances/leilão), só "cliente descreve → editores respondem no chat".
 3. ✅ **Monetização:** **sequenciada** — Fase 1 grátis → Fase 2 Boost avulso (meta R$2k) → Fase 3 escrow como "pagamento protegido".
-4. ✅ **Marca:** **TramposEditor** (definitivo). Cuidados: garantir domínio/@ nas redes; ciente de que pode ficar apertado como guarda-chuva quando entrar áudio (Fase 4).
+4. ✅ **Marca:** **TramposEditor** (definitivo). Cuidado que resta: garantir domínio/@ nas redes. O risco de guarda-chuva apertado morreu com a remoção do §8 — a marca é de vídeo e só.
 
 ### Ainda em aberto
 - **Domínio:** registrar a URL (usuário fará).
@@ -277,8 +278,9 @@ Diretório de editores entregue ponta a ponta (taxonomia + perfil/portfólio + v
 
 **Decisões:**
 - **Taxonomia como enum, não tabela** (`Vertical`, `EditorNiche`, `EditorTool`): lista muda
-  pouco e evita seed/join extra no MVP. `Vertical` já é coluna pra que áudio (Fase 4) seja
-  configuração, não reescrita — como o §5.2 pede. Trocar por tabela depois é migration simples.
+  pouco e evita seed/join extra no MVP. Trocar por tabela depois é migration simples.
+  Nota (2026-08-04): `Vertical` existia pra plugar áudio sem reescrever o núcleo. Com o §8
+  removido, ela ficou sem propósito — hoje é uma coluna com um valor só (`VIDEO`).
 - **Slug imutável** gerado do `displayName` no cadastro do perfil (`joao-silva`). URL estável =
   SEO estável (o motivo do Next.js no §11.2.6). Colisão resolve com sufixo aleatório curto.
 - **Vitrine 100% pública** (`GET /v1/editors/**` no `permitAll`); a gestão do perfil mora em

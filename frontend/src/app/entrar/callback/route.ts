@@ -1,16 +1,9 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import type { NextRequest } from "next/server";
 import { createSession } from "@/lib/session";
 import type { AuthResponse } from "@/lib/types";
 
-export const metadata: Metadata = {
-  title: "Entrando… — TramposEditor",
-  robots: { index: false },
-};
-
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
-
-type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 
 function falhou(motivo: string): never {
   redirect("/entrar?erro=" + encodeURIComponent(motivo));
@@ -23,11 +16,17 @@ function falhou(motivo: string): never {
  * O código existe pra que o JWT nunca apareça numa URL — URL vaza em log de servidor,
  * histórico e Referer. Esta troca é servidor a servidor e o browser continua só com o
  * cookie httpOnly, igual ao login por senha.
+ *
+ * É Route Handler, e não `page.tsx`, porque grava cookie: o Next só permite `.set` em
+ * Server Function ou Route Handler. Numa página o `fetch` de troca até funcionava, mas
+ * `createSession` estourava — e como o código é de uso único, a tentativa seguinte já
+ * vinha com "esse login expirou", escondendo a causa real.
+ *
+ * Como esta rota nunca renderiza UI, também não precisa de `metadata` com `noindex`:
+ * não há HTML pra indexar.
  */
-export default async function CallbackPage({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
-  const raw = sp.code;
-  const code = Array.isArray(raw) ? raw[0] : raw;
+export async function GET(request: NextRequest) {
+  const code = request.nextUrl.searchParams.get("code");
 
   if (!code) falhou("Login não completou. Tente de novo.");
 

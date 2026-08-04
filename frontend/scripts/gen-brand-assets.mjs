@@ -165,14 +165,23 @@ async function platformIcons() {
 
   // nome do arquivo de saída = valor do enum EditorNiche em minúsculo
   const map = [
-    ["tiktok", "tiktok-icon.png"],
-    ["reels", "instagram-icon.png"], // Reels é o formato; a marca é o Instagram
-    ["youtube", "youtube-icon.png"],
+    ["tiktok", path.join(media, "enterprises", "tiktok-icon.png")],
+    // Reels é o formato; a marca é o Instagram
+    ["reels", path.join(media, "enterprises", "instagram-icon.png")],
+    ["youtube", path.join(media, "enterprises", "youtube-icon.png")],
+    // Canal dark não é empresa: a arte é nossa e mora um nível acima de enterprises.
+    // Sem `trim` aqui — a arte é uma placa preta cheia, e aparar por transparência não
+    // teria o que aparar; o que dá forma a ela é o `rounded` do componente.
+    ["dark", path.join(media, "dark-square-icon.png")],
   ];
 
   for (const [niche, file] of map) {
-    await sharp(path.join(media, "enterprises", file))
-      .trim({ threshold: 1 }) // tira a margem transparente antes de normalizar
+    const pipeline = sharp(file);
+    // A arte do canal dark é opaca de ponta a ponta; as das plataformas vêm com margem
+    // transparente que precisa sair antes de normalizar pra todas terem o mesmo peso.
+    if (niche !== "dark") pipeline.trim({ threshold: 1 });
+
+    await pipeline
       .resize(64, 64, { fit: "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png({ compressionLevel: 9 })
       .toFile(path.join(dir, `${niche}.png`));

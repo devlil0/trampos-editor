@@ -4,6 +4,9 @@ target/
 ### Segredos ###
 .env
 !.env.example
+# Credenciais locais (OAuth do Google/GitHub). O `.example` fica versionado como modelo.
+src/main/resources/application-local.yaml
+!src/main/resources/application-local.yaml.example
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

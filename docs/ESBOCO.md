@@ -32,7 +32,7 @@ O sistema inteiro cabe em quatro camadas. Elas se distinguem por **quem entra** 
 │  /painel/meu-perfil         editor monta sua vitrine        │
 │  /painel/pedidos            cliente posta e recebe          │
 │  /painel/trampos      ✅    FEED DA DEMANDA                 │
-│  /painel/editores     ✅    FEED DA OFERTA                  │
+│  (feed da oferta removido → /editores?available=true)       │
 │  /painel/conversas    ✅    a caixa de entrada              │
 │  /painel/trampos-fechados ⬜    histórico + review (falta)  │
 └─────────────────────────────────────────────────────────────┘
@@ -45,18 +45,32 @@ O sistema inteiro cabe em quatro camadas. Elas se distinguem por **quem entra** 
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Os dois feeds são um par, não duas telas
+### ~~Os dois feeds são um par~~ — a simetria era falsa (corrigido em 2026-08-04)
 
-A camada logada tem **dois feeds simétricos**, um por lado do mercado:
+Este bloco dizia que a camada logada tinha **dois feeds simétricos**, um por lado do
+mercado: `/painel/trampos` pra demanda e `/painel/editores` pra oferta. **Só um dos dois
+se sustentava**, e o feed da oferta foi removido.
 
-| Feed | Rota | Mostra | Pra quem |
+| Feed | Rota | Tem equivalente público? | Sobreviveu? |
 |---|---|---|---|
-| **Demanda** | `/painel/trampos` | trampos abertos — clientes pedindo edição | quem edita |
-| **Oferta** | `/painel/editores` | editores disponíveis agora | quem contrata |
+| **Demanda** | `/painel/trampos` | não — não existe lista pública de trampos | ✅ superfície legítima |
+| **Oferta** | ~~`/painel/editores`~~ | sim — é a vitrine | ❌ era a vitrine com um filtro a menos |
 
-Mesma forma nos dois: **um seletor de categoria, uma página por vez, só pra quem tem
-conta.** A simetria não é estética — é o que faz a plataforma parecer um mercado em vez
-de um catálogo com um formulário do lado.
+A diferença que este documento alegava (o feed mostra só quem está **disponível**) é
+**valor de filtro, não superfície**: `/v1/editors` sempre aceitou `available`. O resto da
+justificativa — "recorte só por categoria" — descrevia uma limitação, não um propósito.
+
+A prova estava no próprio código: a página do feed linkava pra vitrine **duas vezes**,
+dizendo que lá havia mais filtro. Tela que recomenda outra como versão melhor de si mesma
+não é tela distinta.
+
+Hoje "quem está livre agora" é um toggle da vitrine (`/editores?available=true`), e
+`/painel/editores` responde 308 pra lá. O `FeedController` foi deletado.
+
+**O que a correção não muda:** o feed da demanda continua de pé, e continua sendo o que
+faz a plataforma parecer mercado em vez de catálogo. O erro foi construir um par onde só
+havia uma peça — e a lição vale pra frente: antes de criar superfície nova, checar se ela
+não é recorte de uma que já existe.
 
 ### Por que a camada pública é grande e a logada é pequena
 
@@ -68,33 +82,36 @@ ela não capta ninguém, ela **resolve** quem já foi captado.
 O erro clássico seria inflar a camada logada com dashboards. O coração não é mais telas:
 é **uma tela onde as duas pontas se falam**.
 
-### Feed não é dashboard — e feed de editores não é a vitrine de novo
-
-Os dois feeds parecem contrariar o parágrafo acima. Não contrariam, e vale dizer por quê,
-senão a próxima pessoa "corrige" isso.
+### Feed não é dashboard
 
 Dashboard é tela que **descreve** o que já aconteceu — gráfico, contador, resumo. Feed é
 tela que **oferece o próximo passo**: aqui está o que tem hoje, escolha. O que infla a
 camada logada é o primeiro tipo; o segundo é circulação, que é justamente o que o §3
 diagnostica como faltando.
 
-Já o feed de editores não duplica a vitrine, porque as duas respondem a perguntas
-diferentes:
+> A tabela que antes defendia aqui a existência do feed de editores caiu junto com ele —
+> ver o bloco acima. O argumento que ela usava ("a vitrine é pra decidir, o feed é pra
+> voltar") não sobrevivia ao fato de o feed ter **menos** filtro que a vitrine: quem volta
+> também escolhe.
 
-| | Vitrine `/editores` | Feed `/painel/editores` |
-|---|---|---|
-| Quem entra | qualquer um, e o Google | só quem tem conta |
-| Pergunta | "quem é o editor certo pro meu vídeo?" | "quem está livre agora?" |
-| Mostra | todo mundo, ocupado inclusive | só quem está **disponível** |
-| Recorte | busca, nicho, ferramenta, estilo, preço | categoria, e só |
-| Papel | aquisição — é o ativo de SEO | circulação — é uso recorrente |
+A "disponibilidade honesta" do §6 continua tendo dente, e agora num lugar melhor: marcar-se
+ocupado tira o editor do recorte `available=true`, que é o padrão de quem procura alguém
+pra hoje, mas nunca da vitrine. O gesto custa visibilidade do dia, não a existência do
+perfil.
 
-A vitrine é para **decidir**, e por isso é generosa em filtro e indexável. O feed é para
-**voltar**, e por isso é enxuto e fechado. Uma capta, a outra retém.
+### A vitrine é a única lista de editores
 
-Consequência de desenho que vale fixar: o feed lista só quem está disponível. Isso dá
-dente à "disponibilidade honesta" do §6 — marcar-se ocupado tira você do feed, mas nunca
-da vitrine. O gesto custa visibilidade do dia, não a existência do perfil.
+Consequência direta da remoção acima, e vale fixar pra não renascer: **existe uma lista de
+editores só.** Toda pergunta sobre editor — quem é o certo, quem está livre, quem usa
+CapCut, quem cobra até R$ 250 — é um recorte de `/editores`, com controle visível na
+própria tela.
+
+Isso obrigou a corrigir um segundo problema que estava escondido atrás do feed: `tool`,
+`style`, `available` e `maxPriceCents` eram aceitos por `/v1/editors` e **não tinham
+controle nenhum na interface**. A vitrine parecia mais pobre do que era, e foi isso que fez
+o feed parecer necessário. Hoje ferramenta aparece como círculo de marca (a leitura é pelo
+logo, como nos marketplaces grandes), estilo e preço como chips, e disponibilidade como
+toggle.
 
 ---
 
@@ -115,14 +132,13 @@ da vitrine. O gesto custa visibilidade do dia, não a existência do perfil.
 | `/painel/meu-perfil` | ✅ | editor | virar editor, editar vitrine | MVP |
 | `/painel/pedidos` | ✅ | cliente | postar, ver interessados, aceitar | 1.5 |
 | `/painel/trampos` feed da demanda | ✅ | editor | categoria, paginado, candidatar | **MVP** |
-| `/painel/editores` feed da oferta | ✅ | cliente | quem está livre agora, por categoria | **MVP** |
+| ~~`/painel/editores`~~ feed da oferta | ❌ | — | removido: era a vitrine com menos filtro (§1) | — |
 | `/painel/conversas` | ✅ | ambos | onde a relação acontece | MVP |
 | `/painel/trampos-fechados` | ✅ | ambos | histórico, avaliação e **chamar de novo** (§3.2) | MVP |
-| notificação por e-mail | ✅ | ambos | faz o assíncrono funcionar | MVP |
-| páginas de tag (`/editores/tiktok`) | ⬜ | cliente | SEO long-tail dedicado | 2 |
+| notificação por e-mail | 🟡 | ambos | faz o assíncrono funcionar — código pronto, envio real pendente (§7) | MVP |
+| páginas de tag (`/editores/tiktok`) | ✅ | cliente | SEO long-tail dedicado — 9 tags, indexa só com estoque (§2.3) | 2 |
 | destaque / boost | ⬜ | editor | monetização pay-per-use | 2 |
 | pagamento protegido | ⬜ | ambos | take-rate como seguro | 3 |
-| vertical áudio | ⬜ | ambos | mesma máquina, outra `Vertical` | 4 |
 | `/admin` moderação | ⬜ | admin | sustenta a promessa de qualidade — ver §2.2 | 2 |
 
 ### 2.1. A ordenação da vitrine, escrita
@@ -161,6 +177,32 @@ O mínimo que precisa existir antes de virar problema:
 | **Registro da decisão** | quem suspendeu, quando, por quê | a recusa do §4.2 só vale se ela for auditável |
 
 Isso continua Fase 2 — mas fica nomeado, e não é mais um traço na tabela.
+
+### 2.3. Páginas de tag: por que não é a vitrine de novo (2026-08-04)
+
+`/editores?niche=TIKTOK` e `/editores/tiktok` mostram a mesma lista, e a diferença não é
+cosmética: **querystring não rankeia.** Sem URL, título, H1 e texto próprios não há o que
+o Google indexe. Vale o mesmo par do §1 um nível abaixo — o filtro serve quem já está
+dentro, a tag page serve quem ainda está no Google. Uma retém, a outra capta.
+
+São nove: quatro de nicho (`tiktok`, `reels`, `youtube`, `podcast`) e cinco de ferramenta
+(`premiere`, `capcut`, `after-effects`, `davinci-resolve`, `final-cut-pro`). Estilo ficou
+de fora: é a dimensão com menos estoque e a de menor intenção de compra na busca.
+
+Três decisões que valem ficar escritas:
+
+- **Indexação por estoque.** Página de tag magra não rankeia, parece produto morto e, uma
+  vez indexada, não sai mais. Abaixo de 3 editores ela existe e é navegável, mas sai com
+  `noindex`. Hoje isso indexa 5 e segura 4 — o limiar mora em `MIN_EDITORES_INDEXAVEL`.
+- **Slug reservado.** Perfil e tag dividem `/editores/{slug}`, então um editor chamado
+  "CapCut" tomaria a página da ferramenta. `EditorProfileService.RESERVED_SLUGS` recusa, e
+  a lista espelha `frontend/src/lib/tags.ts`.
+- **Texto à mão, um por tag.** Nove páginas com o mesmo parágrafo trocando uma palavra é
+  *doorway page*: o Google pune. Os textos atuais são rascunho e esperam a voz do fundador
+  (§9) — é trabalho de cultura, não de código.
+
+Entrou junto o que faltava pra isso funcionar: `sitemap.xml` (que exclui as tags sob
+`noindex`, pra não pedir indexação do que manda não indexar) e `robots.txt`.
 
 ---
 
@@ -250,6 +292,28 @@ girar sem instrumento, o que é bem melhor que não girar, mas deixa a próxima 
 
 Isso é trabalho de outra natureza — evento, origem de cadastro, contagem — e por isso não
 entrou no §7: aquela lista é do que faz o sistema andar, não do que o observa.
+
+**Quando fazer (decisão de 2026-08-04): depois da aquisição do domínio.**
+
+A ordem importa porque quase tudo aqui já é derivável do banco e pode esperar — método de
+cadastro sai de `user_identities`, cliente que voltou sai de `job_requests`, e o efeito da
+nota na ordenação sai de `reviews` + `editor_profiles.rating_avg`. Nada disso se perde.
+
+O que **não** é derivável é a origem externa do cadastro (referrer e `utm_*`): ela só existe
+no instante da primeira visita e some se ninguém gravar. Daí o risco aparente de adiar — e
+daí também por que adiar é seguro neste caso: **sem domínio não há tráfego real**, então não
+há cadastro de origem verdadeira pra perder. O que se perderia seria a origem de acessos de
+teste, que não interessa a ninguém.
+
+A janela que não pode ser furada é outra: a captura precisa existir **antes de o domínio ir
+ao ar**, não antes de existir domínio. Se o site abrir ao público sem ela, aí sim os
+primeiros cadastros — os únicos que provam se o SEO funciona — entram cegos e não voltam.
+
+Escopo previsto, quando chegar a hora: uma migration adicionando `signup_referrer`,
+`signup_utm_source` e `signup_landing` em `users`, captura no cadastro por senha e no
+callback social (via cookie de primeira visita, já que o referrer se perde na ida ao
+provedor), e um arquivo de queries versionado. **Sem tela** — dashboard na camada logada é o
+erro que o §1 nomeia.
 
 ---
 
@@ -445,7 +509,7 @@ Deriva direto dos laços do §3 — não é lista de desejos.
 |---|---|---|---|:---:|
 | 1 | **Conversa, com duas portas de entrada** | fecha o `href="#"` do perfil e unifica os dois fluxos numa caixa de entrada só | 5 | ✅ |
 | 2 | **Os dois feeds, com categoria e paginação** | os dois lados precisam de uma tela de "o que tem hoje" — e o feed sem limite não escala | 5.5 | ✅ |
-| 3 | **Notificação por e-mail** | sem ela os itens 1 e 2 não giram: ninguém sabe que foi procurado. É o **canal** | novo | ✅ |
+| 3 | **Notificação por e-mail** | sem ela os itens 1 e 2 não giram: ninguém sabe que foi procurado. É o **canal** | novo | 🟡 |
 | 4 | **`Deal` + avaliação + histórico** | o marco de "acabou": fecha reputação (§3.1) **e** demanda (§3.2). É o **motivo** | 6 | ✅ |
 | 5 | **Esconder a nota até existir review** | hoje todo card anuncia "★ 0.0", que faz a vitrine parecer morta | — | ✅ |
 | 6 | **Esqueci a senha** | conta perdida é usuário perdido, e não custa quase nada | novo | ✅ |
@@ -454,6 +518,24 @@ Deriva direto dos laços do §3 — não é lista de desejos.
 
 Os itens 1 a 4 separam "as peças existem" de "o marketplace funciona". **3 e 4 são um par**:
 o canal sem o motivo manda e-mail de nada; o motivo sem o canal fica esperando a aba abrir.
+
+### Item 3 — pendente, aguardando domínio (2026-08-04)
+
+O código do canal está pronto e é o que trava a diferença entre 🟡 e ✅: `NotificationService`
+monta e dispara, e o transporte é trocável por config (`log` local, `smtp` em prod). O que
+falta não é software, é **infra de remetente** — e ela tem uma ordem obrigatória:
+
+1. **adquirir `tramposeditor.com`** ← é aqui que está parado;
+2. criar o e-mail da própria plataforma no domínio — o default já assume
+   `nao-responda@tramposeditor.com` em `application.yaml`;
+3. integrar com a **Resend** e passar a mandar pelas features deles.
+
+Enquanto o domínio não existe, todo e-mail cai no `LogEmailSender` e só aparece no console.
+Consequência prática: os laços da oferta, demanda e reputação (§3.1) têm o gatilho de retorno
+escrito mas **nenhum deles chega em ninguém** — o produto ainda gira só com a aba aberta.
+
+Isso também reabre a "verificar e-mail" do §2 (fase 1.5): sem remetente próprio não há como
+confirmar endereço, então a dívida fica represada atrás da mesma compra.
 
 O item 5 mudou de posição na ordem: era item 3, e desceu porque é cosmético perto de 3 e 4
 — mas continua sendo o de menor esforço do lote, e é o único que melhora a vitrine sem

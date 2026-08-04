@@ -120,9 +120,10 @@ export default async function PainelPage() {
               >
                 Meus pedidos
               </Link>
-              {/* Feed, não vitrine: aqui dentro o que importa é quem pega trampo hoje. */}
+              {/* Aponta direto pra vitrine filtrada: "disponíveis" é recorte dela, não
+                  outra tela (o feed da oferta saiu em 2026-08-04). */}
               <Link
-                href="/painel/editores"
+                href="/editores?available=true"
                 className="btn btn-ghost btn-sm"
               >
                 Editores disponíveis

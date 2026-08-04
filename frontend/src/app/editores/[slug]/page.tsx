@@ -6,23 +6,52 @@ import { StartConversationForm } from "@/components/conversation-forms";
 import { InstagramLink } from "@/components/instagram-link";
 import { NicheTag, StyleTag, ToolTag } from "@/components/niche-tag";
 import { VideoThumb } from "@/components/video-thumb";
+import { TagPage, contarEditoresDaTag, deveIndexar } from "@/components/tag-page";
 import { formatPrice, formatTurnaround } from "@/lib/format";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { acharTag } from "@/lib/tags";
 
 type Params = Promise<{ slug: string }>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
+
+  const tag = acharTag(slug);
+  if (tag) {
+    const total = await contarEditoresDaTag(tag);
+    return {
+      title: tag.titulo,
+      description: tag.descricao,
+      alternates: { canonical: `/editores/${tag.slug}` },
+      // Tag sem estoque continua navegável, mas não entra no índice: página magra
+      // indexada não sai mais de lá. Ver `deveIndexar` em lib/tags.ts.
+      robots: deveIndexar(total) ? undefined : { index: false, follow: true },
+    };
+  }
+
   const editor = await fetchEditorBySlug(slug);
   if (!editor) return { title: "Editor não encontrado — TramposEditor" };
   return {
     title: `${editor.displayName} — editor de vídeo | TramposEditor`,
     description: editor.headline ?? editor.bio ?? `Perfil de ${editor.displayName} no TramposEditor.`,
+    alternates: { canonical: `/editores/${editor.slug}` },
   };
 }
 
+/**
+ * Duas páginas moram nesta rota: o perfil do editor e a página de tag
+ * (`/editores/tiktok`). É um segmento dinâmico só porque o Next não permite dois no mesmo
+ * nível — e a URL plana era o desenho pedido no ESBOCO §2.
+ *
+ * A tag vem primeiro na checagem, e o slug dela é reservado no cadastro do perfil, senão
+ * um editor chamado "CapCut" tomaria a página de uma ferramenta.
+ */
 export default async function EditorProfilePage({ params }: { params: Params }) {
   const { slug } = await params;
+
+  const tag = acharTag(slug);
+  if (tag) return <TagPage tag={tag} />;
+
   const [editor, viewer, token] = await Promise.all([
     fetchEditorBySlug(slug),
     getCurrentUser(),

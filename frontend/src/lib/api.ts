@@ -118,20 +118,8 @@ export function fetchJobFeed(
   );
 }
 
-/**
- * Feed da oferta: editores disponíveis agora. Não é a vitrine — mora atrás do login e
- * só lista quem está livre (ver o javadoc do `FeedController`).
- */
-export function fetchEditorFeed(
-  token: string,
-  query: FeedQuery = {},
-): Promise<Page<EditorSummary>> {
-  return authGet<Page<EditorSummary>>(
-    `/v1/feed/editors${feedParams(query)}`,
-    token,
-    emptyPage<EditorSummary>(),
-  );
-}
+// `fetchEditorFeed` saiu em 2026-08-04 junto com o feed da oferta: a lista de editores
+// disponíveis virou `fetchEditors({ available: "true" })`, um recorte da vitrine.
 
 /** Pedidos em que eu me candidatei. */
 export function fetchMyJobInterests(token: string): Promise<JobRequestFeedItem[]> {

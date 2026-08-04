@@ -21,7 +21,7 @@ export interface AuthResponse {
   expiresIn: number;
   user: AuthUser;
 }
-export type EditorNiche = "TIKTOK" | "REELS" | "YOUTUBE" | "PODCAST";
+export type EditorNiche = "TIKTOK" | "REELS" | "YOUTUBE" | "PODCAST" | "DARK";
 export type EditorTool =
   | "PREMIERE"
   | "AFTER_EFFECTS"
@@ -36,8 +36,8 @@ export type EditorStyle =
   | "CINEMATOGRAFICA"
   | "MOTION_GRAPHICS"
   | "STORYTELLING"
-  | "MEME"
-  | "DARK";
+  // DARK saiu daqui na V11: virou EditorNiche.
+  | "MEME";
 export type PortfolioProvider = "YOUTUBE" | "VIMEO";
 
 export interface PortfolioItem {

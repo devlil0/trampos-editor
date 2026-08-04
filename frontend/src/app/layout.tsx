@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Nav } from "@/components/nav";
 import { getCurrentUser } from "@/lib/session";
@@ -45,6 +46,12 @@ export const metadata: Metadata = {
 };
 
 // Tema de origem = dark. Script inline evita flash aplicando a escolha salva antes da pintura.
+//
+// Vai por `next/script` com `beforeInteractive`, e não como <script> cru no <head>: uma tag
+// <script> dentro de componente React não executa quando o layout renderiza no cliente — o
+// React avisa isso no console, e acontece de verdade aqui (o retorno do callback OAuth
+// re-renderiza o layout). `beforeInteractive` injeta no HTML inicial do servidor e roda
+// antes de qualquer módulo do Next, que é justamente o que o anti-flash precisa.
 const themeScript = `(function(){try{var t=localStorage.getItem("theme")||"dark";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`;
 
 export default async function RootLayout({
@@ -56,10 +63,9 @@ export default async function RootLayout({
 
   return (
     <html lang="pt-BR" data-theme="dark" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body className="min-h-full flex flex-col antialiased">
+        {/* `id` é obrigatório em script inline — é como o Next rastreia e não duplica. */}
+        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Nav user={user} />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-line text-sm text-muted">

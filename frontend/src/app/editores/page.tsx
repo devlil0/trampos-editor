@@ -27,6 +27,9 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
     niche: pick(sp.niche),
     tool: pick(sp.tool),
     style: pick(sp.style),
+    // "Quem está livre agora" era o feed da oferta (`/painel/editores`); virou recorte
+    // desta lista quando aquela tela saiu, em 2026-08-04.
+    available: pick(sp.available),
     q: pick(sp.q),
     maxPriceCents: pick(sp.maxPriceCents),
     page: pick(sp.page),

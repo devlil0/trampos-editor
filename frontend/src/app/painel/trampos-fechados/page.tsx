@@ -62,7 +62,7 @@ export default async function TramposFechadosPage() {
             quando registra um combinado dentro de uma conversa.
           </p>
           <div className="mt-4 flex flex-wrap gap-2.5">
-            <Link href="/painel/editores" className="btn btn-primary btn-sm">
+            <Link href="/editores?available=true" className="btn btn-primary btn-sm">
               Ver editores disponíveis
             </Link>
             <Link href="/painel/trampos" className="btn btn-ghost btn-sm">

@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -179,6 +180,18 @@ public class EditorProfileService {
     }
 
     /**
+     * Slugs que as páginas de tag ocupam em {@code /editores/{slug}}.
+     * <p>
+     * Perfil e tag dividem a mesma forma de URL, então sem reserva um editor chamado
+     * "CapCut" geraria {@code capcut} e sequestraria a página da ferramenta — e o front,
+     * que checa a tag primeiro, deixaria esse perfil inalcançável. A lista espelha
+     * {@code frontend/src/lib/tags.ts}; mexeu lá, mexe aqui.
+     */
+    private static final Set<String> RESERVED_SLUGS = Set.of(
+            "tiktok", "reels", "youtube", "podcast", "canal-dark",
+            "premiere", "capcut", "after-effects", "davinci-resolve", "final-cut-pro");
+
+    /**
      * Gera slug a partir do nome ("João Silva" -> "joao-silva"). Em caso de colisão,
      * anexa um sufixo curto aleatório em vez de um contador — evita uma segunda consulta
      * de sondagem e não vaza quantos homônimos existem.
@@ -190,11 +203,16 @@ public class EditorProfileService {
         }
 
         String candidate = base;
-        while (editorProfileRepository.existsBySlug(candidate)) {
+        while (isTaken(candidate)) {
             String suffix = UUID.randomUUID().toString().substring(0, 6);
             candidate = truncate(base, SLUG_MAX_LENGTH - suffix.length() - 1) + "-" + suffix;
         }
         return candidate;
+    }
+
+    /** Ocupado é slug de outro perfil <b>ou</b> de uma página de tag. */
+    private boolean isTaken(String slug){
+        return RESERVED_SLUGS.contains(slug) || editorProfileRepository.existsBySlug(slug);
     }
 
     private String slugify(String value){

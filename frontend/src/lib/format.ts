@@ -5,6 +5,8 @@ const NICHE_LABELS: Record<EditorNiche, string> = {
   REELS: "Reels",
   YOUTUBE: "YouTube",
   PODCAST: "Podcast (cortes)",
+  // "dark" aqui é canal dark (sem rosto), não tema escuro — o rótulo tem que deixar claro.
+  DARK: "Canal dark",
 };
 
 /**
@@ -16,6 +18,9 @@ const NICHE_ICONS: Record<EditorNiche, string | null> = {
   REELS: "/plataformas/reels.png",
   YOUTUBE: "/plataformas/youtube.png",
   PODCAST: null,
+  // Canal dark não é plataforma e a arte é nossa (media/dark-square-icon.png), mas entra
+  // na mesma caixa: aqui marca é a regra, e o nicho sem ela é que é a exceção.
+  DARK: "/plataformas/dark.png",
 };
 
 const TOOL_LABELS: Record<EditorTool, string> = {
@@ -43,8 +48,7 @@ const STYLE_LABELS: Record<EditorStyle, string> = {
   MOTION_GRAPHICS: "Motion graphics",
   STORYTELLING: "Storytelling",
   MEME: "Meme",
-  // "dark" aqui é canal dark (sem rosto), não tema escuro — o rótulo tem que deixar claro.
-  DARK: "Dark (sem rosto)",
+  // DARK saiu daqui na V11: virou nicho, e o rótulo dele mora em NICHE_LABELS.
 };
 
 // Filtros da vitrine expõem os nichos como chips.
