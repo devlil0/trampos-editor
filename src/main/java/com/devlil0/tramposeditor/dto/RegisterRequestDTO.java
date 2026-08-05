@@ -23,6 +23,16 @@ public record RegisterRequestDTO(
         @Length(max = 80)
         String displayName,
 
+        /**
+         * O endereço da pessoa em {@code /{username}}, escolhido por ela.
+         * <p>
+         * O formato não é validado aqui: quem tem a regra é o {@code UsernameService}, e é
+         * dele que sai a frase que a pessoa lê. Ver {@link UsernameUpdateDTO}.
+         */
+        @NotBlank
+        @Length(max = 60)
+        String username,
+
         @NotEmpty
         Set<UserRole> roles
 ) {

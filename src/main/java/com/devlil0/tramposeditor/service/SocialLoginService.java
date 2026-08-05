@@ -102,7 +102,12 @@ public class SocialLoginService {
         return userRepository.saveAndFlush(UserEntity.builder()
                 .email(email)
                 .displayName(nome)
+                // Aqui não há formulário onde perguntar, então o nome nasce derivado — mas
+                // provisório: `usernameChosen = false` manda a pessoa pra tela de escolha
+                // antes de ela navegar. Entrar pelo Google não pode dar um endereço que
+                // ninguém decidiu, que era o caso até a V15.
                 .username(usernameService.gerarPara(nome))
+                .usernameChosen(false)
                 // Todo mundo entra como cliente; virar editor continua sendo publicar o
                 // perfil, exatamente como no cadastro por senha (FUNDACAO §11.9).
                 .roles(Set.of(UserRole.CLIENT))

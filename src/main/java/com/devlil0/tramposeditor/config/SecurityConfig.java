@@ -66,6 +66,9 @@ public class SecurityConfig {
                         // Foto de perfil: aparece na vitrine e no perfil indexado. Exigir
                         // token pra carregar imagem de página pública quebraria a página.
                         .requestMatchers(HttpMethod.GET, "/v1/avatars/**").permitAll()
+                        // "Esse nome está livre?" roda no formulário de cadastro, onde
+                        // ainda não existe token. Username é público por construção.
+                        .requestMatchers(HttpMethod.GET, "/v1/usernames/availability").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

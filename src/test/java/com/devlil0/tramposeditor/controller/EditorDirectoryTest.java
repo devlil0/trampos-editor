@@ -221,9 +221,10 @@ class EditorDirectoryTest {
                                   "email": "%s",
                                   "password": "senhaforte123",
                                   "displayName": "%s",
+                                  "username": "u-%s",
                                   "roles": ["%s"]
                                 }
-                                """.formatted(email, displayName, role)))
+                                """.formatted(email, displayName, email.split("@")[0], role)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 

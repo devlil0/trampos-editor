@@ -9,6 +9,14 @@ export interface AuthUser {
   displayName: string;
   /** Identidade no produto e endereço da pessoa em `/{username}`. */
   username: string;
+  /**
+   * False enquanto a pessoa não escolheu o próprio nome — só acontece em conta criada pelo
+   * provedor social, onde não há formulário onde perguntar. É o que faz `/painel/layout`
+   * interromper a navegação e mandar pra `/escolher-username`.
+   */
+  usernameChosen: boolean;
+  /** Última troca; null se nunca trocou. Alimenta o cooldown mostrado nas configurações. */
+  usernameChangedAt: string | null;
   /** Versão da foto de perfil; null quando não há. Entra na URL da imagem. */
   avatarVersion: string | null;
   /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */

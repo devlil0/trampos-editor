@@ -10,7 +10,7 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 export interface AuthFormState {
   error?: string;
   /** Ecoa o que o usuário digitou pra não perder o preenchimento no erro. */
-  values?: { email?: string; displayName?: string };
+  values?: { email?: string; displayName?: string; username?: string };
 }
 
 /**
@@ -71,31 +71,38 @@ export async function registerAction(
 ): Promise<AuthFormState> {
   const email = String(formData.get("email") ?? "").trim();
   const displayName = String(formData.get("displayName") ?? "").trim();
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const values = { email, displayName };
+  const values = { email, displayName, username };
 
   // A conta é uma só. Todo mundo entra como CLIENT; virar editor é uma condição que a
   // pessoa assume depois, publicando o perfil de editor (o backend concede o papel lá).
   const roles: UserRole[] = ["CLIENT"];
 
-  if (!email || !displayName || !password) {
+  if (!email || !displayName || !username || !password) {
     return { error: "Preencha todos os campos.", values };
   }
   if (password.length < 8) {
     return { error: "A senha precisa de pelo menos 8 caracteres.", values };
   }
+  // O formato do username não é checado aqui: quem tem a regra é o UsernameService do
+  // backend, e é ele que responde a checagem que rodou enquanto a pessoa digitava. Uma
+  // segunda cópia aqui poderia recusar um nome que o campo tinha acabado de aprovar.
 
   let auth: AuthResponse;
   try {
     const res = await fetch(`${API_URL}/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, displayName, roles }),
+      body: JSON.stringify({ email, password, displayName, username, roles }),
       cache: "no-store",
     });
 
+    // O 409 deixou de ter uma causa só quando o username entrou no formulário: pode ser
+    // e-mail repetido ou nome já tomado. A frase do backend distingue os dois, então
+    // repassar é mais útil que a mensagem fixa que estava aqui.
     if (res.status === 409) {
-      return { error: "Já existe uma conta com esse e-mail.", values };
+      return { error: await readError(res, "Já existe uma conta com esse e-mail."), values };
     }
     if (!res.ok) {
       return { error: await readError(res, "Não deu pra criar a conta agora."), values };

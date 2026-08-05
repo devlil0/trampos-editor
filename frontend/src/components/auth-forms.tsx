@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { loginAction, registerAction, type AuthFormState } from "@/app/actions/auth";
+import { UsernameField } from "./username-field";
 
 const EMPTY: AuthFormState = {};
 
@@ -110,6 +111,15 @@ export function RegisterForm() {
           className={inputClass}
         />
       </div>
+
+      {/* Logo depois do nome de exibição, e antes do e-mail: é a segunda coisa que a
+          pessoa decide sobre si, não um detalhe técnico do fim do formulário. Até 2026-08-05
+          este campo não existia e o username era derivado do nome acima — ninguém escolhia
+          o próprio endereço. */}
+      <UsernameField
+        defaultValue={state.values?.username}
+        hint="É o seu endereço aqui: tramposeditor.com/seunome. Dá pra trocar depois."
+      />
 
       <div>
         <label htmlFor="email" className={labelClass}>

@@ -7,6 +7,7 @@ import { AvatarForm } from "@/components/avatar-form";
 import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
 import { InstagramForm } from "@/components/instagram-form";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UsernameForm } from "@/components/username-form";
 import { VideoThumb } from "@/components/video-thumb";
 import { avatarUrl, fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
@@ -81,6 +82,17 @@ export default async function ConfiguracoesDoPerfilPage() {
           displayName={user.displayName}
           avatarUrl={avatarUrl(user.username, user.avatarVersion)}
         />
+      </section>
+
+      {/* Logo abaixo da foto: os dois são a identidade da conta, e ficam antes do bloco de
+          editor porque valem pra quem só contrata também. O username deixou de ser imutável
+          em 2026-08-05 — era gerado no cadastro e ninguém podia mexer. */}
+      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
+        <h2 className="text-lg font-bold tracking-tight">Nome de usuário</h2>
+        <p className="mt-1 mb-5 text-sm text-muted">
+          É o seu endereço público: <span className="font-mono text-fg">/{user.username}</span>
+        </p>
+        <UsernameForm username={user.username} bloqueadoAte={diasAteTrocar(user.usernameChangedAt)} />
       </section>
 
       {/* Aparência fora do bloco de editor: vale pra qualquer conta, inclusive quem só
@@ -159,6 +171,20 @@ export default async function ConfiguracoesDoPerfilPage() {
       </section>
     </div>
   );
+}
+
+/** Cooldown de 14 dias entre trocas de username. Espelha o `UsernameService` do backend —
+ *  aqui só pra desabilitar o campo e dizer quanto falta; quem recusa de verdade é ele. */
+const COOLDOWN_DIAS = 14;
+
+function diasAteTrocar(ultimaTroca: string | null): number {
+  if (!ultimaTroca) return 0;
+
+  const liberaEm = new Date(ultimaTroca).getTime() + COOLDOWN_DIAS * 24 * 60 * 60 * 1000;
+  const faltam = liberaEm - Date.now();
+
+  // Arredonda pra cima pelo mesmo motivo do backend: faltando 3h ainda é "amanhã".
+  return faltam <= 0 ? 0 : Math.ceil(faltam / (24 * 60 * 60 * 1000));
 }
 
 /** Uma tela da conta, listada nas configurações desde que o hub `/painel` foi dissolvido. */

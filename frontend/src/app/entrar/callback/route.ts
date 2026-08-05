@@ -54,5 +54,9 @@ export async function GET(request: NextRequest) {
   if (!auth) falhou(erro ?? "Login não completou. Tente de novo.");
 
   await createSession(auth);
-  redirect("/painel");
+
+  // Conta nova por provedor entra sem username escolhido — não houve onde perguntar. Manda
+  // pra escolha direto, em vez de deixar o guard do `/painel` fazer o desvio: a pessoa
+  // chega na tela certa de primeira, sem um pisca-pisca de redirecionamento.
+  redirect(auth.user.usernameChosen ? "/painel" : "/escolher-username");
 }

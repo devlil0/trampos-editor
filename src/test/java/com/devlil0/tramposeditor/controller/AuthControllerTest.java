@@ -47,6 +47,7 @@ class AuthControllerTest {
                                   "email": "Editor@Teste.com",
                                   "password": "senhaforte123",
                                   "displayName": "Editor Teste",
+                                  "username": "EditorTeste",
                                   "roles": ["EDITOR"]
                                 }
                                 """))
@@ -55,6 +56,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 // e-mail normalizado pra minúsculo no cadastro
                 .andExpect(jsonPath("$.user.email").value("editor@teste.com"))
+                // username também: a forma canônica é minúscula, e é ela que vira o endereço
+                .andExpect(jsonPath("$.user.username").value("editorteste"))
+                // cadastro por senha escolhe o nome no formulário — nasce escolhido
+                .andExpect(jsonPath("$.user.usernameChosen").value(true))
                 .andExpect(jsonPath("$.user.roles[0]").value("EDITOR"))
                 .andExpect(jsonPath("$.user.createdAt").isNotEmpty());
     }
@@ -70,6 +75,7 @@ class AuthControllerTest {
                                   "email": "dup@teste.com",
                                   "password": "outrasenha123",
                                   "displayName": "Outro",
+                                  "username": "outro-qualquer",
                                   "roles": ["CLIENT"]
                                 }
                                 """))
@@ -148,9 +154,10 @@ class AuthControllerTest {
                                   "email": "%s",
                                   "password": "%s",
                                   "displayName": "Fulano",
+                                  "username": "u-%s",
                                   "roles": [%s]
                                 }
-                                """.formatted(email, password, rolesJson)))
+                                """.formatted(email, password, email.split("@")[0], rolesJson)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 

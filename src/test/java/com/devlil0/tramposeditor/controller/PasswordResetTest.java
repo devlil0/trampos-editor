@@ -173,9 +173,10 @@ class PasswordResetTest {
                                   "email": "%s",
                                   "password": "senhaforte123",
                                   "displayName": "Dono da Conta",
+                                  "username": "u-%s",
                                   "roles": ["CLIENT"]
                                 }
-                                """.formatted(email)))
+                                """.formatted(email, email.split("@")[0])))
                 .andExpect(status().isCreated());
     }
 }

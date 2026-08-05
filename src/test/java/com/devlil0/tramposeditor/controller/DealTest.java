@@ -319,9 +319,10 @@ class DealTest {
                                   "email": "%s",
                                   "password": "senhaforte123",
                                   "displayName": "%s",
+                                  "username": "u-%s",
                                   "roles": ["CLIENT"]
                                 }
-                                """.formatted(email, displayName)))
+                                """.formatted(email, displayName, email.split("@")[0])))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 

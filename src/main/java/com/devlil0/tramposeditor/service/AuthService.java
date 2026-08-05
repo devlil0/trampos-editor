@@ -10,6 +10,7 @@ import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,20 +45,37 @@ public class AuthService {
 
         String displayName = dto.displayName().trim();
 
+        // O username é escolhido no formulário desde a V15 — era gerado, e por isso ninguém
+        // nunca decidiu o próprio endereço. A mesma validação serve a checagem que roda
+        // enquanto a pessoa digita (GET /v1/usernames/availability), então o que ela leu
+        // no campo é o que vale aqui.
+        String username = usernameService.normalizar(dto.username());
+        String problemaNoUsername = usernameService.validar(username, null);
+        if (problemaNoUsername != null) {
+            throw new BusinessException(problemaNoUsername);
+        }
+
         UserEntity user = UserEntity.builder()
                 .email(email)
                 .passwordHash(passwordEncoder.encode(dto.password()))
                 .displayName(displayName)
-                // Username automático no cadastro pra não cobrar mais um campo de quem
-                // está entrando; trocar depois é um clique nas configurações.
-                .username(usernameService.gerarPara(displayName))
+                .username(username)
+                .usernameChosen(true)
                 .roles(sanitizeRoles(dto.roles()))
                 .active(true)
                 .build();
 
-        // saveAndFlush: sem o flush o @CreationTimestamp ainda não foi gerado
-        // e o createdAt sairia null na resposta do cadastro.
-        userRepository.saveAndFlush(user);
+        try {
+            // saveAndFlush: sem o flush o @CreationTimestamp ainda não foi gerado
+            // e o createdAt sairia null na resposta do cadastro.
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            // Entre o `validar` acima e este insert cabe outro cadastro com o mesmo nome
+            // ou o mesmo e-mail. É o UNIQUE que decide de verdade quem ficou com ele —
+            // sem isto a corrida vira 500 e a pessoa não fica sabendo o que houve.
+            throw new BusinessException(
+                    "Esse nome de usuário ou e-mail acabou de ser registrado. Tente outro.");
+        }
 
         return buildResponse(user);
     }

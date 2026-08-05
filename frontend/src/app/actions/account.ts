@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
@@ -55,5 +56,51 @@ export async function saveInstagramAction(
   // O painel mostra o valor salvo e o perfil público do editor exibe o @ pro visitante.
   revalidatePath("/painel");
   revalidatePath("/painel/meu-perfil");
+  return { ok: true };
+}
+
+/**
+ * Escolhe ou troca o username — o endereço da pessoa em `/{username}`.
+ *
+ * Serve os dois momentos: a escolha obrigatória de quem entrou pelo Google (que ainda não
+ * tem nome próprio) e a troca nas configurações. A diferença entre eles é do backend, não
+ * daqui — inclusive o cooldown de 14 dias, que volta como 409 com a frase pronta.
+ *
+ * Sucesso redireciona quando `redirectTo` vem preenchido, que é o caso do onboarding: a
+ * pessoa estava barrada e precisa ser solta. Nas configurações não redireciona — ela está
+ * onde queria estar.
+ */
+export async function saveUsernameAction(
+  _prev: AccountFormState,
+  formData: FormData,
+): Promise<AccountFormState> {
+  const token = await getSessionToken();
+  if (!token) return { error: "Sua sessão expirou. Entre de novo." };
+
+  const username = String(formData.get("username") ?? "").trim().toLowerCase();
+  const redirectTo = String(formData.get("redirectTo") ?? "");
+
+  if (!username) return { error: "Escolha um nome de usuário." };
+
+  try {
+    const res = await fetch(`${API_URL}/v1/users/me/username`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ username }),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { error: await readError(res, "Não deu pra salvar seu nome de usuário agora.") };
+    }
+  } catch {
+    return { error: "Servidor fora do ar. Tente de novo em alguns segundos." };
+  }
+
+  // O endereço antigo deixou de existir: qualquer tela que mostre `/{username}` — o
+  // próprio perfil, as configurações, a barra — está com o valor velho em cache.
+  revalidatePath("/", "layout");
+
+  // redirect lança por dentro (NEXT_REDIRECT): tem que ficar fora do try/catch.
+  if (redirectTo) redirect(redirectTo);
   return { ok: true };
 }

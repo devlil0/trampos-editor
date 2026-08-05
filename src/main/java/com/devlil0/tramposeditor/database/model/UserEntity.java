@@ -52,6 +52,27 @@ public class UserEntity {
     private String username;
 
     /**
+     * Se a pessoa <b>escolheu</b> este username ou apenas herdou o gerado no cadastro.
+     * <p>
+     * Falso só existe num caso: conta nascida pelo provedor social, onde não há formulário
+     * onde perguntar. Enquanto for falso a pessoa não navega no {@code /painel} — cai na
+     * tela de escolha. Todo o resto entra com verdadeiro, inclusive as contas anteriores
+     * à V15, que já publicaram o endereço que têm.
+     */
+    @Column(name = "username_chosen", nullable = false)
+    @Builder.Default
+    private boolean usernameChosen = true;
+
+    /**
+     * Última <b>troca</b> de username; nulo enquanto não houve nenhuma. É daqui que sai o
+     * cooldown de {@code UsernameService.COOLDOWN_DIAS}.
+     * <p>
+     * A primeira escolha não conta como troca de propósito — ver a V15.
+     */
+    @Column(name = "username_changed_at")
+    private LocalDateTime usernameChangedAt;
+
+    /**
      * Username do Instagram, sem "@" — normalizado no UserService. Vive na conta porque
      * serve aos dois papéis: é vitrine do editor e identidade de quem contrata.
      */

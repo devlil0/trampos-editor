@@ -4,13 +4,16 @@ import com.devlil0.tramposeditor.database.model.UserEntity;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.dto.UserResponseDTO;
 import com.devlil0.tramposeditor.dto.UserUpdateDTO;
+import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -30,6 +33,7 @@ public class UserService {
 
     private final IUserRepository userRepository;
     private final UserMapper userMapper;
+    private final UsernameService usernameService;
 
     @Transactional(readOnly = true)
     public UserResponseDTO findById(UUID id){
@@ -39,9 +43,9 @@ public class UserService {
     }
 
     /**
-     * Atualiza os dados que o dono da conta controla. Hoje só o Instagram — nome e
-     * e-mail ficam de fora porque o slug público do editor é derivado do nome e é
-     * imutável (SEO estável), então trocar um sem o outro deixaria os dois em desacordo.
+     * Atualiza os dados que o dono da conta controla. Hoje só o Instagram — o username tem
+     * endpoint próprio ({@link #trocarUsername}) porque carrega regra que o Instagram não
+     * tem: unicidade, nomes reservados e cooldown.
      */
     @Transactional
     public UserResponseDTO updateMe(UUID id, UserUpdateDTO dto){
@@ -49,6 +53,63 @@ public class UserService {
 
         user.setInstagram(normalizeInstagram(dto.instagram()));
         userRepository.save(user);
+
+        return userMapper.toDTO(user);
+    }
+
+    /**
+     * Escolhe ou troca o username — o endereço da pessoa em {@code /{username}}.
+     * <p>
+     * Serve os dois momentos com a mesma regra, e a diferença entre eles é o que decide o
+     * cooldown: a <b>primeira escolha</b> (conta social que ainda não escolheu, ou conta que
+     * nunca trocou) não consome nada; a partir daí vale
+     * {@link UsernameService#COOLDOWN_DIAS}.
+     * <p>
+     * O endereço antigo não deixa rastro: some da base, volta a ficar livre pra qualquer um
+     * e {@code /{antigo}} passa a dar 404. É a decisão de 2026-08-05 — o mesmo que o
+     * Instagram faz — e é justamente o que o cooldown existe pra segurar.
+     */
+    @Transactional
+    public UserResponseDTO trocarUsername(UUID id, UsernameUpdateDTO dto){
+        UserEntity user = userRepository.findById(id).orElseThrow(() -> new NotFoundException(id));
+
+        String novo = usernameService.normalizar(dto.username());
+
+        // Reenviar o nome que já é seu não é troca: devolve o estado atual sem gastar
+        // cooldown. Sem isto, um duplo submit custaria 14 dias à pessoa.
+        if (novo != null && novo.equals(user.getUsername()) && user.isUsernameChosen()) {
+            return userMapper.toDTO(user);
+        }
+
+        boolean eTroca = user.isUsernameChosen();
+        if (eTroca) {
+            long dias = usernameService.diasAteProximaTroca(user.getUsernameChangedAt());
+            if (dias > 0) {
+                throw new BusinessException(dias == 1
+                        ? "Você trocou seu nome de usuário há pouco. Poderá trocar de novo amanhã."
+                        : "Você trocou seu nome de usuário há pouco. Poderá trocar de novo em "
+                          + dias + " dias.");
+            }
+        }
+
+        String problema = usernameService.validar(novo, id);
+        if (problema != null) {
+            throw new BusinessException(problema);
+        }
+
+        user.setUsername(novo);
+        user.setUsernameChosen(true);
+        if (eTroca) {
+            user.setUsernameChangedAt(LocalDateTime.now());
+        }
+
+        try {
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            // Mesma corrida do cadastro: entre validar e gravar, outra pessoa pode ter
+            // levado o nome. Quem decide é o UNIQUE.
+            throw new BusinessException("Esse nome de usuário acabou de ser tomado. Tente outro.");
+        }
 
         return userMapper.toDTO(user);
     }

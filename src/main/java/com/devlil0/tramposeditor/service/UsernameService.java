@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.text.Normalizer;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +27,18 @@ public class UsernameService {
     private static final int MIN_LENGTH = 3;
 
     /**
+     * Quanto tempo entre uma troca de username e a próxima.
+     * <p>
+     * Existe porque o endereço da pessoa é público: quem já salvou {@code /fulano} não tem
+     * como saber que virou outra coisa — a troca <b>não</b> deixa redirecionamento pra trás
+     * (decisão de 2026-08-05, mesma do Instagram). Catorze dias é o suficiente pra que a
+     * troca seja uma decisão e não um hábito, sem parecer castigo.
+     */
+    public static final int COOLDOWN_DIAS = 14;
+
+    private static final int MINUTOS_POR_DIA = 24 * 60;
+
+    /**
      * Nomes que ninguém pode tomar.
      * <p>
      * Inclui as rotas que existem hoje, as tags da vitrine (que moram sob
@@ -43,7 +57,7 @@ public class UsernameService {
             // reservados pro produto
             "admin", "suporte", "ajuda", "sobre", "contato", "blog", "termos",
             "privacidade", "seguranca", "conta", "settings", "login", "logout",
-            "signup", "me", "eu", "novo", "new",
+            "signup", "me", "eu", "novo", "new", "escolher-username",
             // tags da vitrine
             "tiktok", "reels", "youtube", "podcast", "canal-dark",
             "premiere", "capcut", "after-effects", "davinci-resolve", "final-cut-pro");
@@ -91,8 +105,32 @@ public class UsernameService {
     }
 
     /**
-     * Username automático pra conta nova, derivado do nome. Só é usado no cadastro — a
-     * pessoa troca depois nas configurações.
+     * Quantos dias faltam até a pessoa poder trocar de novo. Zero quer dizer "pode agora",
+     * e é o que devolve pra quem nunca trocou ({@code ultimaTroca} nulo).
+     */
+    public long diasAteProximaTroca(LocalDateTime ultimaTroca){
+        if (ultimaTroca == null) {
+            return 0;
+        }
+
+        LocalDateTime liberaEm = ultimaTroca.plusDays(COOLDOWN_DIAS);
+        LocalDateTime agora = LocalDateTime.now();
+        if (!agora.isBefore(liberaEm)) {
+            return 0;
+        }
+
+        // Arredonda pra cima: faltando 3h ainda é "amanhã", nunca "hoje" — dizer 0 dia e
+        // recusar mesmo assim seria mentir na mensagem.
+        return (long) Math.ceil(Duration.between(agora, liberaEm).toMinutes() / (double) MINUTOS_POR_DIA);
+    }
+
+    /**
+     * Username automático pra conta nova, derivado do nome.
+     * <p>
+     * Sobrou <b>um</b> caminho depois que o cadastro por senha passou a pedir o nome no
+     * formulário (V15): o login social, onde a conta nasce no callback do provedor e não há
+     * onde perguntar. O nome que sai daqui é provisório por contrato — a conta vem com
+     * {@code usernameChosen = false} e a pessoa escolhe o dela antes de navegar.
      * <p>
      * Em colisão, sufixo curto aleatório em vez de contador: evita uma segunda consulta de
      * sondagem e não vaza quantos homônimos existem, mesma escolha do slug do editor.
