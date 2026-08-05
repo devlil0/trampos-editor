@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
+import { BottomDock } from "@/components/bottom-dock";
 import { Nav } from "@/components/nav";
+import { avatarUrl } from "@/lib/api";
 import { getCurrentUser } from "@/lib/session";
 
 const inter = Inter({
@@ -67,7 +69,9 @@ export default async function RootLayout({
         {/* `id` é obrigatório em script inline — é como o Next rastreia e não duplica. */}
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Nav user={user} />
-        <main className="flex-1">{children}</main>
+        {/* pb quando logado: a barra flutuante cobre a base, e sem isso ela tapa o fim de
+            toda página rolada até o fim. */}
+        <main className={`flex-1 ${user ? "pb-24" : ""}`}>{children}</main>
         <footer className="border-t border-line text-sm text-muted">
           <div className="mx-auto max-w-6xl px-6 py-10">
             <div className="flex flex-wrap gap-x-10 gap-y-7">
@@ -110,7 +114,9 @@ export default async function RootLayout({
                 <ul className="flex flex-col gap-2">
                   <FooterLink href="/entrar">Entrar</FooterLink>
                   <FooterLink href="/criar-conta">Criar conta</FooterLink>
-                  <FooterLink href="/painel">Painel</FooterLink>
+                  {/* "Painel" saiu daqui em 2026-08-04 junto com o hub. Nada tomou o
+                      lugar: quem está logado navega pela barra de baixo, e "Vitrine"
+                      aqui seria a mesma coisa que o "Ver editores" da coluna ao lado. */}
                 </ul>
               </nav>
             </div>
@@ -118,6 +124,16 @@ export default async function RootLayout({
             <p className="mt-9 border-t border-line pt-6">© 2026 TramposEditor</p>
           </div>
         </footer>
+
+        {/* Navegação de app, só pra quem entrou: as páginas públicas são funil de
+            aquisição e seguem só com a barra do topo. */}
+        {user && (
+          <BottomDock
+            username={user.username}
+            displayName={user.displayName}
+            avatarUrl={avatarUrl(user.username, user.avatarVersion)}
+          />
+        )}
       </body>
     </html>
   );

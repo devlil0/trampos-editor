@@ -7,6 +7,7 @@ import type {
   JobRequest,
   JobRequestFeedItem,
   Page,
+  PublicProfile,
 } from "./types";
 
 // Lido só no servidor (SSR). Nunca exposto ao browser.
@@ -176,4 +177,44 @@ export async function fetchEditorBySlug(slug: string): Promise<EditorProfile | n
     throw new Error(`Falha ao carregar o editor (HTTP ${res.status})`);
   }
   return res.json();
+}
+
+/**
+ * O perfil público de uma pessoa, por username — a página de `/{username}`.
+ *
+ * Devolve null em 404 pra que a rota chame `notFound()` em vez de estourar: a raiz virou
+ * namespace de usuário, então qualquer endereço digitado errado cai aqui.
+ */
+export async function fetchPublicProfile(username: string): Promise<PublicProfile | null> {
+  const res = await fetch(`${API_URL}/v1/profiles/${encodeURIComponent(username)}`, {
+    cache: "no-store",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Falha ao carregar o perfil (HTTP ${res.status})`);
+  return res.json();
+}
+
+/**
+ * Pra onde uma URL antiga de editor (`/editores/{slug}`) deve apontar agora.
+ * Null quando o slug não existe — aí o link morto continua 404, em vez de virar
+ * redirecionamento pra lugar nenhum.
+ */
+export async function fetchUsernameBySlug(slug: string): Promise<string | null> {
+  const res = await fetch(`${API_URL}/v1/profiles/by-slug/${encodeURIComponent(slug)}`, {
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  return (await res.json()).username ?? null;
+}
+
+/**
+ * URL da foto de perfil, ou null quando não há.
+ *
+ * Montada aqui e passada pronta às telas: `PUBLIC_API_URL` é lido do ambiente do servidor
+ * e não existe no browser. A versão vai na query porque o backend serve a imagem com
+ * cache de um ano — é a troca dela que faz o browser buscar de novo.
+ */
+export function avatarUrl(username: string, version: string | null | undefined): string | null {
+  if (!version) return null;
+  return `${PUBLIC_API_URL}/v1/avatars/${encodeURIComponent(username)}?v=${version}`;
 }

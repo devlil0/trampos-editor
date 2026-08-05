@@ -58,6 +58,15 @@ public class UserEntity {
     @Column(length = 30)
     private String instagram;
 
+    /**
+     * Ponteiro pra foto de perfil: nulo quando não há. Fica aqui, e não só em
+     * {@code user_avatars}, pra que listar perfis saiba se existe foto sem tocar no
+     * {@code bytea} — e pra que a URL da imagem carregue a versão, o que permite cache
+     * longo no browser sem a foto velha grudar depois de trocada.
+     */
+    @Column(name = "avatar_version")
+    private UUID avatarVersion;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role", nullable = false, length = 20)

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BotaoConfiguracoes, EditorProfileView } from "@/components/editor-profile-view";
-import { fetchMyEditorProfile } from "@/lib/api";
+import { avatarUrl, fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -31,11 +31,11 @@ export default async function MeuPerfilPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 pt-6 pb-16">
-      <Link href="/painel" className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
+      <Link href="/editores" className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Voltar pro painel
+        Voltar pro feed
       </Link>
 
       {profile ? (
@@ -44,6 +44,7 @@ export default async function MeuPerfilPage() {
             profile={profile}
             viewerLoggedIn
             isOwnProfile
+            avatarUrl={avatarUrl(user.username, user.avatarVersion)}
             headerExtra={<BotaoConfiguracoes />}
           />
 

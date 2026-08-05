@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { fetchEditors } from "@/lib/api";
+import { getCurrentUser } from "@/lib/session";
 import { Aurora } from "@/components/aurora";
 import { EditorCard } from "@/components/editor-card";
 import { HeroReel } from "@/components/hero-reel";
@@ -50,6 +52,15 @@ const DORES = [
  * dizer o que é, provar que existe oferta de verdade e mandar a pessoa pro lado certo.
  */
 export default async function LandingPage() {
+  // Quem já entrou não precisa da landing: ela é peça de aquisição, e quem tem conta abre
+  // o produto pra ver o que tem hoje. O SEO não sofre — robô de busca chega deslogado e
+  // continua recebendo esta tela.
+  //
+  // Vai por redirecionamento, e não renderizando o feed aqui, porque o feed já tem
+  // endereço: renderizá-lo também em `/` criaria a mesma lista em duas URLs, que é
+  // exatamente o que a remoção do feed da oferta corrigiu (ESBOCO §1).
+  if (await getCurrentUser()) redirect("/editores");
+
   // A API já ordena disponível > nota > recente. O hero fica com os primeiros (ele
   // mesmo recorta em três) e a pilha de capas usa o resto.
   //

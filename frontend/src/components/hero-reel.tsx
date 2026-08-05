@@ -104,7 +104,7 @@ function Frame({ editor, tilt }: { editor: EditorSummary; tilt: string }) {
 
   return (
     <Link
-      href={`/editores/${editor.slug}`}
+      href={`/${editor.username}`}
       style={{ "--tilt": tilt } as React.CSSProperties}
       /* `rotate`, `scale` e `translate` são propriedades separadas em CSS moderno,
          então compõem sem uma anular a outra — e a escala daqui multiplica a do

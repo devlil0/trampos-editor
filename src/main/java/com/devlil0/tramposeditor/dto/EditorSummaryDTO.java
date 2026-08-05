@@ -14,7 +14,12 @@ import java.util.UUID;
  */
 public record EditorSummaryDTO(
         UUID id,
+        /** Histórico: o endereço do perfil é o {@code username}, não isto. */
         String slug,
+        /** Onde o perfil mora hoje — {@code /{username}}. */
+        String username,
+        /** Versão da foto; nulo quando não há. Entra na URL da imagem. */
+        UUID avatarVersion,
         String displayName,
         String headline,
         Set<EditorNiche> niches,

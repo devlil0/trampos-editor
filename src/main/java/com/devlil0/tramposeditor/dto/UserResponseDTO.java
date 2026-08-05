@@ -12,6 +12,8 @@ public record UserResponseDTO(
         String displayName,
         /** Identidade no produto e endereço da pessoa em {@code /{username}}. */
         String username,
+        /** Versão da foto de perfil; nulo quando não há foto. Entra na URL da imagem. */
+        UUID avatarVersion,
         /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */
         String instagram,
         Set<UserRole> roles,

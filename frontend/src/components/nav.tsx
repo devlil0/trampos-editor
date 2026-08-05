@@ -3,7 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
-import { logoutAction } from "@/app/actions/auth";
 import { NavSearch } from "./nav-search";
 import type { AuthUser } from "@/lib/types";
 
@@ -38,53 +37,44 @@ export function Nav({ user }: { user: AuthUser | null }) {
           <NavSearch />
         </Suspense>
 
-        <div className="hidden flex-none gap-5 text-sm text-muted lg:flex">
-          {/* Duas portas simétricas em vez de um "Como funciona" genérico: a primeira
-              decisão de quem chega num marketplace de dois lados é "qual desses eu
-              sou?", e antes só o editor tinha porta. Somem pra quem está logado —
-              a essa altura a pessoa já entrou, e o lugar dela é o painel. */}
-          {user ? (
-            <Link href="/painel" className="hover:text-fg">
-              Painel
+        {/* Duas portas simétricas em vez de um "Como funciona" genérico: a primeira
+            decisão de quem chega num marketplace de dois lados é "qual desses eu sou?".
+            Só pra quem está deslogado — quem entrou navega pela barra de baixo, e link
+            repetido nos dois lugares é ruído. */}
+        {!user && (
+          <div className="hidden flex-none gap-5 text-sm text-muted lg:flex">
+            <Link href="/para-clientes" className="hover:text-fg">
+              Para clientes
             </Link>
-          ) : (
-            <>
-              <Link href="/para-clientes" className="hover:text-fg">
-                Para clientes
-              </Link>
-              <Link href="/para-editores" className="hover:text-fg">
-                Para editores
-              </Link>
-            </>
-          )}
-          {/* Por último: as portas de público vêm antes porque a pergunta "qual desses
-              eu sou?" precede o "me mostra quem tem". "Vitrine" e não "Editores" — é
-              o nome que o resto do produto já usa ("Voltar pra vitrine", no perfil). */}
-          <Link href="/editores" className="hover:text-fg">
-            Vitrine
-          </Link>
-        </div>
+            <Link href="/para-editores" className="hover:text-fg">
+              Para editores
+            </Link>
+            {/* "Vitrine" e não "Editores" — é o nome que o resto do produto já usa. */}
+            <Link href="/editores" className="hover:text-fg">
+              Vitrine
+            </Link>
+          </div>
+        )}
 
         <div className="ml-auto flex flex-none items-center gap-2.5">
           {user ? (
+            /* Barra enxuta pra quem entrou: navegação é a barra de baixo, e aqui ficam só
+               os dois atalhos que não cabem nela. Nome, "Painel", "Vitrine" e "Sair"
+               saíram em 2026-08-04 — o logout foi pras configurações, onde rede social
+               também o coloca. */
             <>
+              <IconeSino />
               <Link
-                href="/painel"
-                className="hidden items-center gap-2 rounded-xl border border-line py-1 pr-3.5 pl-1 text-sm font-semibold hover:border-accent sm:inline-flex"
+                href="/painel/meu-perfil/configuracoes"
+                aria-label="Configurações"
+                title="Configurações"
+                className="grid h-9 w-9 place-items-center rounded-[10px] border border-line bg-card text-muted transition hover:border-accent hover:text-fg"
               >
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-accent text-xs font-bold text-accent-contrast">
-                  {user.displayName.charAt(0).toUpperCase()}
-                </span>
-                {user.displayName.split(" ")[0]}
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                </svg>
               </Link>
-              <form action={logoutAction}>
-                <button
-                  type="submit"
-                  className="btn btn-quiet btn-sm"
-                >
-                  Sair
-                </button>
-              </form>
             </>
           ) : (
             <>
@@ -105,5 +95,29 @@ export function Nav({ user }: { user: AuthUser | null }) {
         </div>
       </div>
     </nav>
+  );
+}
+
+/**
+ * Sino de notificações.
+ *
+ * Está aqui como pedido, mas **não leva a lugar nenhum ainda**: a notificação do produto
+ * hoje é por e-mail (`NotificationService`), e não existe central in-app — nem tabela, nem
+ * marcação de lida, nem tela. Fica desabilitado e dizendo isso em vez de fingir um destino:
+ * botão que não responde ao clique confunde menos que botão que abre uma tela vazia.
+ */
+function IconeSino() {
+  return (
+    <button
+      type="button"
+      disabled
+      aria-label="Notificações — em breve"
+      title="Notificações chegam por e-mail por enquanto"
+      className="grid h-9 w-9 cursor-not-allowed place-items-center rounded-[10px] border border-line bg-card text-muted opacity-50"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
+      </svg>
+    </button>
   );
 }

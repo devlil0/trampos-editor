@@ -31,7 +31,7 @@ export default async function TramposFechadosPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
       <Link
-        href="/painel"
+        href="/painel/meu-perfil/configuracoes"
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent"
       >
         <svg
@@ -46,7 +46,7 @@ export default async function TramposFechadosPage() {
         >
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Voltar pro painel
+        Voltar pras configurações
       </Link>
 
       <h1 className="text-3xl font-extrabold tracking-tight">Trampos</h1>

@@ -60,6 +60,12 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         // Vitrine pública: só leitura. A gestão do perfil mora em /v1/me/** e segue autenticada.
                         .requestMatchers(HttpMethod.GET, "/v1/editors", "/v1/editors/**").permitAll()
+                        // Perfil por username: mesma natureza da vitrine — é ativo de
+                        // aquisição e precisa que o Google entre.
+                        .requestMatchers(HttpMethod.GET, "/v1/profiles/**").permitAll()
+                        // Foto de perfil: aparece na vitrine e no perfil indexado. Exigir
+                        // token pra carregar imagem de página pública quebraria a página.
+                        .requestMatchers(HttpMethod.GET, "/v1/avatars/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2

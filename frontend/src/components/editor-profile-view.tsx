@@ -23,11 +23,14 @@ export function EditorProfileView({
   profile,
   viewerLoggedIn,
   isOwnProfile,
+  avatarUrl,
   headerExtra,
 }: {
   profile: EditorProfile;
   viewerLoggedIn: boolean;
   isOwnProfile: boolean;
+  /** URL pronta da foto; null quando não há. Montada no servidor. */
+  avatarUrl?: string | null;
   /** Slot pro botão de configurações — só o painel usa. */
   headerExtra?: React.ReactNode;
 }) {
@@ -40,11 +43,22 @@ export function EditorProfileView({
   return (
     <>
       <header className="flex flex-col items-center gap-7 sm:flex-row sm:items-start sm:gap-12">
-        {/* Foto redonda e grande, como em rede social. Sem foto ainda: a inicial no
-            gradiente da marca, que é o que o card da vitrine já usa. */}
-        <span className="grid h-32 w-32 flex-none place-items-center rounded-full bg-gradient-to-br from-accent to-accent-strong text-5xl font-extrabold tracking-tight text-white sm:h-38 sm:w-38">
-          {profile.displayName.charAt(0).toUpperCase()}
-        </span>
+        {/* Foto redonda e grande, como em rede social. Sem foto: a inicial no gradiente
+            da marca, que é o que o card da vitrine já usa. */}
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={`Foto de ${profile.displayName}`}
+            width={152}
+            height={152}
+            className="h-32 w-32 flex-none rounded-full object-cover sm:h-38 sm:w-38"
+          />
+        ) : (
+          <span className="grid h-32 w-32 flex-none place-items-center rounded-full bg-gradient-to-br from-accent to-accent-strong text-5xl font-extrabold tracking-tight text-white sm:h-38 sm:w-38">
+            {profile.displayName.charAt(0).toUpperCase()}
+          </span>
+        )}
 
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:justify-start">

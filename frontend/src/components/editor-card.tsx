@@ -14,7 +14,7 @@ export function EditorCard({ editor }: { editor: EditorSummary }) {
 
   return (
     <Link
-      href={`/editores/${editor.slug}`}
+      href={`/${editor.username}`}
       className="group flex flex-col gap-4 rounded-[18px] border border-line bg-card p-3 transition duration-200 hover:border-accent/45 hover:shadow-[var(--shadow)] sm:flex-row"
     >
       <div className="relative w-full shrink-0 overflow-hidden rounded-[13px] sm:w-[292px]">

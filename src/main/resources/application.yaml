@@ -37,6 +37,13 @@ spring:
     virtual:
       enabled: true
 
+  # Foto de perfil. O teto aqui é a primeira barreira: sem ele, o arquivo inteiro é lido
+  # pra memória antes de o AvatarService ter chance de recusar pelo tamanho.
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   # ---------------------------------------------------------------------------------
   # Login social (Google e GitHub) — configurado SÓ por variável de ambiente.
   #

@@ -52,6 +52,8 @@ public class EditorProfileMapper {
         return new EditorSummaryDTO(
                 e.getId(),
                 e.getSlug(),
+                e.getUser().getUsername(),
+                e.getUser().getAvatarVersion(),
                 e.getUser().getDisplayName(),
                 e.getHeadline(),
                 Set.copyOf(e.getNiches()),

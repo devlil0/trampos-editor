@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { fetchEditorBySlug, fetchMyEditorProfile } from "@/lib/api";
-import { EditorProfileView } from "@/components/editor-profile-view";
+import { notFound, permanentRedirect } from "next/navigation";
+import { fetchUsernameBySlug } from "@/lib/api";
 import { TagPage, contarEditoresDaTag, deveIndexar } from "@/components/tag-page";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
 import { acharTag } from "@/lib/tags";
 
 type Params = Promise<{ slug: string }>;
@@ -25,54 +22,35 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     };
   }
 
-  const editor = await fetchEditorBySlug(slug);
-  if (!editor) return { title: "Editor não encontrado — TramposEditor" };
-  return {
-    title: `${editor.displayName} — editor de vídeo | TramposEditor`,
-    description: editor.headline ?? editor.bio ?? `Perfil de ${editor.displayName} no TramposEditor.`,
-    alternates: { canonical: `/editores/${editor.slug}` },
-  };
+  // Perfil de editor não mora mais aqui — a rota só redireciona, e página que redireciona
+  // não precisa de metadata.
+  return { title: "TramposEditor" };
 }
 
 /**
- * Duas páginas moram nesta rota: o perfil do editor e a página de tag
- * (`/editores/tiktok`). É um segmento dinâmico só porque o Next não permite dois no mesmo
- * nível — e a URL plana era o desenho pedido no ESBOCO §2.
+ * Duas coisas moram nesta rota: a página de tag (`/editores/tiktok`) e o redirecionamento
+ * das URLs antigas de perfil.
  *
- * A tag vem primeiro na checagem, e o slug dela é reservado no cadastro do perfil, senão
- * um editor chamado "CapCut" tomaria a página de uma ferramenta.
+ * O perfil do editor mudou de endereço em 2026-08-04: saiu de `/editores/{slug}` e foi
+ * pra `/{username}`, junto com o de quem só contrata — o produto passou a ter uma
+ * identidade por conta, em vez de uma página só pra quem edita.
+ *
+ * O 308 é obrigatório e não cosmético: essas URLs são o ativo de SEO do produto e já
+ * circulam em link e índice. Sumir com elas jogaria fora a autoridade acumulada; o
+ * redirecionamento permanente a transfere pro endereço novo.
+ *
+ * A tag é checada antes, e o slug dela continua reservado no cadastro do perfil.
  */
-export default async function EditorProfilePage({ params }: { params: Params }) {
+export default async function EditorSlugPage({ params }: { params: Params }) {
   const { slug } = await params;
 
   const tag = acharTag(slug);
   if (tag) return <TagPage tag={tag} />;
 
-  const [editor, viewer, token] = await Promise.all([
-    fetchEditorBySlug(slug),
-    getCurrentUser(),
-    getSessionToken(),
-  ]);
+  const username = await fetchUsernameBySlug(slug);
+  // Slug que nunca existiu continua 404: link morto tem que morrer como link morto, não
+  // virar redirecionamento pra lugar nenhum.
+  if (!username) notFound();
 
-  if (!editor) notFound();
-
-  // Quem está vendo o próprio perfil não recebe o campo de contato: o backend recusa
-  // conversa consigo mesmo, e mostrar o formulário só pra falhar seria pegadinha.
-  // A comparação é por slug, que é único — nome de exibição se repete.
-  const meuPerfil = token ? await fetchMyEditorProfile(token) : null;
-  const isOwnProfile = meuPerfil?.slug === editor.slug;
-
-  return (
-    <div className="mx-auto max-w-4xl px-6 pt-6 pb-16">
-      <Link href="/editores" className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="m15 18-6-6 6-6" />
-        </svg>
-        Voltar pra vitrine
-      </Link>
-
-      <EditorProfileView profile={editor} viewerLoggedIn={viewer != null} isOwnProfile={isOwnProfile} />
-    </div>
-  );
+  permanentRedirect(`/${username}`);
 }
-

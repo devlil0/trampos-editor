@@ -39,11 +39,11 @@ export default async function TramposPage({ searchParams }: { searchParams: Sear
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-12">
-      <Link href="/painel" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
+      <Link href="/painel/meu-perfil/configuracoes" className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        Voltar pro painel
+        Voltar pras configurações
       </Link>
 
       <h1 className="text-3xl font-extrabold tracking-tight">Trampos abertos</h1>

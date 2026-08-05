@@ -21,4 +21,15 @@ public interface IDealRepository extends JpaRepository<DealEntity, UUID> {
 
     /** Garante o "um trampo aberto por conversa" antes de o índice parcial reclamar. */
     Optional<DealEntity> findByConversationIdAndStatus(UUID conversationId, DealStatus status);
+
+    /**
+     * Quantos trampos a pessoa já fechou, pelos dois lados — o número que a página pública
+     * mostra. Só conta o que terminou: trampo aberto ainda não prova nada.
+     */
+    @Query("""
+            select count(d) from DealEntity d
+            where (d.client.id = :userId or d.editor.id = :userId)
+              and d.status = :status
+            """)
+    long countClosedForUser(UUID userId, DealStatus status);
 }

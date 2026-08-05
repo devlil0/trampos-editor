@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { logoutAction } from "@/app/actions/auth";
 import { removePortfolioAction } from "@/app/actions/editor-profile";
+import { AvatarForm } from "@/components/avatar-form";
 import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
 import { InstagramForm } from "@/components/instagram-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { VideoThumb } from "@/components/video-thumb";
-import { fetchMyEditorProfile } from "@/lib/api";
+import { avatarUrl, fetchMyEditorProfile } from "@/lib/api";
 import { getCurrentUser, getSessionToken } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -31,13 +33,13 @@ export default async function ConfiguracoesDoPerfilPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
       <Link
-        href={profile ? "/painel/meu-perfil" : "/painel"}
+        href={profile ? "/painel/meu-perfil" : "/editores"}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted hover:text-accent"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6" />
         </svg>
-        {profile ? "Voltar pro meu perfil" : "Voltar pro painel"}
+        {profile ? "Voltar pro meu perfil" : "Voltar pro feed"}
       </Link>
 
       <h1 className="text-3xl font-extrabold tracking-tight">
@@ -47,8 +49,8 @@ export default async function ConfiguracoesDoPerfilPage() {
         {profile ? (
           <>
             Isto alimenta o que aparece em{" "}
-            <Link href={`/editores/${profile.slug}`} className="font-semibold text-accent hover:underline">
-              /editores/{profile.slug}
+            <Link href={`/${user.username}`} className="font-semibold text-accent hover:underline">
+              /{user.username}
             </Link>
             .
           </>
@@ -57,9 +59,33 @@ export default async function ConfiguracoesDoPerfilPage() {
         )}
       </p>
 
-      {/* Aparência primeiro e fora do bloco de editor: vale pra qualquer conta, inclusive
-          quem só contrata e nunca vai preencher o perfil de editor abaixo. */}
+      {/* O que era o painel.
+          O hub `/painel` foi dissolvido em 2026-08-04: ele não fazia nada além de listar
+          links, e listar links é o que uma tela de configurações já faz. Conversas não
+          está aqui de propósito — mora na barra de baixo, porque é a tela de maior
+          frequência do produto e enterrá-la em ajustes seria fricção diária. */}
       <section className="mt-8 rounded-[18px] border border-line bg-card p-6">
+        <h2 className="text-lg font-bold tracking-tight">Suas telas</h2>
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+          <LinkDaConta href="/painel/meu-perfil" titulo="Meu perfil" descricao="Como o cliente te vê" />
+          <LinkDaConta href="/painel/pedidos" titulo="Meus pedidos" descricao="O que você publicou e quem se candidatou" />
+          <LinkDaConta href="/painel/trampos" titulo="Trampos abertos" descricao="Clientes procurando editor agora" />
+          <LinkDaConta href="/painel/trampos-fechados" titulo="Trampos fechados" descricao="Histórico e avaliações" />
+        </div>
+      </section>
+
+      {/* Foto antes de tudo: é o primeiro elemento do perfil e o que a pessoa vem
+          trocar com mais frequência. */}
+      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
+        <AvatarForm
+          displayName={user.displayName}
+          avatarUrl={avatarUrl(user.username, user.avatarVersion)}
+        />
+      </section>
+
+      {/* Aparência fora do bloco de editor: vale pra qualquer conta, inclusive quem só
+          contrata e nunca vai preencher o perfil de editor abaixo. */}
+      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
         <ThemeToggle />
       </section>
 
@@ -112,6 +138,43 @@ export default async function ConfiguracoesDoPerfilPage() {
           )}
         </section>
       )}
+
+      {/* Sair fica aqui desde que a barra do topo foi enxugada (2026-08-04). É onde rede
+          social também o coloca, e o último item da página é o lugar certo pra uma ação
+          que encerra a sessão — longe do que se clica sem querer. */}
+      <section className="mt-6 rounded-[18px] border border-line bg-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold tracking-tight">Sessão</h2>
+            <p className="mt-1 text-sm text-muted">
+              Você está logado como <b className="text-fg">{user.email}</b>.
+            </p>
+          </div>
+          <form action={logoutAction}>
+            <button type="submit" className="btn btn-quiet btn-sm">
+              Sair da conta
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
+  );
+}
+
+/** Uma tela da conta, listada nas configurações desde que o hub `/painel` foi dissolvido. */
+function LinkDaConta({ href, titulo, descricao }: { href: string; titulo: string; descricao: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-xl border border-line bg-panel px-4 py-3 transition hover:border-accent"
+    >
+      <span>
+        <span className="block text-sm font-semibold">{titulo}</span>
+        <span className="block text-xs text-muted">{descricao}</span>
+      </span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-none text-muted" aria-hidden="true">
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </Link>
   );
 }

@@ -7,6 +7,10 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string;
+  /** Identidade no produto e endereço da pessoa em `/{username}`. */
+  username: string;
+  /** Versão da foto de perfil; null quando não há. Entra na URL da imagem. */
+  avatarVersion: string | null;
   /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */
   instagram: string | null;
   roles: UserRole[];
@@ -50,7 +54,12 @@ export interface PortfolioItem {
 
 export interface EditorSummary {
   id: string;
+  /** Histórico: o endereço do perfil é o `username`, não isto. */
   slug: string;
+  /** Onde o perfil mora hoje — `/{username}`. */
+  username: string;
+  /** Versão da foto; null quando não há. */
+  avatarVersion: string | null;
   displayName: string;
   headline: string | null;
   niches: EditorNiche[];
@@ -203,4 +212,25 @@ export interface Deal {
   reviewOfMe: Review | null;
   createdAt: string;
   closedAt: string | null;
+}
+
+/**
+ * A página de uma pessoa em `/{username}` — os dois papéis na mesma forma.
+ *
+ * `editor` vem nulo pra quem nunca publicou perfil: é o que distingue quem edita de quem
+ * só contrata, sem precisar de um campo de tipo.
+ */
+export interface PublicProfile {
+  username: string;
+  displayName: string;
+  /** Versão da foto; null quando não há. */
+  avatarVersion: string | null;
+  instagram: string | null;
+  memberSince: string;
+  editor: EditorProfile | null;
+  dealsClosed: number;
+  /** Avaliações que a pessoa escreveu — participação, não reputação. */
+  reviewsWritten: number;
+  ratingAvg: number;
+  ratingCount: number;
 }

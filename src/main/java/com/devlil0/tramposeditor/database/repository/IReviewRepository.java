@@ -23,4 +23,11 @@ public interface IReviewRepository extends JpaRepository<ReviewEntity, UUID> {
             where r.target.id = :targetUserId
             """)
     RatingAggregateDTO aggregateFor(UUID targetUserId);
+
+    /**
+     * Quantas avaliações a pessoa <b>escreveu</b>. É medida de participação, não de
+     * reputação — quem avalia alimenta o laço que faz a ordenação da vitrine funcionar
+     * (ESBOCO §3.1), e isso merece aparecer na página dela.
+     */
+    long countByAuthorId(UUID authorId);
 }

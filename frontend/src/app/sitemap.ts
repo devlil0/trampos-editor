@@ -38,9 +38,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
   // Perfil de editor é o ativo de SEO principal (ESBOCO §2), então entra inteiro.
+  //
+  // Pelo `username`, e não pelo `slug`: o perfil mudou de endereço em 2026-08-04 e
+  // `/editores/{slug}` só responde 308 agora. Sitemap que aponta pra URL que redireciona é
+  // erro de verdade — gasta crawl budget e sinaliza descuido.
   const { content } = await fetchEditors({ size: "500" });
   const perfis: MetadataRoute.Sitemap = content.map((editor) => ({
-    url: `${SITE_URL}/editores/${editor.slug}`,
+    url: `${SITE_URL}/${editor.username}`,
     changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
