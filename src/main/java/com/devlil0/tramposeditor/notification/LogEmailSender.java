@@ -18,7 +18,9 @@ import org.springframework.stereotype.Component;
 public class LogEmailSender implements EmailSender {
 
     @Override
-    public void send(String to, String subject, String body){
+    public void send(String to, EmailContent content){
+        // Só a versão em texto: o HTML existe pra caixa de entrada, e despejar markup no
+        // console esconderia justamente o que se vem conferir aqui — o texto e o link.
         log.info("""
 
                 ┌─ E-MAIL (dev — não enviado) ─────────────────────────
@@ -27,6 +29,6 @@ public class LogEmailSender implements EmailSender {
                 ├──────────────────────────────────────────────────────
                 {}
                 └──────────────────────────────────────────────────────""",
-                to, subject, body);
+                to, content.subject(), content.toPlainText());
     }
 }

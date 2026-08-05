@@ -4,6 +4,7 @@ import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.model.PasswordResetTokenEntity;
 import com.devlil0.tramposeditor.database.repository.IPasswordResetTokenRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.notification.EmailContent;
 import com.devlil0.tramposeditor.notification.EmailSender;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -68,7 +69,7 @@ class PasswordResetTest {
 
         // Nenhum e-mail, e — o que importa — nenhuma resposta diferente da do e-mail
         // que existe. Enumerar contas cadastradas seria de graça.
-        verify(emailSender, never()).send(any(), any(), any());
+        verify(emailSender, never()).send(any(), any());
     }
 
     @Test
@@ -133,10 +134,12 @@ class PasswordResetTest {
     // ---------- Helpers ----------
 
     private String capturarTokenDoEmail(){
-        ArgumentCaptor<String> corpo = ArgumentCaptor.forClass(String.class);
-        verify(emailSender).send(eq("dono@teste.com"), any(), corpo.capture());
+        ArgumentCaptor<EmailContent> enviado = ArgumentCaptor.forClass(EmailContent.class);
+        verify(emailSender).send(eq("dono@teste.com"), enviado.capture());
 
-        Matcher matcher = TOKEN_NO_LINK.matcher(corpo.getValue());
+        // Casa o token no texto puro, e não só na URL: é ele que o cliente sem HTML
+        // recebe, e um token que só existisse no markup deixaria essa pessoa presa.
+        Matcher matcher = TOKEN_NO_LINK.matcher(enviado.getValue().toPlainText());
         assertThat(matcher.find()).as("o e-mail precisa carregar o link com o token").isTrue();
         return matcher.group(1);
     }

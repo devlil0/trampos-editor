@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
  * A voz do produto fora do site (ESBOCO §4, ponto 7) — e o <b>canal</b> do §7 item 3.
  * <p>
@@ -21,6 +23,10 @@ import org.springframework.stereotype.Service;
  * </ol>
  * O texto segue o léxico do §4.1: trampo, vitrine, conversa. Nada de "usuário",
  * "plataforma" ou "não responda a este e-mail".
+ * <p>
+ * Cada e-mail é declarado como {@link EmailContent} — partes, não texto pronto. Quem
+ * transforma isso em texto puro ou em HTML com a cara do produto é o adaptador de saída,
+ * e é por isso que o texto de cada aviso mora aqui uma vez só, e não duas.
  */
 @Slf4j
 @Service
@@ -40,55 +46,37 @@ public class NotificationService {
     public void newMessage(UserEntity recipient, UserEntity sender, boolean jaAvisado){
         if (jaAvisado) return;
 
-        quietly(() -> emailSender.send(
-                recipient.getEmail(),
+        quietly(() -> emailSender.send(recipient.getEmail(), new EmailContent(
                 sender.getDisplayName() + " te mandou uma mensagem",
-                """
-                %s,
-
-                %s falou com você no TramposEditor.
-
-                Abrir a conversa: %s
-
-                — TramposEditor"""
-                        .formatted(firstName(recipient), sender.getDisplayName(),
-                                properties.link("/painel/conversas"))));
+                firstName(recipient),
+                List.of(sender.getDisplayName() + " falou com você no TramposEditor."),
+                "Abrir a conversa",
+                properties.link("/painel/conversas"),
+                null)));
     }
 
     /** O cliente aceitou o interesse do editor. Abre conversa sem mensagem, então este é o aviso. */
     public void interestAccepted(UserEntity editor, UserEntity client, String jobTitle){
-        quietly(() -> emailSender.send(
-                editor.getEmail(),
+        quietly(() -> emailSender.send(editor.getEmail(), new EmailContent(
                 "Você foi escolhido para \"" + jobTitle + "\"",
-                """
-                %s,
-
-                %s aceitou seu interesse no trampo "%s". A conversa já está aberta —
-                quem fala primeiro são vocês.
-
-                Abrir a conversa: %s
-
-                — TramposEditor"""
-                        .formatted(firstName(editor), client.getDisplayName(), jobTitle,
-                                properties.link("/painel/conversas"))));
+                firstName(editor),
+                List.of("%s aceitou seu interesse no trampo \"%s\". A conversa já está aberta — quem fala primeiro são vocês."
+                        .formatted(client.getDisplayName(), jobTitle)),
+                "Abrir a conversa",
+                properties.link("/painel/conversas"),
+                null)));
     }
 
     /** Chegou candidato num pedido aberto. Vai pro cliente, que é quem decide. */
     public void newInterest(UserEntity client, UserEntity editor, String jobTitle){
-        quietly(() -> emailSender.send(
-                client.getEmail(),
+        quietly(() -> emailSender.send(client.getEmail(), new EmailContent(
                 editor.getDisplayName() + " topou seu trampo",
-                """
-                %s,
-
-                %s demonstrou interesse em "%s". Veja o perfil e o portfólio antes de
-                escolher — o corte fala mais que a mensagem.
-
-                Ver quem topou: %s
-
-                — TramposEditor"""
-                        .formatted(firstName(client), editor.getDisplayName(), jobTitle,
-                                properties.link("/painel/pedidos"))));
+                firstName(client),
+                List.of("%s demonstrou interesse em \"%s\". Veja o perfil e o portfólio antes de escolher — o corte fala mais que a mensagem."
+                        .formatted(editor.getDisplayName(), jobTitle)),
+                "Ver quem topou",
+                properties.link("/painel/pedidos"),
+                null)));
     }
 
     /**
@@ -96,39 +84,25 @@ public class NotificationService {
      * girar (§3.1) — sem ele a avaliação depende de a pessoa lembrar sozinha.
      */
     public void dealClosed(UserEntity recipient, UserEntity counterpart, String subjectLine){
-        quietly(() -> emailSender.send(
-                recipient.getEmail(),
+        quietly(() -> emailSender.send(recipient.getEmail(), new EmailContent(
                 "Como foi trabalhar com " + counterpart.getDisplayName() + "?",
-                """
-                %s,
-
-                O trampo "%s" foi marcado como concluído. Deixe sua avaliação — é ela que
-                mostra quem está fazendo o que os outros não fazem.
-
-                Avaliar: %s
-
-                — TramposEditor"""
-                        .formatted(firstName(recipient), subjectLine,
-                                properties.link("/painel/trampos-fechados"))));
+                firstName(recipient),
+                List.of("O trampo \"%s\" foi marcado como concluído. Deixe sua avaliação — é ela que mostra quem está fazendo o que os outros não fazem."
+                        .formatted(subjectLine)),
+                "Avaliar",
+                properties.link("/painel/trampos-fechados"),
+                null)));
     }
 
     /** Link de redefinição de senha. É o único e-mail que a pessoa pediu explicitamente. */
     public void passwordReset(UserEntity user, String token){
-        quietly(() -> emailSender.send(
-                user.getEmail(),
+        quietly(() -> emailSender.send(user.getEmail(), new EmailContent(
                 "Redefinir sua senha",
-                """
-                %s,
-
-                Alguém pediu pra redefinir a senha desta conta. Se não foi você, ignore
-                este e-mail — nada muda.
-
-                Redefinir: %s
-
-                O link vale por 1 hora.
-
-                — TramposEditor"""
-                        .formatted(firstName(user), properties.link("/redefinir-senha?token=" + token))));
+                firstName(user),
+                List.of("Alguém pediu pra redefinir a senha desta conta. Se não foi você, ignore este e-mail — nada muda."),
+                "Redefinir senha",
+                properties.link("/redefinir-senha?token=" + token),
+                "O link vale por 1 hora.")));
     }
 
     /**

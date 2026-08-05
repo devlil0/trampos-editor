@@ -9,6 +9,34 @@
 # como antes — este arquivo é aditivo, não obrigatório.
 
 spring:
+  # ---------------------------------------------------------------------------------
+  # Envio real de e-mail (Resend). OPCIONAL — e por padrão você NÃO quer isto ligado.
+  #
+  # Sem este bloco o transporte continua sendo `log`: o e-mail aparece no console e não
+  # vai pra rede. É o certo pro dia a dia. Ligue aqui só quando quiser ver um envio de
+  # verdade chegando numa caixa.
+  #
+  # A chave é a API key da Resend, e ela vai em `password`. Duas coisas que ela NÃO é:
+  # não é a senha de nenhuma caixa de e-mail (não existe caixa — `nao-responda@` só
+  # remete), e não é variável do frontend. Nunca a coloque no `application.yaml`, que é
+  # versionado, nem no `.env.local` do Next, que é do outro lado.
+  #
+  # Confirme host, porta e usuário no painel da Resend (Domains → SMTP) em vez de
+  # confiar neste comentário: são deles, podem mudar, e errar aqui dá falha de auth que
+  # parece bug da aplicação.
+  #
+  # mail:
+  #   host: smtp.resend.com
+  #   port: 587
+  #   username: resend
+  #   password: COLE_AQUI_A_API_KEY
+  #   properties:
+  #     mail:
+  #       smtp:
+  #         auth: true
+  #         starttls:
+  #           enable: true
+
   security:
     oauth2:
       client:
@@ -32,3 +60,15 @@ spring:
 # Deixe fora deste arquivo o provedor que você ainda não criou: registro pela metade
 # derruba a aplicação na subida com "Client id of registration 'x' must not be empty".
 # Só Google configurado é um estado válido — o botão do GitHub simplesmente não aparece.
+
+# Companheiro do bloco `spring.mail` lá em cima: sem isto, configurar SMTP não muda nada,
+# porque quem escolhe o adaptador é esta chave. E o contrário também vale — ligar `smtp`
+# SEM o bloco `spring.mail.host` derruba a subida, porque aí não existe JavaMailSender pro
+# SmtpEmailSender receber. Os dois andam juntos ou nenhum dos dois.
+#
+# tramposeditor:
+#   notifications:
+#     transport: smtp
+#     # O domínio do remetente tem que ser um domínio VERIFICADO na Resend. Enquanto a
+#     # verificação não passa, ela só aceita enviar pro e-mail da sua própria conta.
+#     from: TramposEditor <nao-responda@tramposeditor.com>

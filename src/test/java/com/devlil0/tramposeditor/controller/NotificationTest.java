@@ -4,6 +4,7 @@ import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.repository.IConversationRepository;
 import com.devlil0.tramposeditor.database.repository.IJobRequestRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.notification.EmailContent;
 import com.devlil0.tramposeditor.notification.EmailSender;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -74,7 +75,7 @@ class NotificationTest {
 
         // 1ª mensagem: o editor não tinha nada pendente, então é avisado.
         falarComEditor(cliente, slug, "Topa editar uns Reels?");
-        verify(emailSender).send(eq("editor@teste.com"), any(), any());
+        verify(emailSender).send(eq("editor@teste.com"), any());
 
         reset(emailSender);
 
@@ -83,7 +84,7 @@ class NotificationTest {
         String conversaId = primeiraConversaDe(cliente);
         responder(cliente, conversaId, "Posso mandar o material hoje.");
         responder(cliente, conversaId, "Ou amanhã, como preferir.");
-        verify(emailSender, never()).send(eq("editor@teste.com"), any(), any());
+        verify(emailSender, never()).send(eq("editor@teste.com"), any());
 
         // O editor abre a conversa — abrir é o que marca como lida.
         mockMvc.perform(get("/v1/me/conversations/" + conversaId)
@@ -92,7 +93,7 @@ class NotificationTest {
 
         // Agora ele voltou ao zero, e a próxima mensagem avisa de novo.
         responder(cliente, conversaId, "Fechou?");
-        verify(emailSender, times(1)).send(eq("editor@teste.com"), any(), any());
+        verify(emailSender, times(1)).send(eq("editor@teste.com"), any());
     }
 
     @Test
@@ -111,7 +112,7 @@ class NotificationTest {
                                 {"message": "Topo o trampo."}
                                 """))
                 .andExpect(status().isCreated());
-        verify(emailSender).send(eq("cliente@teste.com"), any(), any());
+        verify(emailSender).send(eq("cliente@teste.com"), any());
 
         String meusPedidos = mockMvc.perform(get("/v1/me/job-requests")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
@@ -126,14 +127,20 @@ class NotificationTest {
 
         // A conversa do aceite nasce sem mensagem: sem este e-mail o editor nunca
         // descobriria que foi escolhido.
-        ArgumentCaptor<String> assunto = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<String> corpo = ArgumentCaptor.forClass(String.class);
-        verify(emailSender).send(eq("editor@teste.com"), assunto.capture(), corpo.capture());
+        ArgumentCaptor<EmailContent> enviado = ArgumentCaptor.forClass(EmailContent.class);
+        verify(emailSender).send(eq("editor@teste.com"), enviado.capture());
 
-        assertThat(assunto.getValue()).contains("Corte de podcast");
-        assertThat(corpo.getValue())
+        assertThat(enviado.getValue().subject()).contains("Corte de podcast");
+        assertThat(enviado.getValue().ctaUrl())
                 .as("o link precisa apontar pro frontend, não pra API")
-                .contains("http://localhost:3000/painel/conversas");
+                .isEqualTo("http://localhost:3000/painel/conversas");
+
+        // O texto puro vai junto do HTML no envio real, e é o que aparece em quem bloqueia
+        // markup. Se ele parar de sair completo, o e-mail chega vazio pra essa gente.
+        assertThat(enviado.getValue().toPlainText())
+                .contains("Editor")
+                .contains("http://localhost:3000/painel/conversas")
+                .endsWith("— TramposEditor");
     }
 
     @Test
@@ -144,7 +151,7 @@ class NotificationTest {
         String slug = slugDoEditor(editor);
 
         org.mockito.Mockito.doThrow(new RuntimeException("SMTP caiu"))
-                .when(emailSender).send(any(), any(), any());
+                .when(emailSender).send(any(), any());
 
         // A mensagem tem que ser salva mesmo assim: perder o aviso é ruim, perder o que
         // a pessoa escreveu é pior.
