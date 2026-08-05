@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { NextRequest } from "next/server";
 import { createSession } from "@/lib/session";
+import { readSignupOrigin } from "@/lib/signup-origin";
 import type { AuthResponse } from "@/lib/types";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
@@ -39,7 +40,10 @@ export async function GET(request: NextRequest) {
     const res = await fetch(`${API_URL}/v1/auth/social/exchange`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      // A origem viaja aqui, e não no callback do provedor, porque o cookie é nosso: o
+      // Google redireciona direto pro backend e o cookie de primeira visita não vai junto.
+      // O backend só a aplica se a conta acabou de nascer nesta troca (§3.1).
+      body: JSON.stringify({ code, origin: await readSignupOrigin() }),
       cache: "no-store",
     });
     if (res.ok) {

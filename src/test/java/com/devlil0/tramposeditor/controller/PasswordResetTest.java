@@ -181,5 +181,10 @@ class PasswordResetTest {
                                 }
                                 """.formatted(email, email.split("@")[0])))
                 .andExpect(status().isCreated());
+
+        // O cadastro dispara o e-mail de confirmação de endereço (V17). Zerar aqui deixa o
+        // `capturarTokenDoEmail` abaixo pegar o e-mail de SENHA, e não o do setup — os dois
+        // vão pro mesmo endereço e carregam um `token=` cada.
+        reset(emailSender);
     }
 }

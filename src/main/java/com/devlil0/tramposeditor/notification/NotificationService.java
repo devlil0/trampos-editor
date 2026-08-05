@@ -13,13 +13,16 @@ import java.util.List;
  * Sem isto o que foi construído gira só enquanto a pessoa está com a aba aberta: os dois
  * lados agem em tempos diferentes e ninguém descobre que foi procurado.
  * <p>
- * Duas regras que valem pro arquivo inteiro:
+ * Três regras que valem pro arquivo inteiro:
  * <ol>
- *   <li><b>Nunca derruba a ação.</b> Todo envio passa por {@link #quietly}: perder um
- *       aviso é ruim, perder a mensagem que o usuário acabou de escrever é pior.</li>
+ *   <li><b>Nunca derruba a ação.</b> Nenhum envio propaga exceção: perder um aviso é ruim,
+ *       perder a mensagem que o usuário acabou de escrever é pior.</li>
  *   <li><b>Um aviso por vez, não um por evento.</b> Ver {@link #newMessage} — dez
  *       mensagens seguidas mandam <i>um</i> e-mail, não dez. Marketplace que enche a
  *       caixa de entrada é exatamente o que os 99% fazem (§6).</li>
+ *   <li><b>Aviso automático só vai pra endereço provado.</b> {@link #quietly} recusa quem
+ *       não confirmou; {@link #always} é a exceção, e vale só pros dois e-mails que a
+ *       própria pessoa pediu.</li>
  * </ol>
  * O texto segue o léxico do §4.1: trampo, vitrine, conversa. Nada de "usuário",
  * "plataforma" ou "não responda a este e-mail".
@@ -46,7 +49,7 @@ public class NotificationService {
     public void newMessage(UserEntity recipient, UserEntity sender, boolean jaAvisado){
         if (jaAvisado) return;
 
-        quietly(() -> emailSender.send(recipient.getEmail(), new EmailContent(
+        quietly(recipient, () -> emailSender.send(recipient.getEmail(), new EmailContent(
                 sender.getDisplayName() + " te mandou uma mensagem",
                 firstName(recipient),
                 List.of(sender.getDisplayName() + " falou com você no TramposEditor."),
@@ -57,7 +60,7 @@ public class NotificationService {
 
     /** O cliente aceitou o interesse do editor. Abre conversa sem mensagem, então este é o aviso. */
     public void interestAccepted(UserEntity editor, UserEntity client, String jobTitle){
-        quietly(() -> emailSender.send(editor.getEmail(), new EmailContent(
+        quietly(editor, () -> emailSender.send(editor.getEmail(), new EmailContent(
                 "Você foi escolhido para \"" + jobTitle + "\"",
                 firstName(editor),
                 List.of("%s aceitou seu interesse no trampo \"%s\". A conversa já está aberta — quem fala primeiro são vocês."
@@ -69,7 +72,7 @@ public class NotificationService {
 
     /** Chegou candidato num pedido aberto. Vai pro cliente, que é quem decide. */
     public void newInterest(UserEntity client, UserEntity editor, String jobTitle){
-        quietly(() -> emailSender.send(client.getEmail(), new EmailContent(
+        quietly(client, () -> emailSender.send(client.getEmail(), new EmailContent(
                 editor.getDisplayName() + " topou seu trampo",
                 firstName(client),
                 List.of("%s demonstrou interesse em \"%s\". Veja o perfil e o portfólio antes de escolher — o corte fala mais que a mensagem."
@@ -84,7 +87,7 @@ public class NotificationService {
      * girar (§3.1) — sem ele a avaliação depende de a pessoa lembrar sozinha.
      */
     public void dealClosed(UserEntity recipient, UserEntity counterpart, String subjectLine){
-        quietly(() -> emailSender.send(recipient.getEmail(), new EmailContent(
+        quietly(recipient, () -> emailSender.send(recipient.getEmail(), new EmailContent(
                 "Como foi trabalhar com " + counterpart.getDisplayName() + "?",
                 firstName(recipient),
                 List.of("O trampo \"%s\" foi marcado como concluído. Deixe sua avaliação — é ela que mostra quem está fazendo o que os outros não fazem."
@@ -94,9 +97,30 @@ public class NotificationService {
                 null)));
     }
 
-    /** Link de redefinição de senha. É o único e-mail que a pessoa pediu explicitamente. */
+    /**
+     * Confirmação do endereço (§2, fase 1.5).
+     * <p>
+     * Vai por {@link #always} e não por {@link #quietly}: é o único aviso que <b>tem</b> que
+     * chegar num endereço ainda não provado — recusá-lo por não estar verificado seria
+     * exigir a verificação pra poder verificar.
+     */
+    public void verifyEmail(UserEntity user, String token){
+        always(() -> emailSender.send(user.getEmail(), new EmailContent(
+                "Confirme seu e-mail",
+                firstName(user),
+                List.of("Falta um clique pra sua conta ficar completa. É por este endereço que você fica sabendo quando alguém te procura."),
+                "Confirmar e-mail",
+                properties.link("/confirmar-email?token=" + token),
+                "O link vale por 3 dias. Se não foi você quem criou a conta, ignore este e-mail.")));
+    }
+
+    /**
+     * Link de redefinição de senha. Vai por {@link #always} pelo mesmo motivo do
+     * {@link #verifyEmail}: quem não conseguiu confirmar o e-mail e esqueceu a senha
+     * ficaria trancado do lado de fora pra sempre.
+     */
     public void passwordReset(UserEntity user, String token){
-        quietly(() -> emailSender.send(user.getEmail(), new EmailContent(
+        always(() -> emailSender.send(user.getEmail(), new EmailContent(
                 "Redefinir sua senha",
                 firstName(user),
                 List.of("Alguém pediu pra redefinir a senha desta conta. Se não foi você, ignore este e-mail — nada muda."),
@@ -106,10 +130,35 @@ public class NotificationService {
     }
 
     /**
-     * Roda o envio sem deixar exceção escapar. O {@code EmailSender} já engole falha de
-     * SMTP; isto cobre o resto (destinatário inválido, template quebrado, o que vier).
+     * Aviso automático: só sai pra endereço já provado.
+     * <p>
+     * A regra veio com a verificação de e-mail (§2, fase 1.5) e não é burocracia — é
+     * proteção de reputação. Endereço não confirmado pode ser erro de digitação ou o e-mail
+     * de um terceiro, e insistir com aviso que ninguém pediu é o caminho mais curto pra
+     * reclamação de spam. Uma reclamação custa a entregabilidade de <b>todo</b> o domínio,
+     * inclusive dos e-mails que importam.
+     * <p>
+     * Não perde nada de verdade: a pessoa continua vendo tudo dentro do site, e volta a
+     * receber assim que confirmar.
      */
-    private void quietly(Runnable send){
+    private void quietly(UserEntity recipient, Runnable send){
+        if (!recipient.isEmailVerified()) {
+            log.debug("Aviso não enviado: {} ainda não confirmou o e-mail", recipient.getId());
+            return;
+        }
+
+        always(send);
+    }
+
+    /**
+     * Roda o envio sem deixar exceção escapar, <b>sem</b> exigir e-mail verificado. É pros
+     * dois e-mails que a própria pessoa pediu — confirmar endereço e redefinir senha —, e
+     * que por definição precisam chegar antes de qualquer verificação existir.
+     * <p>
+     * O {@code EmailSender} já engole falha de SMTP; isto cobre o resto (destinatário
+     * inválido, template quebrado, o que vier).
+     */
+    private void always(Runnable send){
         try {
             send.run();
         } catch (RuntimeException e) {

@@ -34,6 +34,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final UserMapper userMapper;
     private final UsernameService usernameService;
+    private final EmailVerificationService emailVerificationService;
 
     @Transactional
     public AuthResponseDTO register(RegisterRequestDTO dto){
@@ -65,6 +66,11 @@ public class AuthService {
                 .active(true)
                 .build();
 
+        // A origem da primeira visita (V16). Vem do cookie que o proxy do frontend gravou
+        // e não pode, em hipótese nenhuma, impedir o cadastro — por isso entra depois de
+        // tudo que valida, e o próprio SignupOrigin trunca em vez de recusar.
+        SignupOrigin.apply(user, dto.origin());
+
         try {
             // saveAndFlush: sem o flush o @CreationTimestamp ainda não foi gerado
             // e o createdAt sairia null na resposta do cadastro.
@@ -76,6 +82,11 @@ public class AuthService {
             throw new BusinessException(
                     "Esse nome de usuário ou e-mail acabou de ser registrado. Tente outro.");
         }
+
+        // O link de confirmação sai junto do cadastro (V17). Depois do flush porque o
+        // token precisa do id da conta, e nunca antes: e-mail de uma conta que não gravou
+        // seria um link pra lugar nenhum.
+        emailVerificationService.send(user);
 
         return buildResponse(user);
     }

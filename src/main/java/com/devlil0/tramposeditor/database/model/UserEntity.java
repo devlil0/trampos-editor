@@ -88,6 +88,37 @@ public class UserEntity {
     @Column(name = "avatar_version")
     private UUID avatarVersion;
 
+    /**
+     * Quando o dono provou que o endereço é dele; nulo enquanto não provou.
+     * <p>
+     * Conta criada por provedor social já nasce preenchida — o Google e o GitHub só
+     * entregam e-mail confirmado, e uma prova melhor que a nossa não se refaz.
+     * <p>
+     * Data em vez de booleano de propósito: "quando" responde o que "se" não responde —
+     * quanto tempo a pessoa levou, e quantas nunca voltaram.
+     */
+    @Column(name = "email_verified_at")
+    private LocalDateTime emailVerifiedAt;
+
+    /**
+     * De onde a pessoa veio quando chegou pela <b>primeira vez</b> — não quando se
+     * cadastrou. É o único dado do §3.1 que não é derivável do resto do banco: existe por
+     * um instante e some se ninguém gravar (V16).
+     * <p>
+     * Nulo é resposta legítima, e vai ser a maioria: acesso direto e app que suprime o
+     * Referer entram assim.
+     */
+    @Column(name = "signup_referrer", length = 255)
+    private String signupReferrer;
+
+    /** {@code utm_source} da primeira visita. Ver V16 pra por que só ele. */
+    @Column(name = "signup_utm_source", length = 120)
+    private String signupUtmSource;
+
+    /** A primeira página vista — é ela que responde "qual conteúdo capta?". */
+    @Column(name = "signup_landing", length = 255)
+    private String signupLanding;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "role", nullable = false, length = 20)
@@ -109,5 +140,26 @@ public class UserEntity {
 
     public boolean hasRole(UserRole role){
         return roles.contains(role);
+    }
+
+    public boolean isEmailVerified(){
+        return emailVerifiedAt != null;
+    }
+
+    /**
+     * Grava a origem da primeira visita, e só se ainda não houver nenhuma.
+     * <p>
+     * A guarda existe porque o login social chama isto na troca do código, e a mesma conta
+     * pode passar por lá de novo — sobrescrever trocaria a origem de quem captou a pessoa
+     * pela origem do último login dela.
+     */
+    public void recordSignupOrigin(String referrer, String utmSource, String landing){
+        if (signupReferrer != null || signupUtmSource != null || signupLanding != null) {
+            return;
+        }
+
+        this.signupReferrer = referrer;
+        this.signupUtmSource = utmSource;
+        this.signupLanding = landing;
     }
 }

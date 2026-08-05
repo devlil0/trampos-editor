@@ -57,7 +57,7 @@ public class UsernameService {
             // reservados pro produto
             "admin", "suporte", "ajuda", "sobre", "contato", "blog", "termos",
             "privacidade", "seguranca", "conta", "settings", "login", "logout",
-            "signup", "me", "eu", "novo", "new", "escolher-username",
+            "signup", "me", "eu", "novo", "new", "escolher-username", "confirmar-email",
             // tags da vitrine
             "tiktok", "reels", "youtube", "podcast", "canal-dark",
             "premiere", "capcut", "after-effects", "davinci-resolve", "final-cut-pro");

@@ -3,6 +3,7 @@ package com.devlil0.tramposeditor.controller;
 import com.devlil0.tramposeditor.dto.UserResponseDTO;
 import com.devlil0.tramposeditor.dto.UserUpdateDTO;
 import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
+import com.devlil0.tramposeditor.service.EmailVerificationService;
 import com.devlil0.tramposeditor.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +27,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final EmailVerificationService emailVerificationService;
 
     @GetMapping("/me")
     @ResponseStatus(HttpStatus.OK)
@@ -50,5 +53,15 @@ public class UserController {
     public UserResponseDTO trocarUsername(@AuthenticationPrincipal Jwt jwt,
                                           @Valid @RequestBody UsernameUpdateDTO dto){
         return userService.trocarUsername(UUID.fromString(jwt.getSubject()), dto);
+    }
+
+    /**
+     * Reenvia o link de confirmação de e-mail. Sempre 204, inclusive pra conta já
+     * verificada — clicar duas vezes no aviso não é erro que mereça tela vermelha.
+     */
+    @PostMapping("/me/email-verification/resend")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reenviarVerificacao(@AuthenticationPrincipal Jwt jwt){
+        emailVerificationService.resend(UUID.fromString(jwt.getSubject()));
     }
 }

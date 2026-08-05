@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
 import { removePortfolioAction } from "@/app/actions/editor-profile";
 import { AvatarForm } from "@/components/avatar-form";
+import { EmailVerificationNotice } from "@/components/email-verification-notice";
 import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
 import { InstagramForm } from "@/components/instagram-form";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -59,6 +60,10 @@ export default async function ConfiguracoesDoPerfilPage() {
           "Publicar este perfil é o que te registra como editor — sua conta continua a mesma. Leva dois minutos e dá pra editar depois."
         )}
       </p>
+
+      {/* Primeiro de tudo quando falta: é o que trava publicar o perfil e receber aviso.
+          Some sozinho depois de confirmado. */}
+      {!user.emailVerified && <EmailVerificationNotice email={user.email} />}
 
       {/* O que era o painel.
           O hub `/painel` foi dissolvido em 2026-08-04: ele não fazia nada além de listar

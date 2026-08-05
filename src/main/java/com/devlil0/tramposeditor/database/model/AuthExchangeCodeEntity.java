@@ -38,6 +38,17 @@ public class AuthExchangeCodeEntity {
     @Column(name = "code_hash", nullable = false, length = 64)
     private String codeHash;
 
+    /**
+     * A conta nasceu junto com este código, ou já existia e a pessoa só entrou de novo.
+     * <p>
+     * Serve à atribuição de origem (V16): ela só pode valer pra cadastro novo. Vive aqui, e
+     * não numa variável do serviço, porque quem cria a conta é o callback do provedor e
+     * quem recebe a origem é a troca do código — dois requests diferentes.
+     */
+    @Column(name = "new_account", nullable = false)
+    @Builder.Default
+    private boolean newAccount = false;
+
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 

@@ -34,6 +34,12 @@ public record RegisterRequestDTO(
         String username,
 
         @NotEmpty
-        Set<UserRole> roles
+        Set<UserRole> roles,
+
+        /**
+         * De onde a pessoa veio na primeira visita. Opcional — quem chega direto não tem
+         * origem, e o campo nunca deve poder recusar um cadastro. Ver {@link SignupOriginDTO}.
+         */
+        SignupOriginDTO origin
 ) {
 }

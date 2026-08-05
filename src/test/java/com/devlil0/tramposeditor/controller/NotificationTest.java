@@ -176,6 +176,19 @@ class NotificationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
+        // Conta recém-criada nasce com e-mail não confirmado (V17), e sem confirmar ela não
+        // publica perfil nem recebe aviso. Quem se cadastra de verdade clica no link; aqui o
+        // atalho modela esse mesmo estado, senão todo teste abaixo estaria exercitando uma
+        // conta pela metade.
+        confirmarEmail(email);
+
+        // O cadastro dispara o e-mail de confirmação (V17). Zerar aqui deixa cada teste
+        // contando só os avisos que ELE provocou — senão todo verify() acusaria uma chamada
+        // a mais, vinda do setup.
+        reset(emailSender);
+
+
+
         return JsonPath.read(body, "$.accessToken");
     }
 
@@ -239,4 +252,11 @@ class NotificationTest {
 
         return JsonPath.read(body, "$.id");
     }
+    /** O clique no link de confirmação, sem passar pelo e-mail. Ver o helper de cadastro. */
+    private void confirmarEmail(String email){
+        var user = userRepository.findByEmail(email.trim().toLowerCase()).orElseThrow();
+        user.setEmailVerifiedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
+
 }

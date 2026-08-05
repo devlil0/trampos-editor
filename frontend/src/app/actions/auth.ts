@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSession, destroySession } from "@/lib/session";
+import { readSignupOrigin } from "@/lib/signup-origin";
 import type { AuthResponse, UserRole } from "@/lib/types";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
@@ -94,7 +95,16 @@ export async function registerAction(
     const res = await fetch(`${API_URL}/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, displayName, username, roles }),
+      // A origem da primeira visita (§3.1). Vai como campo opcional e nunca pode fazer o
+      // cadastro falhar — o backend trunca o que for grande e ignora o que for nulo.
+      body: JSON.stringify({
+        email,
+        password,
+        displayName,
+        username,
+        roles,
+        origin: await readSignupOrigin(),
+      }),
       cache: "no-store",
     });
 

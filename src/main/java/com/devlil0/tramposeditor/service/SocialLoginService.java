@@ -7,6 +7,7 @@ import com.devlil0.tramposeditor.database.repository.IAuthExchangeCodeRepository
 import com.devlil0.tramposeditor.database.repository.IUserIdentityRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.dto.AuthResponseDTO;
+import com.devlil0.tramposeditor.dto.SignupOriginDTO;
 import com.devlil0.tramposeditor.enums.UserRole;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.UnauthorizedException;
@@ -62,19 +63,32 @@ public class SocialLoginService {
                             .formatted(provider));
         }
 
-        UserEntity user = resolveUser(provider, subject, normalizeEmail(email), displayName);
-        return issueCode(user);
+        Resolved resolvido = resolveUser(provider, subject, normalizeEmail(email), displayName);
+
+        return issueCode(resolvido.user(), resolvido.contaNova());
     }
 
-    private UserEntity resolveUser(String provider, String subject, String email, String displayName){
+    /**
+     * Uma conta resolvida e se ela <b>acabou de nascer</b>.
+     * <p>
+     * O booleano viaja até a troca do código porque é lá que a origem da primeira visita
+     * chega (o cookie é do frontend, e o frontend só entra em cena na troca). Sem ele, quem
+     * já tem conta entrando de novo teria a origem de hoje gravada como se fosse a que o
+     * captou meses atrás — ver V16.
+     */
+    private record Resolved(UserEntity user, boolean contaNova) {
+    }
+
+    private Resolved resolveUser(String provider, String subject, String email, String displayName){
         // 1. Já entrou por este provedor antes: é ele, mesmo que o e-mail tenha mudado.
         var jaVinculado = identityRepository.findByProviderAndSubject(provider, subject);
         if (jaVinculado.isPresent()) {
-            return jaVinculado.get().getUser();
+            return new Resolved(jaVinculado.get().getUser(), false);
         }
 
         // 2. Existe conta com este e-mail: vincula em vez de duplicar.
-        UserEntity user = userRepository.findByEmail(email).orElseGet(() -> createUser(email, displayName));
+        var existente = userRepository.findByEmail(email);
+        UserEntity user = existente.orElseGet(() -> createUser(email, displayName));
 
         if (!user.isActive()) {
             throw new UnauthorizedException("Conta desativada");
@@ -86,7 +100,7 @@ public class SocialLoginService {
                 .subject(subject)
                 .build());
 
-        return user;
+        return new Resolved(user, existente.isEmpty());
     }
 
     /**
@@ -108,6 +122,10 @@ public class SocialLoginService {
                 // ninguém decidiu, que era o caso até a V15.
                 .username(usernameService.gerarPara(nome))
                 .usernameChosen(false)
+                // Já nasce verificado: o Google e o GitHub só entregam e-mail confirmado, e
+                // pedir a mesma prova de novo seria desconfiar de uma melhor que a nossa
+                // (V17).
+                .emailVerifiedAt(LocalDateTime.now())
                 // Todo mundo entra como cliente; virar editor continua sendo publicar o
                 // perfil, exatamente como no cadastro por senha (FUNDACAO §11.9).
                 .roles(Set.of(UserRole.CLIENT))
@@ -115,21 +133,28 @@ public class SocialLoginService {
                 .build());
     }
 
-    private String issueCode(UserEntity user){
+    private String issueCode(UserEntity user, boolean contaNova){
         String code = TokenSecrets.generate();
 
         codeRepository.save(AuthExchangeCodeEntity.builder()
                 .user(user)
                 .codeHash(TokenSecrets.hash(code))
+                .newAccount(contaNova)
                 .expiresAt(LocalDateTime.now().plus(VALIDADE_DO_CODIGO))
                 .build());
 
         return code;
     }
 
-    /** A troca: o frontend manda o código de servidor pra servidor e recebe o JWT. */
+    /**
+     * A troca: o frontend manda o código de servidor pra servidor e recebe o JWT.
+     * <p>
+     * É aqui que a origem da primeira visita entra no login social — e só aqui dá pra
+     * fazer isso. A conta nasce no callback do provedor, mas quem tem o cookie de primeira
+     * visita é o frontend, que só aparece nesta chamada.
+     */
     @Transactional
-    public AuthResponseDTO exchange(String code){
+    public AuthResponseDTO exchange(String code, SignupOriginDTO origin){
         AuthExchangeCodeEntity entity = codeRepository.findByCodeHash(TokenSecrets.hash(code))
                 .filter(c -> c.isUsable(LocalDateTime.now()))
                 .orElseThrow(() -> new UnauthorizedException("Código de login inválido ou expirado"));
@@ -137,7 +162,13 @@ public class SocialLoginService {
         entity.setUsedAt(LocalDateTime.now());
         codeRepository.save(entity);
 
-        return authService.buildResponse(entity.getUser());
+        UserEntity user = entity.getUser();
+        if (entity.isNewAccount()) {
+            SignupOrigin.apply(user, origin);
+            userRepository.save(user);
+        }
+
+        return authService.buildResponse(user);
     }
 
     private String normalizeEmail(String email){

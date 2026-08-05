@@ -60,6 +60,35 @@ export async function saveInstagramAction(
 }
 
 /**
+ * Reenvia o link de confirmação de e-mail.
+ *
+ * Sempre "deu certo" quando o backend responde, inclusive pra conta já verificada: a
+ * pessoa clicou num botão que promete mandar um e-mail, e explicar que ela não precisava
+ * seria informação que não muda nada pra ela.
+ */
+export async function resendEmailVerificationAction(
+  _prev: AccountFormState,
+): Promise<AccountFormState> {
+  const token = await getSessionToken();
+  if (!token) return { error: "Sua sessão expirou. Entre de novo." };
+
+  try {
+    const res = await fetch(`${API_URL}/v1/users/me/email-verification/resend`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      return { error: await readError(res, "Não deu pra reenviar o link agora.") };
+    }
+  } catch {
+    return { error: "Servidor fora do ar. Tente de novo em alguns segundos." };
+  }
+
+  return { ok: true };
+}
+
+/**
  * Escolhe ou troca o username — o endereço da pessoa em `/{username}`.
  *
  * Serve os dois momentos: a escolha obrigatória de quem entrou pelo Google (que ainda não

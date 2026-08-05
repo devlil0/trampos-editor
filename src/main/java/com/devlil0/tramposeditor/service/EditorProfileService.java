@@ -81,6 +81,20 @@ public class EditorProfileService {
 
         validatePriceRange(dto.priceMinCents(), dto.priceMaxCents());
 
+        // O único lugar do produto onde e-mail não confirmado barra alguma coisa (V17).
+        //
+        // Não é burocracia e não fecha a porta do FUNDACAO §11.9: publicar perfil é o
+        // gesto que coloca a pessoa na VITRINE INDEXADA, com endereço próprio e portfólio
+        // — é o que o Google vê e o que o cliente encontra. Deixar entrar aí sem prova
+        // nenhuma de que o endereço existe é convidar perfil fantasma pro ativo de SEO,
+        // e o §2.2 já registra que sustentar a promessa de qualidade precisa de mecanismo.
+        //
+        // Todo o resto continua aberto: navegar, conversar, se candidatar, publicar pedido.
+        if (!user.isEmailVerified()) {
+            throw new BusinessException(
+                    "Confirme seu e-mail antes de publicar seu perfil. Reenviamos o link se precisar.");
+        }
+
         // A conta é uma só: criar o perfil É o registro como editor. Quem chegou pra
         // contratar e resolveu editar vira editor aqui, sem cadastro paralelo.
         user.getRoles().add(UserRole.EDITOR);

@@ -98,6 +98,11 @@ class VitrineQueryCountTest {
 
         String token = JsonPath.read(body, "$.accessToken");
 
+        // Conta recém-criada nasce com e-mail não confirmado (V17), e sem confirmar ela não
+        // publica perfil. Quem se cadastra de verdade clica no link; aqui o atalho modela
+        // esse mesmo estado.
+        confirmarEmail(email);
+
         mockMvc.perform(put("/v1/me/editor-profile")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -112,4 +117,11 @@ class VitrineQueryCountTest {
                                 """))
                 .andExpect(status().isOk());
     }
+    /** O clique no link de confirmação, sem passar pelo e-mail. Ver o helper de cadastro. */
+    private void confirmarEmail(String email){
+        var user = userRepository.findByEmail(email.trim().toLowerCase()).orElseThrow();
+        user.setEmailVerifiedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
+
 }

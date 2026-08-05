@@ -1,12 +1,14 @@
 package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.dto.AuthResponseDTO;
+import com.devlil0.tramposeditor.dto.EmailVerificationConfirmDTO;
 import com.devlil0.tramposeditor.dto.LoginRequestDTO;
 import com.devlil0.tramposeditor.dto.PasswordResetConfirmDTO;
 import com.devlil0.tramposeditor.dto.PasswordResetRequestDTO;
 import com.devlil0.tramposeditor.dto.RegisterRequestDTO;
 import com.devlil0.tramposeditor.dto.SocialExchangeDTO;
 import com.devlil0.tramposeditor.service.AuthService;
+import com.devlil0.tramposeditor.service.EmailVerificationService;
 import com.devlil0.tramposeditor.service.PasswordResetService;
 import com.devlil0.tramposeditor.service.SocialLoginService;
 import jakarta.validation.Valid;
@@ -22,6 +24,7 @@ public class AuthController {
     private final AuthService authService;
     private final PasswordResetService passwordResetService;
     private final SocialLoginService socialLoginService;
+    private final EmailVerificationService emailVerificationService;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -58,6 +61,17 @@ public class AuthController {
     @PostMapping("/social/exchange")
     @ResponseStatus(HttpStatus.OK)
     public AuthResponseDTO exchangeSocialCode(@Valid @RequestBody SocialExchangeDTO dto){
-        return socialLoginService.exchange(dto.code());
+        return socialLoginService.exchange(dto.code(), dto.origin());
+    }
+
+    /**
+     * Confirma o e-mail pelo link recebido. Público porque a pessoa pode abrir o link em
+     * outro navegador, ou dias depois, sem sessão nenhuma — exigir login aqui transformaria
+     * uma confirmação de um clique num "entre primeiro".
+     */
+    @PostMapping("/email-verification/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmEmail(@Valid @RequestBody EmailVerificationConfirmDTO dto){
+        emailVerificationService.confirm(dto.token());
     }
 }

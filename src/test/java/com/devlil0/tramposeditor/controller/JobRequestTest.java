@@ -248,6 +248,14 @@ class JobRequestTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
+        // Conta recém-criada nasce com e-mail não confirmado (V17), e sem confirmar ela não
+        // publica perfil nem recebe aviso. Quem se cadastra de verdade clica no link; aqui o
+        // atalho modela esse mesmo estado, senão todo teste abaixo estaria exercitando uma
+        // conta pela metade.
+        confirmarEmail(email);
+
+
+
         return JsonPath.read(body, "$.accessToken");
     }
 
@@ -277,4 +285,11 @@ class JobRequestTest {
 
         return JsonPath.read(body, "$.id");
     }
+    /** O clique no link de confirmação, sem passar pelo e-mail. Ver o helper de cadastro. */
+    private void confirmarEmail(String email){
+        var user = userRepository.findByEmail(email.trim().toLowerCase()).orElseThrow();
+        user.setEmailVerifiedAt(java.time.LocalDateTime.now());
+        userRepository.save(user);
+    }
+
 }

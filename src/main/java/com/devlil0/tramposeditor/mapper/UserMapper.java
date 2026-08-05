@@ -17,6 +17,7 @@ public class UserMapper {
                 user.getUsername(),
                 user.isUsernameChosen(),
                 user.getUsernameChangedAt(),
+                user.isEmailVerified(),
                 user.getAvatarVersion(),
                 user.getInstagram(),
                 Set.copyOf(user.getRoles()),

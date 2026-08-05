@@ -20,6 +20,12 @@ public record UserResponseDTO(
         boolean usernameChosen,
         /** Última troca; nulo se nunca trocou. Alimenta o cooldown mostrado na tela. */
         LocalDateTime usernameChangedAt,
+        /**
+         * Se o dono já provou o endereço. Falso silencia todo aviso automático e impede
+         * publicar perfil de editor — o frontend usa isto pra mostrar o aviso com o botão
+         * de reenviar.
+         */
+        boolean emailVerified,
         /** Versão da foto de perfil; nulo quando não há foto. Entra na URL da imagem. */
         UUID avatarVersion,
         /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */

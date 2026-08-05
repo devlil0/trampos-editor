@@ -17,6 +17,11 @@ export interface AuthUser {
   usernameChosen: boolean;
   /** Última troca; null se nunca trocou. Alimenta o cooldown mostrado nas configurações. */
   usernameChangedAt: string | null;
+  /**
+   * Se o dono já provou o endereço. False silencia todo aviso automático e impede publicar
+   * perfil de editor — conta criada pelo Google/GitHub já nasce true.
+   */
+  emailVerified: boolean;
   /** Versão da foto de perfil; null quando não há. Entra na URL da imagem. */
   avatarVersion: string | null;
   /** Username do Instagram, sem "@". Null enquanto a pessoa não informar. */
