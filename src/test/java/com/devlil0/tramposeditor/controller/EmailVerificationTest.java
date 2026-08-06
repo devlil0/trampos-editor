@@ -70,23 +70,33 @@ class EmailVerificationTest {
 
     // ---------- O ciclo ----------
 
+    /**
+     * A V18 inverteu isto, e a inversão é o ponto.
+     * <p>
+     * Até 2026-08-06 o cadastro por senha nascia <b>não verificado</b> e recebia um link
+     * pra provar o endereço depois. Com o código de seis dígitos exigido pra criar a conta,
+     * a prova passou a vir antes: quem chega em {@code users} já provou. Mandar o link em
+     * seguida seria pedir a mesma prova duas vezes.
+     */
     @Test
-    void cadastroPorSenhaNasceNaoVerificadoEJaRecebeOLink() throws Exception {
+    void cadastroPorCodigoJaNasceVerificadoENaoMandaLink() throws Exception {
         String token = registrar("novo@teste.com");
 
         mockMvc.perform(get("/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.emailVerified").value(false));
+                .andExpect(jsonPath("$.emailVerified").value(true));
 
+        // O único e-mail do cadastro é o do código; nenhum "Confirme seu e-mail" sai atrás.
         ArgumentCaptor<EmailContent> enviado = ArgumentCaptor.forClass(EmailContent.class);
         verify(emailSender).send(eq("novo@teste.com"), enviado.capture());
-        assertThat(enviado.getValue().subject()).isEqualTo("Confirme seu e-mail");
+        assertThat(enviado.getValue().subject()).isEqualTo(
+                TestcontainersConfiguration.CODIGO_DE_CADASTRO + " é seu código de confirmação");
     }
 
     @Test
     void oLinkConfirmaEValeUmaVezSo() throws Exception {
         String sessao = registrar("novo@teste.com");
-        String token = capturarTokenDoEmail("novo@teste.com");
+        String token = pedirLink("novo@teste.com", sessao);
 
         confirmar(token).andExpect(status().isNoContent());
 
@@ -108,7 +118,7 @@ class EmailVerificationTest {
     @Test
     void reenviarInvalidaOLinkAnterior() throws Exception {
         String sessao = registrar("novo@teste.com");
-        String primeiro = capturarTokenDoEmail("novo@teste.com");
+        String primeiro = pedirLink("novo@teste.com", sessao);
 
         reset(emailSender);
         mockMvc.perform(post("/v1/users/me/email-verification/resend")
@@ -128,12 +138,13 @@ class EmailVerificationTest {
     @Test
     void semConfirmarNaoPublicaPerfilDeEditor() throws Exception {
         String sessao = registrar("editor@teste.com");
+        String link = pedirLink("editor@teste.com", sessao);
 
         // Publicar perfil é entrar na vitrine indexada — é o único gesto que a falta de
         // verificação impede.
         publicarPerfil(sessao).andExpect(status().isConflict());
 
-        confirmar(capturarTokenDoEmail("editor@teste.com")).andExpect(status().isNoContent());
+        confirmar(link).andExpect(status().isNoContent());
 
         publicarPerfil(sessao).andExpect(status().isOk());
     }
@@ -141,7 +152,6 @@ class EmailVerificationTest {
     @Test
     void semConfirmarNaoRecebeAvisoAutomatico() throws Exception {
         String editor = registrar("editor@teste.com");
-        confirmar(capturarTokenDoEmail("editor@teste.com"));
         publicarPerfil(editor).andExpect(status().isOk());
         String slug = slugDoEditor(editor);
 
@@ -149,6 +159,7 @@ class EmailVerificationTest {
         // aviso automático — endereço não provado é o caminho curto pra reclamação de spam,
         // que custa a reputação do domínio inteiro.
         String cliente = registrar("cliente@teste.com");
+        desverificar("cliente@teste.com");
         reset(emailSender);
 
         // Conversar continua liberado pra quem não confirmou: o que se bloqueia é o e-mail
@@ -186,6 +197,32 @@ class EmailVerificationTest {
                         """));
     }
 
+    /**
+     * Devolve a conta ao estado "não verificada".
+     * <p>
+     * Depois da V18 esse estado não nasce mais de um cadastro — o código já prova o
+     * endereço. Ele ainda existe no produto (contas anteriores à migration), e é ele que os
+     * testes abaixo precisam exercitar, então é produzido aqui de propósito em vez de
+     * fingir que o cadastro ainda o cria.
+     */
+    private void desverificar(String email){
+        var user = userRepository.findByEmail(email.trim().toLowerCase()).orElseThrow();
+        user.setEmailVerifiedAt(null);
+        userRepository.save(user);
+    }
+
+    /** Desverifica e pede o link pelo reenvio — o único caminho que ainda o produz. */
+    private String pedirLink(String email, String sessao) throws Exception {
+        desverificar(email);
+        reset(emailSender);
+
+        mockMvc.perform(post("/v1/users/me/email-verification/resend")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + sessao))
+                .andExpect(status().isNoContent());
+
+        return capturarTokenDoEmail(email);
+    }
+
     private String capturarTokenDoEmail(String email) throws Exception {
         ArgumentCaptor<EmailContent> enviado = ArgumentCaptor.forClass(EmailContent.class);
         verify(emailSender).send(eq(email), enviado.capture());
@@ -203,7 +240,7 @@ class EmailVerificationTest {
     }
 
     private String registrar(String email) throws Exception {
-        String body = mockMvc.perform(post("/v1/auth/register")
+        mockMvc.perform(post("/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -214,6 +251,18 @@ class EmailVerificationTest {
                                   "roles": ["CLIENT"]
                                 }
                                 """.formatted(email, email.split("@")[0])))
+                .andExpect(status().isAccepted());
+
+        // O cadastro virou dois passos (V18): o POST acima só guarda o pendente e manda o
+        // código. A conta — e a sessão — nascem aqui, e já com o e-mail provado.
+        String body = mockMvc.perform(post("/v1/auth/register/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "code": "%s"
+                                }
+                                """.formatted(email, TestcontainersConfiguration.CODIGO_DE_CADASTRO)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 

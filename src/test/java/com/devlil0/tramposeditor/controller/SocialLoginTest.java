@@ -165,6 +165,17 @@ class SocialLoginTest {
                                   "roles": ["CLIENT"]
                                 }
                                 """.formatted(email, displayName, email.split("@")[0])))
+                .andExpect(status().isAccepted());
+
+        // O cadastro virou dois passos (V18): sem esta confirmação a conta não existe.
+        mockMvc.perform(post("/v1/auth/register/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "code": "%s"
+                                }
+                                """.formatted(email, TestcontainersConfiguration.CODIGO_DE_CADASTRO)))
                 .andExpect(status().isCreated());
     }
 }

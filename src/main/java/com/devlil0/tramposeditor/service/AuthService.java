@@ -4,22 +4,26 @@ import com.devlil0.tramposeditor.database.model.UserEntity;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.dto.AuthResponseDTO;
 import com.devlil0.tramposeditor.dto.LoginRequestDTO;
-import com.devlil0.tramposeditor.dto.RegisterRequestDTO;
-import com.devlil0.tramposeditor.enums.UserRole;
-import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.Locale;
-import java.util.Set;
-import java.util.stream.Collectors;
 
+/**
+ * Autenticação de quem já existe.
+ * <p>
+ * O cadastro saiu daqui em 2026-08-06 (V18) e virou o {@link SignupService}. Não foi só
+ * mudança de endereço: {@code register} criava a conta e devolvia a sessão no mesmo passo,
+ * o que fazia de "criar conta" o custo de um POST. Agora o cadastro nasce pendente e só
+ * vira conta quando o código de seis dígitos volta do e-mail.
+ * <p>
+ * O que sobrou aqui é o que sempre foi desta classe: provar identidade e emitir sessão. O
+ * {@code sanitizeRoles} foi junto pro serviço que agora decide quem entra.
+ */
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -33,63 +37,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final UserMapper userMapper;
-    private final UsernameService usernameService;
-    private final EmailVerificationService emailVerificationService;
-
-    @Transactional
-    public AuthResponseDTO register(RegisterRequestDTO dto){
-        String email = normalizeEmail(dto.email());
-
-        if (userRepository.existsByEmail(email)) {
-            throw new BusinessException("Já existe uma conta com este e-mail");
-        }
-
-        String displayName = dto.displayName().trim();
-
-        // O username é escolhido no formulário desde a V15 — era gerado, e por isso ninguém
-        // nunca decidiu o próprio endereço. A mesma validação serve a checagem que roda
-        // enquanto a pessoa digita (GET /v1/usernames/availability), então o que ela leu
-        // no campo é o que vale aqui.
-        String username = usernameService.normalizar(dto.username());
-        String problemaNoUsername = usernameService.validar(username, null);
-        if (problemaNoUsername != null) {
-            throw new BusinessException(problemaNoUsername);
-        }
-
-        UserEntity user = UserEntity.builder()
-                .email(email)
-                .passwordHash(passwordEncoder.encode(dto.password()))
-                .displayName(displayName)
-                .username(username)
-                .usernameChosen(true)
-                .roles(sanitizeRoles(dto.roles()))
-                .active(true)
-                .build();
-
-        // A origem da primeira visita (V16). Vem do cookie que o proxy do frontend gravou
-        // e não pode, em hipótese nenhuma, impedir o cadastro — por isso entra depois de
-        // tudo que valida, e o próprio SignupOrigin trunca em vez de recusar.
-        SignupOrigin.apply(user, dto.origin());
-
-        try {
-            // saveAndFlush: sem o flush o @CreationTimestamp ainda não foi gerado
-            // e o createdAt sairia null na resposta do cadastro.
-            userRepository.saveAndFlush(user);
-        } catch (DataIntegrityViolationException e) {
-            // Entre o `validar` acima e este insert cabe outro cadastro com o mesmo nome
-            // ou o mesmo e-mail. É o UNIQUE que decide de verdade quem ficou com ele —
-            // sem isto a corrida vira 500 e a pessoa não fica sabendo o que houve.
-            throw new BusinessException(
-                    "Esse nome de usuário ou e-mail acabou de ser registrado. Tente outro.");
-        }
-
-        // O link de confirmação sai junto do cadastro (V17). Depois do flush porque o
-        // token precisa do id da conta, e nunca antes: e-mail de uma conta que não gravou
-        // seria um link pra lugar nenhum.
-        emailVerificationService.send(user);
-
-        return buildResponse(user);
-    }
 
     @Transactional(readOnly = true)
     public AuthResponseDTO login(LoginRequestDTO dto){
@@ -129,19 +76,4 @@ public class AuthService {
         return email.trim().toLowerCase(Locale.ROOT);
     }
 
-    /**
-     * ADMIN não é auto-atribuível: quem se cadastra escolhe apenas EDITOR e/ou CLIENT.
-     * Sem isso, um POST /v1/auth/register com "roles":["ADMIN"] viraria escalação de privilégio.
-     */
-    private Set<UserRole> sanitizeRoles(Set<UserRole> requested){
-        Set<UserRole> roles = requested.stream()
-                .filter(role -> role != UserRole.ADMIN)
-                .collect(Collectors.toCollection(HashSet::new));
-
-        if (roles.isEmpty()) {
-            throw new BusinessException("Escolha ao menos um perfil: EDITOR ou CLIENT");
-        }
-
-        return roles;
-    }
 }

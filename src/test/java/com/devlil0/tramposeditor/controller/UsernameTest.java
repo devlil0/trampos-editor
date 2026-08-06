@@ -193,9 +193,21 @@ class UsernameTest {
     }
 
     private String registrar(String email, String displayName, String username) throws Exception {
-        String body = mockMvc.perform(post("/v1/auth/register")
+        mockMvc.perform(post("/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload(email, displayName, username)))
+                .andExpect(status().isAccepted());
+
+        // O cadastro virou dois passos (V18): o POST acima só guarda o pendente e manda o
+        // código. A conta — e o username que estes testes disputam — nascem aqui.
+        String body = mockMvc.perform(post("/v1/auth/register/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "code": "%s"
+                                }
+                                """.formatted(email, TestcontainersConfiguration.CODIGO_DE_CADASTRO)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 

@@ -29,6 +29,22 @@ final class TokenSecrets {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Código de seis dígitos pra confirmar o cadastro (V18).
+     * <p>
+     * Curto porque é digitado à mão, muitas vezes olhando do celular pro computador — e um
+     * segredo que a pessoa erra de transcrever vira reenvio, que custa outro e-mail na
+     * reputação do domínio. A entropia baixa que isso traz (um milhão de combinações) é
+     * compensada por onde ela precisa ser: prazo curto e limite de tentativas no
+     * {@code SignupService}, não no tamanho do número.
+     * <p>
+     * {@code nextInt(1_000_000)} com {@code %06d} mantém a distribuição uniforme e permite
+     * códigos que começam com zero — cortar esses reduziria o espaço em 10%.
+     */
+    static String generateCode(){
+        return String.format("%06d", RANDOM.nextInt(1_000_000));
+    }
+
     /** SHA-256 em hexadecimal — 64 caracteres, o tamanho das colunas de hash. */
     static String hash(String token){
         try {

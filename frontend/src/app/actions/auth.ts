@@ -12,6 +12,14 @@ export interface AuthFormState {
   error?: string;
   /** Ecoa o que o usuário digitou pra não perder o preenchimento no erro. */
   values?: { email?: string; displayName?: string; username?: string };
+  /**
+   * O cadastro passou do passo 1 e o código saiu (V18).
+   * <p>
+   * O sucesso do cadastro deixou de ser um redirecionamento: agora ele é um estado, porque
+   * a pessoa continua na mesma tela pra digitar o código. É este campo que faz a tela
+   * trocar de passo.
+   */
+  codeSent?: string;
 }
 
 /**
@@ -74,6 +82,7 @@ export async function registerAction(
   const displayName = String(formData.get("displayName") ?? "").trim();
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const passwordConfirm = String(formData.get("passwordConfirm") ?? "");
   const values = { email, displayName, username };
 
   // A conta é uma só. Todo mundo entra como CLIENT; virar editor é uma condição que a
@@ -86,11 +95,16 @@ export async function registerAction(
   if (password.length < 8) {
     return { error: "A senha precisa de pelo menos 8 caracteres.", values };
   }
+  // Conferida aqui e não só no browser: o campo do HTML é conveniência, a Server Action é a
+  // borda. Não vai pro backend de propósito — repetir a senha protege contra erro de
+  // digitação de quem está cadastrando, e isso se resolve antes da rede.
+  if (password !== passwordConfirm) {
+    return { error: "As senhas não são iguais.", values };
+  }
   // O formato do username não é checado aqui: quem tem a regra é o UsernameService do
   // backend, e é ele que responde a checagem que rodou enquanto a pessoa digitava. Uma
   // segunda cópia aqui poderia recusar um nome que o campo tinha acabado de aprovar.
 
-  let auth: AuthResponse;
   try {
     const res = await fetch(`${API_URL}/v1/auth/register`, {
       method: "POST",
@@ -117,13 +131,73 @@ export async function registerAction(
     if (!res.ok) {
       return { error: await readError(res, "Não deu pra criar a conta agora."), values };
     }
-    auth = await res.json();
   } catch {
     return { error: "Servidor fora do ar. Tente de novo em alguns segundos.", values };
   }
 
+  // Nem sessão nem redirecionamento: a conta ainda não existe. O que existe é um cadastro
+  // pendente esperando o código — e é a tela que muda de passo.
+  return { codeSent: email, values };
+}
+
+/**
+ * Passo 2 do cadastro (V18): devolve o código e ganha a conta.
+ *
+ * É aqui que a sessão finalmente nasce, e por isso é aqui que o redirecionamento voltou.
+ */
+export async function confirmSignupAction(
+  _prev: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const email = String(formData.get("email") ?? "").trim();
+  const code = String(formData.get("code") ?? "").replace(/\D/g, "");
+
+  // Mantém o passo do código na tela em qualquer erro: perder o `codeSent` jogaria a pessoa
+  // de volta no formulário vazio depois de um dígito errado.
+  const fail = (error: string): AuthFormState => ({ error, codeSent: email });
+
+  if (code.length !== 6) {
+    return fail("O código tem seis dígitos.");
+  }
+
+  let auth: AuthResponse;
+  try {
+    const res = await fetch(`${API_URL}/v1/auth/register/confirm`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, code }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return fail(await readError(res, "Código inválido ou expirado. Peça um novo."));
+    }
+    auth = await res.json();
+  } catch {
+    return fail("Servidor fora do ar. Tente de novo em alguns segundos.");
+  }
+
   await createSession(auth);
   redirect("/painel");
+}
+
+/**
+ * Outro código pro mesmo cadastro.
+ *
+ * Silencioso por dentro (o backend sempre devolve 204), então o retorno serve só pra tela
+ * dizer que mandou.
+ */
+export async function resendSignupCodeAction(email: string): Promise<void> {
+  try {
+    await fetch(`${API_URL}/v1/auth/register/resend`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+      cache: "no-store",
+    });
+  } catch {
+    // Falha de rede aqui não tem o que dizer: o botão volta a ficar disponível.
+  }
 }
 
 export async function logoutAction(): Promise<void> {

@@ -98,6 +98,28 @@ public class NotificationService {
     }
 
     /**
+     * O código de seis dígitos que confirma a criação da conta (V18).
+     * <p>
+     * Não recebe {@link UserEntity} como os outros: nesta altura <b>a conta não existe</b>.
+     * É a assinatura do método que carrega o ponto da feature — se houvesse um usuário pra
+     * passar aqui, o bot já teria conseguido o que queria.
+     * <p>
+     * Vai por {@link #always} pelo motivo mais forte de todos: é literalmente o e-mail que
+     * prova o endereço. Recusá-lo por falta de verificação seria exigir a verificação pra
+     * poder verificar.
+     */
+    public void signupCode(String email, String displayName, String code){
+        always(() -> emailSender.send(email, new EmailContent(
+                code + " é seu código de confirmação",
+                firstNameOf(displayName),
+                List.of("Use o código abaixo pra terminar de criar sua conta no TramposEditor.",
+                        code),
+                null,
+                null,
+                "O código vale por 10 minutos. Se não foi você quem pediu, ignore este e-mail — sem o código, nenhuma conta é criada.")));
+    }
+
+    /**
      * Confirmação do endereço (§2, fase 1.5).
      * <p>
      * Vai por {@link #always} e não por {@link #quietly}: é o único aviso que <b>tem</b> que
@@ -167,7 +189,11 @@ public class NotificationService {
     }
 
     private String firstName(UserEntity user){
-        String name = user.getDisplayName();
+        return firstNameOf(user.getDisplayName());
+    }
+
+    /** A partir do nome cru — o cadastro pendente (V18) ainda não tem {@link UserEntity}. */
+    private String firstNameOf(String name){
         int space = name.indexOf(' ');
         return space > 0 ? name.substring(0, space) : name;
     }

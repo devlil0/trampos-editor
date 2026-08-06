@@ -164,6 +164,7 @@ toggle.
 | `/esqueci-senha` `/redefinir-senha` | ✅ | ambos | conta perdida = usuário perdido | MVP |
 | login com Google e GitHub | ✅ | ambos | tira o atrito do cadastro; vincula por e-mail | MVP |
 | verificar e-mail | ✅ | ambos | e-mail confiável — pré-requisito da notificação | 1.5 |
+| cadastro confirmado por código | ✅ | ambos | conta só nasce com o código de 6 dígitos devolvido (V18) — barra bot | 1.5 |
 | `/painel` | ✅ | ambos | hub por papel | MVP |
 | `/painel/meu-perfil` | ✅ | editor | virar editor, editar vitrine | MVP |
 | `/painel/pedidos` | ✅ | cliente | postar, ver interessados, aceitar | 1.5 |
@@ -589,6 +590,12 @@ que o adaptador nasceu falando SMTP em vez de HTTP: troca de provedor vira troca
 aponta pros dois lados — `CORS_ALLOWED_ORIGINS` do `.env.example` usa `tramposeditor.com.br`
 e o default de `NOTIFICATIONS_FROM` usa `nao-responda@tramposeditor.com`. Escolher um antes
 de verificar o DNS.
+
+**A prioridade disto subiu em 2026-08-06, e muito.** O cadastro passou a exigir um código de
+seis dígitos mandado por e-mail (V18), então o canal deixou de ser "o que faz o produto girar
+depois que a pessoa entra" e virou **a porta de entrada**. Enquanto o e-mail não sair de
+verdade, ninguém cria conta em produção — nem o fundador. Os três itens acima deixaram de ser
+dívida de deploy e viraram pré-requisito de lançamento.
 
 O item 5 mudou de posição na ordem: era item 3, e desceu porque é cosmético perto de 3 e 4
 — mas continua sendo o de menor esforço do lote, e é o único que melhora a vitrine sem

@@ -234,7 +234,7 @@ class JobRequestTest {
     }
 
     private String registrar(String email, String displayName) throws Exception {
-        String body = mockMvc.perform(post("/v1/auth/register")
+        mockMvc.perform(post("/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -245,14 +245,20 @@ class JobRequestTest {
                                   "roles": ["CLIENT"]
                                 }
                                 """.formatted(email, displayName, email.split("@")[0])))
+                .andExpect(status().isAccepted());
+
+        // O cadastro virou dois passos (V18): o POST acima só guarda o pendente e manda o
+        // código. A conta — e a sessão — nascem aqui, e já com o e-mail provado.
+        String body = mockMvc.perform(post("/v1/auth/register/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "code": "%s"
+                                }
+                                """.formatted(email, TestcontainersConfiguration.CODIGO_DE_CADASTRO)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-
-        // Conta recém-criada nasce com e-mail não confirmado (V17), e sem confirmar ela não
-        // publica perfil nem recebe aviso. Quem se cadastra de verdade clica no link; aqui o
-        // atalho modela esse mesmo estado, senão todo teste abaixo estaria exercitando uma
-        // conta pela metade.
-        confirmarEmail(email);
 
 
 

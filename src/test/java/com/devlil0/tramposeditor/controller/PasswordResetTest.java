@@ -180,6 +180,17 @@ class PasswordResetTest {
                                   "roles": ["CLIENT"]
                                 }
                                 """.formatted(email, email.split("@")[0])))
+                .andExpect(status().isAccepted());
+
+        // O cadastro virou dois passos (V18): sem esta confirmação a conta não existe.
+        mockMvc.perform(post("/v1/auth/register/confirm")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "email": "%s",
+                                  "code": "%s"
+                                }
+                                """.formatted(email, TestcontainersConfiguration.CODIGO_DE_CADASTRO)))
                 .andExpect(status().isCreated());
 
         // O cadastro dispara o e-mail de confirmação de endereço (V17). Zerar aqui deixa o
