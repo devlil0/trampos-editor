@@ -25,7 +25,11 @@ const nextConfig: NextConfig = {
       // "Trabalhos" virou "Trampos" — a palavra do produto. A rota antiga não era
       // indexada (o painel inteiro é noindex), então isto serve só pra favorito
       // salvo antes da troca.
-      { source: "/painel/trabalhos", destination: "/painel/trampos", permanent: true },
+      //
+      // Aponta direto pro destino final: `/painel/trampos` também virou redirecionamento
+      // em 2026-08-06 (o feed unificou), e encadear 308 em 308 é um salto de rede a mais
+      // pra entregar a mesma tela.
+      { source: "/painel/trabalhos", destination: "/painel/feed", permanent: true },
     ];
   },
 };

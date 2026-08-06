@@ -101,6 +101,13 @@ public class AvatarService {
      * <p>
      * Recorte central e não deformação: avatar é redondo na interface, e uma foto
      * espremida pra caber num quadrado fica com o rosto achatado.
+     * <p>
+     * Desde 2026-08-06 a interface manda a imagem <b>já quadrada</b>: quem enquadra é a
+     * pessoa, no browser (ver {@code avatar-cropper.tsx}). Pra essas, o recorte abaixo é
+     * operação neutra — largura e altura já são iguais. Ele fica porque continua sendo o
+     * comportamento correto pro que chega de qualquer outro lugar (cliente antigo em cache,
+     * chamada direta na API), e porque normalização de entrada não é responsabilidade que
+     * se delegue ao cliente: o que o cliente escolhe é o enquadramento, não a validação.
      */
     private byte[] normalizar(MultipartFile file){
         BufferedImage original;
