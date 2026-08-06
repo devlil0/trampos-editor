@@ -28,11 +28,11 @@ O sistema inteiro cabe em quatro camadas. Elas se distinguem por **quem entra** 
 └─────────────────────────────────────────────────────────────┘
                             ↓ vira conta
 ┌─ LOGADA (o coração) ──────────── faz as pontas se acharem ─┐
-│  /painel                    hub                             │
+│  /painel              →     307 pro feed (hub dissolvido)   │
 │  /painel/meu-perfil         editor monta sua vitrine        │
 │  /painel/pedidos            cliente posta e recebe          │
-│  /painel/trampos      ✅    FEED DA DEMANDA                 │
-│  (feed da oferta removido → /editores?available=true)       │
+│  /painel/feed         ✅    FEED, classe `trampos`          │
+│  (classe `editores` do feed → /editores, na camada pública) │
 │  /painel/conversas    ✅    a caixa de entrada              │
 │  /painel/trampos-fechados ⬜    histórico + review (falta)  │
 └─────────────────────────────────────────────────────────────┘
@@ -71,6 +71,42 @@ Hoje "quem está livre agora" é um toggle da vitrine (`/editores?available=true
 faz a plataforma parecer mercado em vez de catálogo. O erro foi construir um par onde só
 havia uma peça — e a lição vale pra frente: antes de criar superfície nova, checar se ela
 não é recorte de uma que já existe.
+
+### O feed unificou, e a chave não recriou a duplicata (2026-08-06)
+
+A remoção acima resolveu a duplicação e criou um problema novo: sobraram **duas listas sem
+relação declarada**. Quem estava na vitrine não descobria que existiam trampos abertos, e
+quem estava no feed não tinha como ir ver quem edita. As duas pontas do mercado estavam no
+produto e não se anunciavam uma pra outra.
+
+Agora é **um feed com duas classes** e uma chave visível (`FeedSwitch`): *ver trampos* e
+*ver editores*. A pergunta óbvia é se isso não ressuscita o `/painel/editores` que o bloco
+acima matou — e a resposta é não, por causa de onde cada classe mora:
+
+| Classe | Rota | Acesso | Por quê |
+|---|---|---|:---|
+| `editores` | `/editores` | **público** | é a vitrine, o ativo de SEO — e continua sendo a única lista de editores que existe |
+| `trampos` | `/painel/feed` | **logado** | pedido aberto não é conteúdo público (ver abaixo) |
+
+A regra que faz a diferença: **a chave navega, não duplica.** Clicar em "ver editores"
+leva pra `/editores`; não existe uma segunda lista de editores renderizada dentro do
+painel. Foi exatamente essa segunda lista que caiu em 2026-08-04, e a lição do bloco
+anterior teria sido desperdiçada se a chave a trouxesse de volta atrás de um parâmetro.
+
+**Por que trampos exige login e editores não.** Não é simetria quebrada por acaso, é a
+assimetria real dos dois lados: o perfil do editor é publicado *pra* ser achado, e o
+pedido do cliente é um briefing com orçamento e prazo — publicá-lo abriria uma lista de
+demanda pronta pra raspagem e pra abordagem fora da plataforma. O `JobRequestController`
+já recusava sem token desde que nasceu; a chave não afrouxou isso. Efeito colateral útil:
+"ver trampos" deslogado cai no `/entrar`, o que torna a chave uma porta de conversão de
+editor — o lado da oferta é o que mais custa captar.
+
+**Trocar de classe zera filtro e página.** As dimensões quase não se sobrepõem — trampo se
+filtra por nicho e orçamento, editor por ferramenta, estilo, preço e disponibilidade — e
+carregar o recorte de um lado pro outro entregaria lista vazia sem a pessoa entender por
+quê. `/painel/trampos` responde 308 pra `/painel/feed`, e `/painel/editores` passou a
+apontar pra `/editores` sem o `?available=true`: com a chave, "ver editores" virou gesto de
+navegação, e chegar já filtrado escondia parte da vitrine de quem só queria ver quem existe.
 
 ### Por que a camada pública é grande e a logada é pequena
 
@@ -127,15 +163,16 @@ toggle.
 | `/criar-conta` `/entrar` | ✅ | ambos | conta única | MVP |
 | `/esqueci-senha` `/redefinir-senha` | ✅ | ambos | conta perdida = usuário perdido | MVP |
 | login com Google e GitHub | ✅ | ambos | tira o atrito do cadastro; vincula por e-mail | MVP |
-| verificar e-mail | ⬜ | ambos | e-mail confiável — pré-requisito da notificação | 1.5 |
+| verificar e-mail | ✅ | ambos | e-mail confiável — pré-requisito da notificação | 1.5 |
 | `/painel` | ✅ | ambos | hub por papel | MVP |
 | `/painel/meu-perfil` | ✅ | editor | virar editor, editar vitrine | MVP |
 | `/painel/pedidos` | ✅ | cliente | postar, ver interessados, aceitar | 1.5 |
-| `/painel/trampos` feed da demanda | ✅ | editor | categoria, paginado, candidatar | **MVP** |
+| `/painel/feed` feed, classe `trampos` | ✅ | editor | categoria, paginado, candidatar; era `/painel/trampos` | **MVP** |
 | ~~`/painel/editores`~~ feed da oferta | ❌ | — | removido: era a vitrine com menos filtro (§1) | — |
+| chave do feed (trampos ↔ editores) | ✅ | ambos | liga as duas pontas sem duplicar lista (§1) | MVP |
 | `/painel/conversas` | ✅ | ambos | onde a relação acontece | MVP |
 | `/painel/trampos-fechados` | ✅ | ambos | histórico, avaliação e **chamar de novo** (§3.2) | MVP |
-| notificação por e-mail | 🟡 | ambos | faz o assíncrono funcionar — código pronto, envio real pendente (§7) | MVP |
+| notificação por e-mail | 🟡 | ambos | faz o assíncrono funcionar — código pronto, falta config de deploy (§7) | MVP |
 | páginas de tag (`/editores/tiktok`) | ✅ | cliente | SEO long-tail dedicado — 9 tags, indexa só com estoque (§2.3) | 2 |
 | destaque / boost | ⬜ | editor | monetização pay-per-use | 2 |
 | pagamento protegido | ⬜ | ambos | take-rate como seguro | 3 |
@@ -519,23 +556,39 @@ Deriva direto dos laços do §3 — não é lista de desejos.
 Os itens 1 a 4 separam "as peças existem" de "o marketplace funciona". **3 e 4 são um par**:
 o canal sem o motivo manda e-mail de nada; o motivo sem o canal fica esperando a aba abrir.
 
-### Item 3 — pendente, aguardando domínio (2026-08-04)
+### Item 3 — o software acabou; o que falta é do dia do deploy (2026-08-06)
 
-O código do canal está pronto e é o que trava a diferença entre 🟡 e ✅: `NotificationService`
-monta e dispara, e o transporte é trocável por config (`log` local, `smtp` em prod). O que
-falta não é software, é **infra de remetente** — e ela tem uma ordem obrigatória:
+O domínio foi adquirido (`.com` e `.com.br`) e a dívida de código foi paga: os seis e-mails
+existem e têm call site real (mensagem, interesse recebido, interesse aceito, trampo fechado,
+confirmar e-mail, redefinir senha), saem em texto e HTML no mesmo envio, e a **verificação de
+endereço** do §2 — que estava represada atrás da compra — entrou junto. Aviso automático agora
+só sai pra endereço provado (`NotificationService.quietly`), o que protege a entregabilidade
+do domínio antes de existir tráfego pra perder.
 
-1. **adquirir `tramposeditor.com`** ← é aqui que está parado;
-2. criar o e-mail da própria plataforma no domínio — o default já assume
-   `nao-responda@tramposeditor.com` em `application.yaml`;
-3. integrar com a **Resend** e passar a mandar pelas features deles.
+O que sobrou **não é feature, é configuração**, e por isso fica parado aqui até o deploy:
 
-Enquanto o domínio não existe, todo e-mail cai no `LogEmailSender` e só aparece no console.
-Consequência prática: os laços da oferta, demanda e reputação (§3.1) têm o gatilho de retorno
-escrito mas **nenhum deles chega em ninguém** — o produto ainda gira só com a aba aberta.
+1. **`docker-compose.prod.yml` não passa nenhuma variável de e-mail pro container.** Só passa
+   DB, JWT e CORS. Como `application-prod.yaml` liga `transport: smtp` por default, o app
+   sobe mandando por SMTP com `MAIL_HOST` vazio — **todo e-mail falha em silêncio**, porque o
+   `SmtpEmailSender` engole a exceção de propósito (a ação do usuário nunca cai por e-mail).
+   Faltam `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `NOTIFICATIONS_FROM` e
+   `FRONTEND_BASE_URL`.
+2. **`FRONTEND_BASE_URL` não existe em lugar nenhum além do default.** Sem ele, todo link de
+   todo e-mail — confirmar conta, redefinir senha, abrir a conversa — aponta pra
+   `http://localhost:3000`, que na VPS é a própria VPS. É a falha mais silenciosa das três:
+   o e-mail chega bonito e nenhum botão funciona.
+3. **`.env.example` não documenta nada disso**, então quem preencher o `.env` na VPS não tem
+   como saber que faltou.
 
-Isso também reabre a "verificar e-mail" do §2 (fase 1.5): sem remetente próprio não há como
-confirmar endereço, então a dívida fica represada atrás da mesma compra.
+Fora do repositório: criar a conta na **Resend**, verificar o domínio no DNS (SPF/DKIM) e
+gerar a chave. A Resend fala SMTP — `smtp.resend.com:587`, usuário `resend`, senha = a API
+key —, então o `SmtpEmailSender` atual serve **sem alterar uma linha de Java**. Foi por isso
+que o adaptador nasceu falando SMTP em vez de HTTP: troca de provedor vira troca de variável.
+
+**Decisão pendente:** o remetente tem que ser o domínio verificado na Resend, e hoje o repo
+aponta pros dois lados — `CORS_ALLOWED_ORIGINS` do `.env.example` usa `tramposeditor.com.br`
+e o default de `NOTIFICATIONS_FROM` usa `nao-responda@tramposeditor.com`. Escolher um antes
+de verificar o DNS.
 
 O item 5 mudou de posição na ordem: era item 3, e desceu porque é cosmético perto de 3 e 4
 — mas continua sendo o de menor esforço do lote, e é o único que melhora a vitrine sem

@@ -51,7 +51,7 @@ export default async function ConversasPage() {
             </li>
             <li>
               ou um cliente aceita seu interesse num{" "}
-              <Link href="/painel/trampos" className="font-semibold text-accent hover:underline">
+              <Link href="/painel/feed" className="font-semibold text-accent hover:underline">
                 trampo aberto
               </Link>
               .

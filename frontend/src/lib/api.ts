@@ -86,8 +86,9 @@ export function fetchMyJobRequests(token: string): Promise<JobRequest[]> {
 }
 
 /**
- * Os dois feeds da área logada têm o mesmo recorte de propósito: uma categoria e uma
- * página. Filtro fino é assunto da vitrine pública, que existe pra ser garimpada.
+ * A classe `trampos` do feed tem recorte curto de propósito: uma categoria e uma página.
+ * Filtro fino é assunto da vitrine pública, que existe pra ser garimpada — e é pra lá que
+ * a chave do feed manda quem quer garimpar (`FeedSwitch`).
  */
 export interface FeedQuery {
   niche?: string;

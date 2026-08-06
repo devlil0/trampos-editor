@@ -75,7 +75,7 @@ export default async function ConfiguracoesDoPerfilPage() {
         <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
           <LinkDaConta href="/painel/meu-perfil" titulo="Meu perfil" descricao="Como o cliente te vê" />
           <LinkDaConta href="/painel/pedidos" titulo="Meus pedidos" descricao="O que você publicou e quem se candidatou" />
-          <LinkDaConta href="/painel/trampos" titulo="Trampos abertos" descricao="Clientes procurando editor agora" />
+          <LinkDaConta href="/painel/feed" titulo="Trampos abertos" descricao="Clientes procurando editor agora" />
           <LinkDaConta href="/painel/trampos-fechados" titulo="Trampos fechados" descricao="Histórico e avaliações" />
         </div>
       </section>

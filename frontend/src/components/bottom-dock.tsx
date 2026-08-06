@@ -20,8 +20,11 @@ const ITENS = [
   {
     href: "/editores",
     label: "Feed",
-    // Casa também com as páginas de tag, que moram sob /editores.
-    match: (p: string) => p === "/editores" || p.startsWith("/editores/"),
+    // Casa com as duas classes do feed (2026-08-06): `editores` mora em /editores, junto
+    // das páginas de tag, e `trampos` em /painel/feed. São uma tela só pra quem navega,
+    // então o item precisa acender nas duas — senão a chave parece sair do feed.
+    match: (p: string) =>
+      p === "/editores" || p.startsWith("/editores/") || p.startsWith("/painel/feed"),
     icon: (
       <path d="M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5" />
     ),

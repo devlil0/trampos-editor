@@ -131,7 +131,7 @@ export default async function LandingPage() {
                   a promessa. Deslogado cai no login e volta — e quem chega lá sem perfil
                   publicado encontra o convite pra montar um, já tratado na própria tela. */}
               <p className="mt-4 text-sm text-muted">
-                <Link href="/painel/trampos" className="font-semibold text-fg hover:text-accent">
+                <Link href="/painel/feed" className="font-semibold text-fg hover:text-accent">
                   Você edita? Pegue um trampo.
                 </Link>
               </p>

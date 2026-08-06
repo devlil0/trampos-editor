@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { fetchEditors, type EditorQuery } from "@/lib/api";
 import { EditorCard } from "@/components/editor-card";
+import { FeedSwitch } from "@/components/feed-switch";
 import { ToolStrip, VitrineSidebar } from "@/components/vitrine-controls";
 
 export const metadata: Metadata = {
@@ -20,6 +21,11 @@ function pick(value: string | string[] | undefined): string | undefined {
 /**
  * Vitrine — o ativo de SEO do produto (§11.2.6). Mora em `/editores` desde que a raiz
  * virou landing; a URL casa com a do perfil (`/editores/{slug}`).
+ *
+ * Desde 2026-08-06 esta é também a classe `editores` do feed unificado (`FeedSwitch`), e
+ * ela continua sendo **uma tela só**: a chave leva pra cá em vez de renderizar uma segunda
+ * lista de editores dentro do painel. Foi essa duplicata que o ESBOCO §1 deletou, e o
+ * único jeito de unificar sem recriá-la é a classe pública morar onde já morava.
  */
 export default async function VitrinePage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
@@ -56,12 +62,19 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
           {/* O hero de marketing saiu daqui, mas o h1 não podia sair junto: esta é a
               página de aquisição do produto (§11.2.6) e página sem h1 rankeia pior. Ele
               ficou no formato das referências — título curto com a contagem embaixo. */}
-          <div className="mt-6 border-t border-line pt-4">
-            <h1 className="text-2xl font-extrabold tracking-tight">Editores de vídeo</h1>
-            <p className="mt-0.5 text-sm text-muted">
-              <b className="text-fg tabular-nums">{result.totalElements}</b>{" "}
-              {result.totalElements === 1 ? "editor encontrado" : "editores encontrados"}
-            </p>
+          <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t border-line pt-4">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight">Editores de vídeo</h1>
+              <p className="mt-0.5 text-sm text-muted">
+                <b className="text-fg tabular-nums">{result.totalElements}</b>{" "}
+                {result.totalElements === 1 ? "editor encontrado" : "editores encontrados"}
+              </p>
+            </div>
+
+            {/* A chave fica ao lado do h1, não acima: o título é o que o Google lê primeiro
+                nesta página, e empurrá-lo pra baixo por causa de um controle de navegação
+                trocaria o ativo de aquisição por conveniência de quem já está dentro. */}
+            <FeedSwitch active="editores" />
           </div>
 
           {result.content.length === 0 ? (

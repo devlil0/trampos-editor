@@ -4,7 +4,11 @@ import { NicheIcon } from "./niche-tag";
 import type { EditorNiche, Page } from "@/lib/types";
 
 /**
- * Controles dos dois feeds da área logada — trampos e editores.
+ * Controles da classe `trampos` do feed (`/painel/feed`) — categoria e paginação.
+ *
+ * Nasceram servindo os dois feeds da área logada. Sobrou um: a classe `editores` é a
+ * vitrine pública, que tem os controles dela em `vitrine-controls`. Continuam genéricos
+ * via `basePath` porque a rota do feed já mudou uma vez (2026-08-06).
  *
  * Diferente da `VitrineControls`, aqui não há `"use client"`: são links, não estado.
  * O feed troca de categoria e de página navegando, então funciona sem JS e o servidor

@@ -16,7 +16,12 @@ import { permanentRedirect } from "next/navigation";
  * A rota fica como redirecionamento permanente por causa de link salvo e de e-mail já
  * enviado. `permanentRedirect` devolve 308, que os buscadores tratam como mudança
  * definitiva de endereço.
+ *
+ * Atualizado em 2026-08-06: o destino perdeu o `?available=true`. Com a chave do feed
+ * (`FeedSwitch`), "ver editores" virou um gesto de navegação em vez de um atalho pra um
+ * recorte — e chegar já filtrado por disponibilidade escondia parte da vitrine de quem
+ * clicou só pra ver quem existe. O toggle "Livres agora" continua na sidebar, a um clique.
  */
 export default function FeedEditoresPage() {
-  permanentRedirect("/editores?available=true");
+  permanentRedirect("/editores");
 }

@@ -21,13 +21,19 @@ export const metadata: Metadata = {
  * escolheu. Não tem "pular" de propósito — um "depois" que ninguém cumpre reproduz
  * exatamente o problema que esta tela conserta.
  *
- * O que ela NÃO faz: pedir de novo a quem já escolheu. Chegar aqui com a escolha feita
- * manda pras configurações, que é onde a troca mora.
+ * O que ela NÃO faz: pedir de novo a quem já escolheu — chegar aqui com a escolha feita
+ * cai no feed, como qualquer outra entrada.
+ *
+ * O destino mudou em 2026-08-06 junto com o de `/painel`: era as configurações. Esta é a
+ * última tela do cadastro social, então ela é o "primeiro segundo" de quem entrou pelo
+ * Google — e esse segundo pertence ao feed, não a um formulário de conta. Trocar só o
+ * `/painel` deixaria quem entra por senha no feed e quem entra pelo Google nas
+ * configurações, que é a incoerência que o §4.1 chama de produto montado por comitê.
  */
 export default async function EscolherUsernamePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/entrar");
-  if (user.usernameChosen) redirect("/painel/meu-perfil/configuracoes");
+  if (user.usernameChosen) redirect("/painel/feed");
 
   return (
     <AuthShell
@@ -39,7 +45,7 @@ export default async function EscolherUsernamePage() {
             a pessoa pode ficar com ele, mas tem que passar por esta decisão. */}
         <UsernameForm
           username={user.username}
-          redirectTo="/painel/meu-perfil/configuracoes"
+          redirectTo="/painel/feed"
           ctaLabel="É esse mesmo"
         />
 
