@@ -64,3 +64,5 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 A aplicação escuta apenas em `127.0.0.1:8080` e o Postgres não é exposto — quem fala com a
 internet é o Nginx na frente, terminando TLS e fazendo `proxy_pass` para a porta local.
+
+Configuração de e-mail obrigatório e contrato de falhas da autenticação: [docs/EMAIL.md](docs/EMAIL.md).

@@ -15,13 +15,13 @@ import java.util.List;
  * <p>
  * Três regras que valem pro arquivo inteiro:
  * <ol>
- *   <li><b>Nunca derruba a ação.</b> Nenhum envio propaga exceção: perder um aviso é ruim,
+ *   <li><b>Avisos preservam a ação.</b> Envios obrigatórios de identidade propagam falha; perder um aviso é ruim,
  *       perder a mensagem que o usuário acabou de escrever é pior.</li>
  *   <li><b>Um aviso por vez, não um por evento.</b> Ver {@link #newMessage} — dez
  *       mensagens seguidas mandam <i>um</i> e-mail, não dez. Marketplace que enche a
  *       caixa de entrada é exatamente o que os 99% fazem (§6).</li>
  *   <li><b>Aviso automático só vai pra endereço provado.</b> {@link #quietly} recusa quem
- *       não confirmou; {@link #always} é a exceção, e vale só pros dois e-mails que a
+ *       não confirmou; {@link #required} é a exceção, e vale para os e-mails de identidade que a
  *       própria pessoa pediu.</li>
  * </ol>
  * O texto segue o léxico do §4.1: trampo, vitrine, conversa. Nada de "usuário",
@@ -104,12 +104,12 @@ public class NotificationService {
      * É a assinatura do método que carrega o ponto da feature — se houvesse um usuário pra
      * passar aqui, o bot já teria conseguido o que queria.
      * <p>
-     * Vai por {@link #always} pelo motivo mais forte de todos: é literalmente o e-mail que
+     * Vai por envio obrigatório pelo motivo mais forte de todos: é literalmente o e-mail que
      * prova o endereço. Recusá-lo por falta de verificação seria exigir a verificação pra
      * poder verificar.
      */
     public void signupCode(String email, String displayName, String code){
-        always(() -> emailSender.send(email, new EmailContent(
+        required(() -> emailSender.send(email, new EmailContent(
                 code + " é seu código de confirmação",
                 firstNameOf(displayName),
                 List.of("Use o código abaixo pra terminar de criar sua conta no TramposEditor.",
@@ -122,12 +122,12 @@ public class NotificationService {
     /**
      * Confirmação do endereço (§2, fase 1.5).
      * <p>
-     * Vai por {@link #always} e não por {@link #quietly}: é o único aviso que <b>tem</b> que
+     * Vai por envio obrigatório e não por {@link #quietly}: é o único aviso que <b>tem</b> que
      * chegar num endereço ainda não provado — recusá-lo por não estar verificado seria
      * exigir a verificação pra poder verificar.
      */
     public void verifyEmail(UserEntity user, String token){
-        always(() -> emailSender.send(user.getEmail(), new EmailContent(
+        required(() -> emailSender.send(user.getEmail(), new EmailContent(
                 "Confirme seu e-mail",
                 firstName(user),
                 List.of("Falta um clique pra sua conta ficar completa. É por este endereço que você fica sabendo quando alguém te procura."),
@@ -137,12 +137,12 @@ public class NotificationService {
     }
 
     /**
-     * Link de redefinição de senha. Vai por {@link #always} pelo mesmo motivo do
+     * Link de redefinição de senha. Vai por envio obrigatório pelo mesmo motivo do
      * {@link #verifyEmail}: quem não conseguiu confirmar o e-mail e esqueceu a senha
      * ficaria trancado do lado de fora pra sempre.
      */
     public void passwordReset(UserEntity user, String token){
-        always(() -> emailSender.send(user.getEmail(), new EmailContent(
+        required(() -> emailSender.send(user.getEmail(), new EmailContent(
                 "Redefinir sua senha",
                 firstName(user),
                 List.of("Alguém pediu pra redefinir a senha desta conta. Se não foi você, ignore este e-mail — nada muda."),
@@ -169,22 +169,24 @@ public class NotificationService {
             return;
         }
 
-        always(send);
+        bestEffort(send);
     }
 
-    /**
-     * Roda o envio sem deixar exceção escapar, <b>sem</b> exigir e-mail verificado. É pros
-     * dois e-mails que a própria pessoa pediu — confirmar endereço e redefinir senha —, e
-     * que por definição precisam chegar antes de qualquer verificação existir.
-     * <p>
-     * O {@code EmailSender} já engole falha de SMTP; isto cobre o resto (destinatário
-     * inválido, template quebrado, o que vier).
-     */
-    private void always(Runnable send){
+    /** Avisos de melhor esforço nunca desfazem a ação principal. */
+    private void bestEffort(Runnable send){
         try {
             send.run();
         } catch (RuntimeException e) {
-            log.error("Falha ao montar ou enviar notificação", e);
+            log.error("Falha em aviso de melhor esforço; ação principal preservada");
+        }
+    }
+
+    private void required(Runnable send) {
+        try {
+            send.run();
+        } catch (RuntimeException e) {
+            log.error("Falha no envio obrigatório de identidade");
+            throw new RequiredEmailException();
         }
     }
 

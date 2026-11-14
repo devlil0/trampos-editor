@@ -10,6 +10,7 @@ import com.devlil0.tramposeditor.dto.SignupConfirmDTO;
 import com.devlil0.tramposeditor.dto.SignupStartedDTO;
 import com.devlil0.tramposeditor.dto.SocialExchangeDTO;
 import com.devlil0.tramposeditor.service.AuthService;
+import com.devlil0.tramposeditor.notification.RequiredEmailException;
 import com.devlil0.tramposeditor.service.EmailVerificationService;
 import com.devlil0.tramposeditor.service.PasswordResetService;
 import com.devlil0.tramposeditor.service.SignupService;
@@ -52,7 +53,7 @@ public class AuthController {
     }
 
     /**
-     * Outro código pro mesmo cadastro. Sempre 204, exista o pendente ou não — responder
+     * Outro código pro mesmo cadastro. 204, exista o pendente ou não — responder
      * diferente transformaria isto num verificador de quem está no meio de um cadastro.
      */
     @PostMapping("/register/resend")
@@ -68,13 +69,18 @@ public class AuthController {
     }
 
     /**
-     * Pedir o link de redefinição. Sempre 204, exista a conta ou não — responder
+     * Pedir o link de redefinição. Sempre 204, inclusive em falha de envio, exista a conta ou não — responder
      * diferente entregaria quais e-mails estão cadastrados.
      */
     @PostMapping("/password-reset/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO dto){
-        passwordResetService.request(dto.email());
+        try {
+            passwordResetService.request(dto.email());
+        } catch (RequiredEmailException ignored) {
+            // Mesma resposta para conta inexistente, inativa ou falha de envio.
+            // A transação do serviço já foi revertida e a falha registrada sem segredos.
+        }
     }
 
     @PostMapping("/password-reset/confirm")

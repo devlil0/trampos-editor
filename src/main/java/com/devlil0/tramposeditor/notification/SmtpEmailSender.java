@@ -3,7 +3,6 @@ package com.devlil0.tramposeditor.notification;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.MailException;
@@ -27,7 +26,6 @@ import java.nio.charset.StandardCharsets;
  * genérico e ilustração de banco de imagem — mas o §4 lista a voz fora do site como buraco
  * aberto, e chegar sem cara nenhuma não é sobriedade, é ausência. Ver {@link EmailHtml}.
  */
-@Slf4j
 @Component
 @ConditionalOnProperty(name = "tramposeditor.notifications.transport", havingValue = "smtp")
 @RequiredArgsConstructor
@@ -62,9 +60,8 @@ public class SmtpEmailSender implements EmailSender {
 
             mailSender.send(message);
         } catch (MailException | MessagingException e) {
-            // Engolir é deliberado: quem chamou está no meio de mandar uma mensagem ou
-            // fechar um trampo. Perder o aviso é ruim; perder a ação do usuário é pior.
-            log.error("Falha ao enviar e-mail para {} (assunto: {})", to, content.subject(), e);
+            // O assunto pode conter o código; a exceção do provedor também pode conter dados.
+            throw new RequiredEmailException();
         }
     }
 }

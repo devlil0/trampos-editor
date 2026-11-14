@@ -3,6 +3,7 @@ package com.devlil0.tramposeditor.notification;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Profile;
 
 /**
  * Adaptador de desenvolvimento: escreve o e-mail no log em vez de mandar.
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@Profile("!prod")
 @ConditionalOnProperty(name = "tramposeditor.notifications.transport",
                        havingValue = "log", matchIfMissing = true)
 public class LogEmailSender implements EmailSender {
