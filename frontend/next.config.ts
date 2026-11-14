@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   images: {
     // Thumbnails do YouTube (capa dos vídeos do portfólio).
     remotePatterns: [
