@@ -35,6 +35,13 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_TTL: ${JWT_TTL:-PT12H}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      NOTIFICATIONS_TRANSPORT: ${NOTIFICATIONS_TRANSPORT:-smtp}
+      MAIL_HOST: ${MAIL_HOST:?Defina MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:?Defina MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:?Defina MAIL_PASSWORD}
+      NOTIFICATIONS_FROM: ${NOTIFICATIONS_FROM:?Defina NOTIFICATIONS_FROM}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:?Defina FRONTEND_BASE_URL}
     ports:
       # Só no loopback: quem fala com a internet é o Nginx (TLS/Let's Encrypt),
       # que faz proxy_pass pra 127.0.0.1:8080.
