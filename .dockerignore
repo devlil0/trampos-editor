@@ -1,9 +1,26 @@
-target/
-.git/
-.idea/
-.mvn/wrapper/maven-wrapper.jar
-*.iml
-.env
-docs/
-README.md
-HELP.md
+# Contexto exclusivo da imagem backend. O frontend tem seu próprio .dockerignore.
+# Lista permitida: arquivos novos só entram após revisão explícita.
+**
+!Dockerfile
+!.dockerignore
+!pom.xml
+!src/main/java/**/*.java
+!src/main/resources/application.yaml
+!src/main/resources/application-dev.yaml
+!src/main/resources/application-prod.yaml
+!src/main/resources/db/migration/**/*.sql
+!src/main/resources/email/logo-mark.png
+
+# Defesa adicional caso apareçam arquivos privados dentro da árvore Java.
+**/.env
+**/.env.*
+**/application-local*
+**/*.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.jks
+**/*.keystore
+**/credentials*
+**/secrets*
