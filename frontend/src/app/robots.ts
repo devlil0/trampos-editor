@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
+export const dynamic = "force-dynamic";
 
 /**
  * O `/painel` já sai com `robots: { index: false }` em cada página, mas bloquear no
@@ -10,12 +10,14 @@ const SITE_URL = process.env.SITE_URL ?? "http://localhost:3000";
  * `/entrar/callback` fica de fora porque é Route Handler de sessão, não página.
  */
 export default function robots(): MetadataRoute.Robots {
+  const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
+
   return {
     rules: {
       userAgent: "*",
       allow: "/",
       disallow: ["/painel/", "/entrar/", "/criar-conta", "/redefinir-senha", "/esqueci-senha"],
     },
-    sitemap: `${SITE_URL}/sitemap.xml`,
+    sitemap: `${siteUrl}/sitemap.xml`,
   };
 }
