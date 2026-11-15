@@ -2,10 +2,9 @@ package com.devlil0.tramposeditor.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import org.hibernate.validator.constraints.Length;
-import org.hibernate.validator.constraints.URL;
 
 /**
- * O provedor (YouTube/Vimeo) não é enviado — é inferido da URL no service.
+ * O service valida a forma da URL e deriva dela o provedor e o link canônico.
  */
 public record PortfolioItemCreateDTO(
 
@@ -14,7 +13,6 @@ public record PortfolioItemCreateDTO(
         String title,
 
         @NotBlank
-        @URL
         @Length(max = 500)
         String videoUrl
 ) {

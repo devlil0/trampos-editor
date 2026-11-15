@@ -3,7 +3,7 @@ import { StartConversationForm } from "@/components/conversation-forms";
 import { InstagramLink } from "@/components/instagram-link";
 import { NicheTag, StyleTag, ToolTag } from "@/components/niche-tag";
 import { VideoThumb } from "@/components/video-thumb";
-import { formatPrice, formatTurnaround } from "@/lib/format";
+import { formatPrice, formatTurnaround, portfolioVideoUrl } from "@/lib/format";
 import type { EditorProfile } from "@/lib/types";
 
 /**
@@ -164,22 +164,25 @@ export function EditorProfileView({
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-1 pt-1 sm:grid-cols-3 sm:gap-1.5">
-            {profile.portfolio.map((item) => (
-              <a
-                key={item.id}
-                href={item.videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative overflow-hidden"
-              >
-                <VideoThumb url={item.videoUrl} alt={item.title} seed={item.id} />
-                {/* Título só no hover, como a sobreposição de métricas do Instagram: a
-                    grade tem que ler como obra, não como lista com legenda. */}
-                <span className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent p-2.5 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
-                  {item.title}
-                </span>
-              </a>
-            ))}
+            {profile.portfolio.map((item) => {
+              const href = portfolioVideoUrl(item.videoUrl);
+              const tile = (
+                <>
+                  <VideoThumb url={href} alt={item.title} seed={item.id} />
+                  <span className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent p-2.5 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
+                    {item.title}
+                  </span>
+                </>
+              );
+              const className = "group relative overflow-hidden";
+              return href ? (
+                <a key={item.id} href={href} target="_blank" rel="noopener noreferrer" className={className}>
+                  {tile}
+                </a>
+              ) : (
+                <div key={item.id} className={className}>{tile}</div>
+              );
+            })}
           </div>
         )}
       </section>

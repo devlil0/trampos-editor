@@ -253,6 +253,7 @@ export function AddPortfolioForm() {
             name="videoUrl"
             type="url"
             required
+            maxLength={500}
             placeholder="https://youtu.be/…"
             className={inputClass}
           />
@@ -265,7 +266,7 @@ export function AddPortfolioForm() {
           {pending ? "Adicionando…" : "Adicionar"}
         </button>
       </div>
-      <p className="text-xs text-muted">Aceitamos YouTube e Vimeo — o embed vem do próprio link.</p>
+      <p className="text-xs text-muted">Cole o link de um vídeo do YouTube ou do Vimeo.</p>
     </form>
   );
 }

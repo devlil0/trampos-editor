@@ -97,17 +97,68 @@ export function formatTurnaround(days: number | null): string | null {
   return `${days} ${days === 1 ? "dia" : "dias"}`;
 }
 
-/** Extrai o ID de um link do YouTube (watch, youtu.be, shorts, embed). */
-export function youtubeId(url: string): string | null {
-  const m = url.match(
-    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/))([\w-]{11})/,
-  );
-  return m ? m[1] : null;
+type PortfolioVideo = { url: string; youtubeId?: string };
+
+/** Espelha a validação do backend e também protege a renderização de itens antigos. */
+function parsePortfolioVideo(value: string): PortfolioVideo | null {
+  const input = value.trim();
+  const parts = /^(https?):\/\/([^/?#]+)([^?#]*)/i.exec(input);
+  if (!parts || /[\s\\]|%(?![0-9a-f]{2})/i.test(input)) return null;
+
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return null;
+  }
+
+  const host = url.hostname;
+  const authority = parts[2].toLowerCase();
+  const defaultPort = url.protocol === "https:" ? "443" : "80";
+  if (authority !== host && authority !== `${host}:${defaultPort}`) return null;
+  const path = parts[3];
+
+  let id: string | undefined;
+  switch (host) {
+    case "youtu.be":
+      id = /^\/([\w-]{11})\/?$/.exec(path)?.[1];
+      break;
+    case "youtube.com":
+    case "www.youtube.com":
+    case "m.youtube.com":
+      if (path === "/watch") {
+        const ids = url.searchParams.getAll("v");
+        if (ids.length === 1) id = ids[0];
+      } else {
+        id = /^\/(?:shorts|embed|live)\/([\w-]{11})\/?$/.exec(path)?.[1];
+      }
+      break;
+    case "vimeo.com":
+    case "www.vimeo.com": {
+      const match = /^\/([0-9]+)(?:\/([a-z0-9]+))?\/?$/i.exec(path);
+      return match ? { url: `https://vimeo.com/${match[1]}${match[2] ? `/${match[2]}` : ""}` } : null;
+    }
+    case "player.vimeo.com": {
+      const match = /^\/video\/([0-9]+)\/?$/.exec(path);
+      const hashes = url.searchParams.getAll("h");
+      if (!match || hashes.length > 1 || (hashes.length === 1 && !/^[a-z0-9]+$/i.test(hashes[0]))) return null;
+      return { url: `https://vimeo.com/${match[1]}${hashes.length ? `/${hashes[0]}` : ""}` };
+    }
+    default:
+      return null;
+  }
+  return id && /^[\w-]{11}$/.test(id)
+    ? { url: `https://www.youtube.com/watch?v=${id}`, youtubeId: id }
+    : null;
+}
+
+export function portfolioVideoUrl(url: string): string | null {
+  return parsePortfolioVideo(url)?.url ?? null;
 }
 
 /** Thumbnail de capa a partir da URL do vídeo. Null = usar gradiente de fallback. */
 export function coverThumbnail(url: string | null | undefined): string | null {
   if (!url) return null;
-  const id = youtubeId(url);
+  const id = parsePortfolioVideo(url)?.youtubeId;
   return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
 }
