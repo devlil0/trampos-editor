@@ -127,6 +127,21 @@
     </dependencies>
 
     <build>
+        <!-- Lista permitida: configuração privada e exemplos não entram no JAR.
+             Novos recursos de runtime precisam ser acrescentados aqui e no .dockerignore. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>application.yaml</include>
+                    <include>application-dev.yaml</include>
+                    <include>application-prod.yaml</include>
+                    <include>db/migration/**/*.sql</include>
+                    <include>email/logo-mark.png</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>

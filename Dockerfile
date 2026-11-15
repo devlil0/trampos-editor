@@ -5,7 +5,8 @@ WORKDIR /build
 COPY pom.xml .
 RUN mvn -B dependency:go-offline
 
-COPY src ./src
+# Contexto da API filtrado pelo .dockerignore; testes não são copiados para a imagem.
+COPY src/main ./src/main
 RUN mvn -B clean package -DskipTests
 
 
