@@ -62,7 +62,7 @@ class EditorDirectoryTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title": "Reel de lançamento", "videoUrl": "https://youtu.be/abc123"}
+                                {"title": "Reel de lançamento", "videoUrl": "https://youtu.be/dQw4w9WgXcQ?si=compartilhado"}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.portfolio[0].provider").value("YOUTUBE"))
@@ -75,7 +75,7 @@ class EditorDirectoryTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].displayName").value("João Silva"))
-                .andExpect(jsonPath("$.content[0].coverVideoUrl").value("https://youtu.be/abc123"));
+                .andExpect(jsonPath("$.content[0].coverVideoUrl").value("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
 
         // Detalhe público por slug.
         mockMvc.perform(get("/v1/editors/" + slug))
@@ -155,19 +155,77 @@ class EditorDirectoryTest {
     }
 
     @Test
-    void portfolioSoAceitaYoutubeOuVimeo() throws Exception {
+    void portfolioNormalizaOsFormatosSuportados() throws Exception {
+        String token = registrarEditor("portfolio@teste.com", "Portfólio");
+        upsertPerfil(token, """
+                {"niches": ["REELS"], "tools": ["PREMIERE"]}
+                """);
+
+        String youtube = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        String[][] cases = {
+                {" HTTP://WWW.YOUTUBE.COM:80/watch?feature=share&v=dQw4w9WgXcQ#t=3 ", "YOUTUBE", youtube},
+                {"https://m.youtube.com/shorts/dQw4w9WgXcQ?si=share", "YOUTUBE", youtube},
+                {"https://youtube.com/embed/dQw4w9WgXcQ", "YOUTUBE", youtube},
+                {"https://youtube.com/live/dQw4w9WgXcQ", "YOUTUBE", youtube},
+                {"https://www.VIMEO.com/123456789?share=copy", "VIMEO", "https://vimeo.com/123456789"},
+                {"https://vimeo.com/123456789/AbC123", "VIMEO", "https://vimeo.com/123456789/AbC123"},
+                {"https://player.vimeo.com/video/123456789?h=AbC123", "VIMEO", "https://vimeo.com/123456789/AbC123"}
+        };
+
+        for (int i = 0; i < cases.length; i++) {
+            String item = "$.portfolio[" + i + "]";
+            mockMvc.perform(post("/v1/me/editor-profile/portfolio")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"title": "Vídeo", "videoUrl": "%s"}
+                                    """.formatted(cases[i][0])))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath(item + ".provider").value(cases[i][1]))
+                    .andExpect(jsonPath(item + ".videoUrl").value(cases[i][2]));
+        }
+    }
+
+    @Test
+    void portfolioRecusaLinksInvalidosSemSalvar() throws Exception {
         String token = registrarEditor("bug@teste.com", "Bug");
         upsertPerfil(token, """
                 {"niches": ["REELS", "TIKTOK"], "tools": ["PREMIERE"]}
                 """);
 
-        mockMvc.perform(post("/v1/me/editor-profile/portfolio")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"title": "Link solto", "videoUrl": "https://exemplo.com/video.mp4"}
-                                """))
-                .andExpect(status().isConflict());
+        for (String url : new String[] {
+                "https://exemplo.com/video.mp4",
+                "https://youtube.com.exemplo.com/watch?v=dQw4w9WgXcQ",
+                "https://exemplo.com/youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://exemplo.com/?ref=https://youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://editor@youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://@youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://youtube.com:8080/watch?v=dQw4w9WgXcQ",
+                "javascript:youtube.com",
+                "data:text/plain,youtu.be",
+                "ftp://youtu.be/dQw4w9WgXcQ",
+                "https://youtu.be/abc123",
+                "https://youtu.be/dQw4w9WgXcQextra",
+                "https://youtube.com/watch",
+                "https://youtube.com/watch?v=dQw4w9WgXcQ&v=abcdefghijk",
+                "https://youtube.com/redirect?v=dQw4w9WgXcQ",
+                "https://vimeo.com/user/video",
+                "https://youtu.be/%zz"
+        }) {
+            mockMvc.perform(post("/v1/me/editor-profile/portfolio")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"title": "Link inválido", "videoUrl": "%s"}
+                                    """.formatted(url)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error").value("Informe um link válido de vídeo do YouTube ou Vimeo."));
+        }
+
+        mockMvc.perform(get("/v1/me/editor-profile")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.portfolio.length()").value(0));
     }
 
     @Test

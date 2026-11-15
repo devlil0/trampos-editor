@@ -13,7 +13,6 @@ import com.devlil0.tramposeditor.dto.PortfolioItemCreateDTO;
 import com.devlil0.tramposeditor.enums.EditorNiche;
 import com.devlil0.tramposeditor.enums.EditorStyle;
 import com.devlil0.tramposeditor.enums.EditorTool;
-import com.devlil0.tramposeditor.enums.PortfolioProvider;
 import com.devlil0.tramposeditor.enums.UserRole;
 import com.devlil0.tramposeditor.enums.Vertical;
 import com.devlil0.tramposeditor.exception.BusinessException;
@@ -128,6 +127,7 @@ public class EditorProfileService {
     @Transactional
     public EditorProfileDTO addPortfolioItem(UUID userId, PortfolioItemCreateDTO dto){
         EditorProfileEntity profile = loadOwnProfile(userId);
+        PortfolioVideo video = PortfolioVideo.parse(dto.videoUrl());
 
         int nextPosition = profile.getPortfolio().stream()
                 .mapToInt(PortfolioItemEntity::getPosition)
@@ -136,8 +136,8 @@ public class EditorProfileService {
 
         PortfolioItemEntity item = PortfolioItemEntity.builder()
                 .title(dto.title().trim())
-                .provider(inferProvider(dto.videoUrl()))
-                .videoUrl(dto.videoUrl().trim())
+                .provider(video.provider())
+                .videoUrl(video.url())
                 .position(nextPosition)
                 .build();
 
@@ -172,17 +172,6 @@ public class EditorProfileService {
         if (min != null && max != null && min > max) {
             throw new BusinessException("O preço mínimo não pode ser maior que o máximo");
         }
-    }
-
-    private PortfolioProvider inferProvider(String url){
-        String lower = url.toLowerCase(Locale.ROOT);
-        if (lower.contains("youtube.com") || lower.contains("youtu.be")) {
-            return PortfolioProvider.YOUTUBE;
-        }
-        if (lower.contains("vimeo.com")) {
-            return PortfolioProvider.VIMEO;
-        }
-        throw new BusinessException("Só aceitamos links do YouTube ou Vimeo no portfólio");
     }
 
     private String trimToNull(String value){
