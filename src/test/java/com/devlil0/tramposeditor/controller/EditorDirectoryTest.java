@@ -14,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItems;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -263,6 +264,64 @@ class EditorDirectoryTest {
         mockMvc.perform(get("/v1/editors").param("available", "true").param("niche", "PODCAST"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
+    @Test
+    void vitrinePaginaEContaSomenteEditoresDeContasAtivas() throws Exception {
+        String profile = """
+                {"niches": ["REELS"], "tools": ["PREMIERE"], "available": false}
+                """;
+        upsertPerfil(registrarEditor("ativo-a@teste.com", "Editor Ativo A"), profile);
+        upsertPerfil(registrarEditor("ativo-b@teste.com", "Editor Ativo B"), profile);
+        upsertPerfil(registrarEditor("inativo@teste.com", "Editor Inativo"), """
+                {"niches": ["REELS"], "tools": ["PREMIERE"], "available": true}
+                """);
+        desativar("inativo@teste.com");
+
+        // Uma página cheia obriga a consulta de contagem. O editor inativo
+        // apareceria no topo pela disponibilidade se o filtro fosse aplicado tarde.
+        mockMvc.perform(get("/v1/editors").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].available").value(false))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
+        mockMvc.perform(get("/v1/editors").param("size", "1").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].available").value(false))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test
+    void contaInativaNaoResolveSlugPublicoMasPreservaAConsultaInterna() throws Exception {
+        String email = "perfil@teste.com";
+        upsertPerfil(registrarEditor(email, "Editor de Teste"), """
+                {"niches": ["REELS"], "tools": ["PREMIERE"]}
+                """);
+        var user = userRepository.findByEmail(email).orElseThrow();
+        String slug = editorProfileRepository.findByUserId(user.getId()).orElseThrow().getSlug();
+        String detail = "/v1/editors/" + slug;
+        String redirect = "/v1/profiles/by-slug/" + slug;
+        String byUsername = "/v1/profiles/" + user.getUsername();
+        mockMvc.perform(get(detail)).andExpect(status().isOk());
+        mockMvc.perform(get(redirect)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value(user.getUsername()));
+        mockMvc.perform(get(byUsername)).andExpect(status().isOk());
+
+        desativar(email);
+
+        mockMvc.perform(get(detail)).andExpect(status().isNotFound());
+        mockMvc.perform(get(redirect)).andExpect(status().isNotFound());
+        mockMvc.perform(get(byUsername)).andExpect(status().isNotFound());
+        assertThat(editorProfileRepository.findBySlug(slug)).isPresent();
+    }
+
+    private void desativar(String email) {
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setActive(false);
+        userRepository.save(user);
     }
 
     // ---------- Helpers ----------

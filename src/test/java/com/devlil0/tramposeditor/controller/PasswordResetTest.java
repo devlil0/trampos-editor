@@ -6,6 +6,7 @@ import com.devlil0.tramposeditor.database.repository.IPasswordResetTokenReposito
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.notification.EmailContent;
 import com.devlil0.tramposeditor.notification.EmailSender;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -28,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -75,19 +78,47 @@ class PasswordResetTest {
     @Test
     void linkRedefineASenhaEValeUmaVezSo() throws Exception {
         registrar("dono@teste.com");
+        String oldJwt = jwtDe(entrar("dono@teste.com", "senhaforte123"));
+        consultarConta(oldJwt).andExpect(status().isOk());
 
         pedirReset("dono@teste.com").andExpect(status().isNoContent());
         String token = capturarTokenDoEmail();
 
         // A senha nova entra...
         confirmar(token, "senhanova12345").andExpect(status().isNoContent());
-        entrar("dono@teste.com", "senhanova12345").andExpect(status().isOk());
+        consultarConta(oldJwt).andExpect(status().isUnauthorized());
+        String newJwt = jwtDe(entrar("dono@teste.com", "senhanova12345"));
+        consultarConta(newJwt).andExpect(status().isOk());
 
         // ...e a antiga morre junto.
         entrar("dono@teste.com", "senhaforte123").andExpect(status().isUnauthorized());
 
         // O mesmo link não serve de novo.
         confirmar(token, "outrasenha12345").andExpect(status().isConflict());
+    }
+
+    @Test
+    void linkEmitidoAntesDaDesativacaoNaoAlteraSenha() throws Exception {
+        registrar("dono@teste.com");
+        pedirReset("dono@teste.com").andExpect(status().isNoContent());
+        String token = capturarTokenDoEmail();
+        var user = userRepository.findByEmail("dono@teste.com").orElseThrow();
+        user.setActive(false);
+        userRepository.save(user);
+
+        confirmar(token, "senhanova12345").andExpect(status().isConflict());
+        var current = userRepository.findById(user.getId()).orElseThrow();
+        assertThat(current.getPasswordHash()).isEqualTo(user.getPasswordHash());
+        assertThat(current.getSessionVersion()).isEqualTo(user.getSessionVersion());
+    }
+
+    private String jwtDe(org.springframework.test.web.servlet.ResultActions result) throws Exception {
+        return JsonPath.read(result.andExpect(status().isOk()).andReturn().getResponse().getContentAsString(),
+                "$.accessToken");
+    }
+
+    private org.springframework.test.web.servlet.ResultActions consultarConta(String jwt) throws Exception {
+        return mockMvc.perform(get("/v1/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt));
     }
 
     @Test

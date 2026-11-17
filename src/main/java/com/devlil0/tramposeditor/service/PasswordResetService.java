@@ -35,6 +35,7 @@ import java.util.Locale;
 public class PasswordResetService {
 
     private static final Duration VALIDADE = Duration.ofHours(1);
+    private static final String INVALID_LINK = "Esse link expirou ou já foi usado. Peça outro.";
 
     private final IPasswordResetTokenRepository tokenRepository;
     private final IUserRepository userRepository;
@@ -66,17 +67,19 @@ public class PasswordResetService {
 
     @Transactional
     public void confirm(PasswordResetConfirmDTO dto){
+        LocalDateTime now = LocalDateTime.now();
         PasswordResetTokenEntity token = tokenRepository.findByTokenHash(TokenSecrets.hash(dto.token()))
                 // Token inexistente e token expirado dão a mesma resposta: distinguir
                 // contaria a quem tenta adivinhar que ele existiu um dia.
-                .filter(t -> t.isUsable(LocalDateTime.now()))
-                .orElseThrow(() -> new BusinessException("Esse link expirou ou já foi usado. Peça outro."));
+                .filter(t -> t.isUsable(now))
+                .orElseThrow(() -> new BusinessException(INVALID_LINK));
 
-        UserEntity user = token.getUser();
-        user.setPasswordHash(passwordEncoder.encode(dto.password()));
-        userRepository.save(user);
+        if (userRepository.updatePasswordAndRevokeSessions(
+                token.getUser().getId(), passwordEncoder.encode(dto.password()), now) == 0) {
+            throw new BusinessException(INVALID_LINK);
+        }
 
-        token.setUsedAt(LocalDateTime.now());
+        token.setUsedAt(now);
         tokenRepository.save(token);
     }
 

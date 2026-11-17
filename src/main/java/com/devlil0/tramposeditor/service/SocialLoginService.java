@@ -134,6 +134,9 @@ public class SocialLoginService {
     }
 
     private String issueCode(UserEntity user, boolean contaNova){
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada");
+        }
         String code = TokenSecrets.generate();
 
         codeRepository.save(AuthExchangeCodeEntity.builder()
@@ -159,10 +162,14 @@ public class SocialLoginService {
                 .filter(c -> c.isUsable(LocalDateTime.now()))
                 .orElseThrow(() -> new UnauthorizedException("Código de login inválido ou expirado"));
 
+        UserEntity user = entity.getUser();
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada");
+        }
+
         entity.setUsedAt(LocalDateTime.now());
         codeRepository.save(entity);
 
-        UserEntity user = entity.getUser();
         if (entity.isNewAccount()) {
             SignupOrigin.apply(user, origin);
             userRepository.save(user);

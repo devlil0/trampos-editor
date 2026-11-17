@@ -69,7 +69,7 @@ public class PublicProfileService {
      */
     @Transactional(readOnly = true)
     public Optional<String> usernameDoSlug(String slug){
-        return editorProfileRepository.findBySlug(slug)
+        return editorProfileRepository.findBySlugAndUser_ActiveTrue(slug)
                 .map(profile -> profile.getUser().getUsername());
     }
 }
