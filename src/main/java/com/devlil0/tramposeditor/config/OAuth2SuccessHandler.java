@@ -1,6 +1,9 @@
 package com.devlil0.tramposeditor.config;
 
+import com.devlil0.tramposeditor.exception.SocialLoginFailure;
+import com.devlil0.tramposeditor.exception.SocialLoginFailure.Reason;
 import com.devlil0.tramposeditor.notification.NotificationProperties;
+import com.devlil0.tramposeditor.service.BrowserLoginAttempt;
 import com.devlil0.tramposeditor.service.SocialLoginService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -8,6 +11,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -15,6 +21,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 /**
  * Fim do login social: resolve a conta e devolve a pessoa pro frontend com um código de
@@ -40,30 +47,69 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
         String provider = token.getAuthorizedClientRegistrationId();
         OAuth2User user = token.getPrincipal();
+        BrowserLoginAttempt attempt = BrowserOAuthAuthorizationRequests.attemptFrom(request);
 
+        String code;
         try {
-            String code = socialLoginService.completeLogin(
+            OidcUser google = "google".equals(provider) && user instanceof OidcUser oidc ? oidc : null;
+            String verifiedEmail = verifiedEmail(provider, user, google);
+            code = socialLoginService.completeLogin(
                     provider,
-                    subjectOf(provider, user),
-                    user.getAttribute("email"),
-                    displayNameOf(user));
-
-            redirect(response, "/entrar/callback?code=" + encode(code));
+                    subjectOf(provider, user, google),
+                    verifiedEmail,
+                    displayNameOf(user),
+                    google == null ? null : google.getIdToken().getClaimAsString("hd"),
+                    attempt);
+        } catch (SocialLoginFailure failure) {
+            redirectFailure(request, response, failure.reason());
+            return;
         } catch (RuntimeException e) {
-            // Falhar aqui não pode despejar stack trace numa tela: manda o motivo curto
-            // pro login, que sabe mostrar erro.
-            log.warn("Login por {} não completou: {}", provider, e.getMessage());
-            redirect(response, "/entrar?erro=" + encode(e.getMessage()));
+            redirectFailure(request, response, Reason.FAILED);
+            return;
         }
+        redirect(response, "/entrar/callback?code=" + encode(code) + "&attempt=" + encode(attempt.challenge()));
+    }
+
+    public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
+                                        AuthenticationException failure) throws IOException {
+        Reason reason = Reason.FAILED;
+        if (failure instanceof OAuth2AuthenticationException oauthFailure) {
+            reason = switch (oauthFailure.getError().getErrorCode()) {
+                case "access_denied" -> Reason.CANCELLED;
+                case "authorization_request_not_found", "invalid_state_parameter" -> Reason.EXPIRED;
+                default -> Reason.FAILED;
+            };
+        }
+        redirectFailure(request, response, reason);
+    }
+
+    private void redirectFailure(HttpServletRequest request, HttpServletResponse response, Reason reason) throws IOException {
+        String code = reason.name().toLowerCase(Locale.ROOT);
+        log.warn("Login social não concluído: {}", code);
+        BrowserLoginAttempt attempt = BrowserOAuthAuthorizationRequests.attemptFrom(request);
+        String path = attempt == null ? "/entrar?oauth_error=" + code
+                : "/entrar/callback?oauth_error=" + code + "&attempt=" + encode(attempt.challenge());
+        redirect(response, path);
+    }
+
+    private String verifiedEmail(String provider, OAuth2User user, OidcUser google) {
+        if ("github".equals(provider)) {
+            return user.getAttribute(GitHubEmailOAuth2UserService.VERIFIED_EMAIL_ATTRIBUTE);
+        }
+        return google != null && Boolean.TRUE.equals(google.getIdToken().getEmailVerified())
+                ? google.getIdToken().getEmail() : null;
     }
 
     /**
      * O identificador estável da pessoa no provedor. Google usa {@code sub} (OIDC);
      * GitHub devolve um {@code id} numérico.
      */
-    private String subjectOf(String provider, OAuth2User user){
-        Object subject = "github".equals(provider) ? user.getAttribute("id") : user.getAttribute("sub");
-        return String.valueOf(subject);
+    private String subjectOf(String provider, OAuth2User user, OidcUser google){
+        if ("github".equals(provider)) {
+            Object id = user.getAttribute("id");
+            return id instanceof Number || id instanceof String ? id.toString() : null;
+        }
+        return google == null ? null : google.getIdToken().getSubject();
     }
 
     /** GitHub pode ter `name` vazio; aí o login (`login`) é o melhor que existe. */
@@ -73,6 +119,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private void redirect(HttpServletResponse response, String path) throws IOException {
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("Referrer-Policy", "no-referrer");
         response.sendRedirect(properties.link(path));
     }
 

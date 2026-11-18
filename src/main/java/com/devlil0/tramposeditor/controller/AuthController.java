@@ -96,7 +96,7 @@ public class AuthController {
     @PostMapping("/social/exchange")
     @ResponseStatus(HttpStatus.OK)
     public AuthResponseDTO exchangeSocialCode(@Valid @RequestBody SocialExchangeDTO dto){
-        return socialLoginService.exchange(dto.code(), dto.origin());
+        return socialLoginService.exchange(dto.code(), dto.browserProof(), dto.origin());
     }
 
     /**

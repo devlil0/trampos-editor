@@ -9,7 +9,7 @@ import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.dto.AuthResponseDTO;
 import com.devlil0.tramposeditor.dto.SignupOriginDTO;
 import com.devlil0.tramposeditor.enums.UserRole;
-import com.devlil0.tramposeditor.exception.BusinessException;
+import com.devlil0.tramposeditor.exception.SocialLoginFailure;
 import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,13 +20,13 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 
+import static com.devlil0.tramposeditor.exception.SocialLoginFailure.Reason.*;
+
 /**
  * Login por provedor (Google, GitHub).
  * <p>
- * A regra que manda é a <b>conta única</b> do {@code FUNDACAO} §11.9: mesmo e-mail é a
- * mesma pessoa. Entrar pelo Google num e-mail que já tem conta com senha <b>vincula</b>
- * o provedor à conta existente; nunca cria uma segunda. Duas contas com o mesmo e-mail
- * seria o começo de "cadê meu perfil?" — o pior primeiro contato possível.
+ * O identificador estável do provedor resolve vínculos existentes. Um vínculo novo
+ * por e-mail exige prova emitida pelo provedor.
  * <p>
  * A troca por código existe porque o provedor devolve pro backend, mas a sessão mora num
  * cookie httpOnly do frontend. Ver {@link AuthExchangeCodeEntity}.
@@ -49,23 +49,25 @@ public class SocialLoginService {
      *
      * @param provider    {@code google} ou {@code github}
      * @param subject     id da pessoa no provedor — estável, ao contrário do e-mail
-     * @param email       e-mail verificado no provedor
+     * @param verifiedEmail endereço comprovado pelo adaptador do provedor, ou nulo
      * @param displayName nome como o provedor conhece
+     * @param hostedDomain domínio informado pelo ID token do Google, ou nulo
+     * @param attempt tentativa recuperada da autorização OAuth validada
      */
     @Transactional
-    public String completeLogin(String provider, String subject, String email, String displayName){
-        if (email == null || email.isBlank()) {
-            // GitHub esconde o e-mail quando a pessoa marca como privado. Sem e-mail não
-            // dá pra aplicar a conta única, e criar conta sem ele produziria a duplicata
-            // que este serviço inteiro existe pra evitar.
-            throw new BusinessException(
-                    "Seu %s não expôs um e-mail. Libere o e-mail no provedor ou crie a conta com senha."
-                            .formatted(provider));
+    public String completeLogin(String provider, String subject, String verifiedEmail,
+                                String displayName, String hostedDomain, BrowserLoginAttempt attempt){
+        if (attempt == null || !attempt.isValidAt(LocalDateTime.now())) {
+            throw new SocialLoginFailure(EXPIRED);
+        }
+        if ((!"google".equals(provider) && !"github".equals(provider))
+                || subject == null || subject.isBlank()) {
+            throw new SocialLoginFailure(FAILED);
         }
 
-        Resolved resolvido = resolveUser(provider, subject, normalizeEmail(email), displayName);
+        Resolved resolvido = resolveUser(provider, subject, verifiedEmail, displayName, hostedDomain);
 
-        return issueCode(resolvido.user(), resolvido.contaNova());
+        return issueCode(resolvido.user(), resolvido.contaNova(), attempt);
     }
 
     /**
@@ -79,19 +81,33 @@ public class SocialLoginService {
     private record Resolved(UserEntity user, boolean contaNova) {
     }
 
-    private Resolved resolveUser(String provider, String subject, String email, String displayName){
+    private Resolved resolveUser(String provider, String subject, String verifiedEmail,
+                                 String displayName, String hostedDomain){
         // 1. Já entrou por este provedor antes: é ele, mesmo que o e-mail tenha mudado.
         var jaVinculado = identityRepository.findByProviderAndSubject(provider, subject);
         if (jaVinculado.isPresent()) {
             return new Resolved(jaVinculado.get().getUser(), false);
         }
 
-        // 2. Existe conta com este e-mail: vincula em vez de duplicar.
+        if (verifiedEmail == null || verifiedEmail.isBlank()) {
+            throw new SocialLoginFailure(EMAIL_UNVERIFIED);
+        }
+        String email = normalizeEmail(verifiedEmail);
+        int at = email.lastIndexOf('@');
+        if (at <= 0 || at >= email.length() - 1) {
+            throw new SocialLoginFailure(EMAIL_UNVERIFIED);
+        }
+
         var existente = userRepository.findByEmail(email);
+        String domain = email.substring(at + 1);
+        if (existente.isPresent() && "google".equals(provider)
+                && !"gmail.com".equals(domain) && !domain.equalsIgnoreCase(hostedDomain)) {
+            throw new SocialLoginFailure(LINK_NOT_ALLOWED);
+        }
         UserEntity user = existente.orElseGet(() -> createUser(email, displayName));
 
         if (!user.isActive()) {
-            throw new UnauthorizedException("Conta desativada");
+            throw new SocialLoginFailure(ACCOUNT_INACTIVE);
         }
 
         identityRepository.save(UserIdentityEntity.builder()
@@ -122,9 +138,7 @@ public class SocialLoginService {
                 // ninguém decidiu, que era o caso até a V15.
                 .username(usernameService.gerarPara(nome))
                 .usernameChosen(false)
-                // Já nasce verificado: o Google e o GitHub só entregam e-mail confirmado, e
-                // pedir a mesma prova de novo seria desconfiar de uma melhor que a nossa
-                // (V17).
+                // O endereço passou pela prova exigida para contas novas.
                 .emailVerifiedAt(LocalDateTime.now())
                 // Todo mundo entra como cliente; virar editor continua sendo publicar o
                 // perfil, exatamente como no cadastro por senha (FUNDACAO §11.9).
@@ -133,17 +147,18 @@ public class SocialLoginService {
                 .build());
     }
 
-    private String issueCode(UserEntity user, boolean contaNova){
+    private String issueCode(UserEntity user, boolean contaNova, BrowserLoginAttempt attempt){
         if (!user.isActive()) {
-            throw new UnauthorizedException("Conta desativada");
+            throw new SocialLoginFailure(ACCOUNT_INACTIVE);
         }
         String code = TokenSecrets.generate();
+        LocalDateTime expiresAt = LocalDateTime.now().plus(VALIDADE_DO_CODIGO);
 
         codeRepository.save(AuthExchangeCodeEntity.builder()
                 .user(user)
-                .codeHash(TokenSecrets.hash(code))
+                .codeHash(exchangeHash(code, attempt.challenge()))
                 .newAccount(contaNova)
-                .expiresAt(LocalDateTime.now().plus(VALIDADE_DO_CODIGO))
+                .expiresAt(expiresAt.isBefore(attempt.expiresAt()) ? expiresAt : attempt.expiresAt())
                 .build());
 
         return code;
@@ -157,8 +172,11 @@ public class SocialLoginService {
      * visita é o frontend, que só aparece nesta chamada.
      */
     @Transactional
-    public AuthResponseDTO exchange(String code, SignupOriginDTO origin){
-        AuthExchangeCodeEntity entity = codeRepository.findByCodeHash(TokenSecrets.hash(code))
+    public AuthResponseDTO exchange(String code, String browserProof, SignupOriginDTO origin){
+        // A trava fica até o commit. Outra troca do mesmo código espera e então
+        // lê o used_at já gravado pela primeira.
+        AuthExchangeCodeEntity entity = codeRepository.findLockedByCodeHash(
+                        exchangeHash(code, BrowserLoginAttempt.challengeOf(browserProof)))
                 .filter(c -> c.isUsable(LocalDateTime.now()))
                 .orElseThrow(() -> new UnauthorizedException("Código de login inválido ou expirado"));
 
@@ -176,6 +194,10 @@ public class SocialLoginService {
         }
 
         return authService.buildResponse(user);
+    }
+
+    private String exchangeHash(String code, String challenge) {
+        return TokenSecrets.hash(code + ":" + challenge);
     }
 
     private String normalizeEmail(String email){

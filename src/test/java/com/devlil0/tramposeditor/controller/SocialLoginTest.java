@@ -1,11 +1,13 @@
 package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.TestcontainersConfiguration;
+import com.devlil0.tramposeditor.database.repository.IAuthExchangeCodeRepository;
 import com.devlil0.tramposeditor.database.repository.IUserIdentityRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
-import com.devlil0.tramposeditor.exception.BusinessException;
-import com.devlil0.tramposeditor.exception.UnauthorizedException;
+import com.devlil0.tramposeditor.exception.SocialLoginFailure;
+import com.devlil0.tramposeditor.exception.SocialLoginFailure.Reason;
 import com.devlil0.tramposeditor.service.SocialLoginService;
+import com.devlil0.tramposeditor.service.BrowserLoginAttempt;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,12 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class SocialLoginTest {
+    private static final String PROOF = "a".repeat(64);
 
     @Autowired
     private MockMvc mockMvc;
@@ -45,6 +54,9 @@ class SocialLoginTest {
 
     @Autowired
     private IUserIdentityRepository identityRepository;
+
+    @Autowired
+    private IAuthExchangeCodeRepository codeRepository;
 
     @BeforeEach
     void limpar(){
@@ -66,7 +78,7 @@ class SocialLoginTest {
         registrarComSenha("mesma@teste.com", "Maria da Conta");
         assertThat(userRepository.count()).isEqualTo(1);
 
-        String code = socialLoginService.completeLogin("google", "sub-123", "mesma@teste.com", "Maria G.");
+        String code = completar("google", "sub-123", "mesma@teste.com", "Maria G.", "teste.com");
 
         // A regra do FUNDACAO §11.9: mesmo e-mail é a mesma pessoa.
         assertThat(userRepository.count())
@@ -83,11 +95,13 @@ class SocialLoginTest {
 
     @Test
     void mesmaIdentidadeVoltaNaMesmaContaMesmoComEmailNovo() throws Exception {
-        socialLoginService.completeLogin("github", "gh-42", "antigo@teste.com", "Bruno");
+        completar("github", "gh-42", "antigo@teste.com", "Bruno", null);
         assertThat(userRepository.count()).isEqualTo(1);
 
         // A pessoa trocou de e-mail no GitHub. O `subject` é o que segura o vínculo.
-        socialLoginService.completeLogin("github", "gh-42", "novo@teste.com", "Bruno");
+        String code = completar("github", "gh-42", null, "Bruno", null);
+        trocar(code).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value("antigo@teste.com"));
 
         assertThat(userRepository.count())
                 .as("o subject do provedor manda, não o e-mail — senão trocar de e-mail perderia a conta")
@@ -97,8 +111,8 @@ class SocialLoginTest {
 
     @Test
     void mesmoEmailEmDoisProvedoresContinuaSendoUmaContaSo() throws Exception {
-        socialLoginService.completeLogin("google", "sub-1", "pessoa@teste.com", "Pessoa");
-        socialLoginService.completeLogin("github", "gh-1", "pessoa@teste.com", "Pessoa");
+        completar("google", "sub-1", "pessoa@teste.com", "Pessoa", "teste.com");
+        completar("github", "gh-1", "pessoa@teste.com", "Pessoa", null);
 
         assertThat(userRepository.count()).isEqualTo(1);
         assertThat(identityRepository.count())
@@ -108,7 +122,7 @@ class SocialLoginTest {
 
     @Test
     void codigoDeLoginServeUmaVezSo() throws Exception {
-        String code = socialLoginService.completeLogin("google", "sub-9", "unica@teste.com", "Uma Vez");
+        String code = completar("google", "sub-9", "unica@teste.com", "Uma Vez", "teste.com");
 
         trocar(code).andExpect(status().isOk());
         trocar(code).andExpect(status().isUnauthorized());
@@ -120,15 +134,101 @@ class SocialLoginTest {
     }
 
     @Test
+    void codigoExpiradoNaoAbreSessao() throws Exception {
+        String code = completar("github", "gh-exp", "exp@teste.com", "Teste", null);
+        var entity = codeRepository.findAll().getFirst();
+        entity.setExpiresAt(LocalDateTime.now().minusMinutes(1));
+        codeRepository.save(entity);
+        trocar(code).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void codigoSozinhoOuComProvaErradaNaoCriaSessaoNemConsomeCodigo() throws Exception {
+        String code = completar("github", "gh-bound", "bound@teste.com", "Teste", null);
+        mockMvc.perform(post("/v1/auth/social/exchange").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"code":"%s"}
+                                """.formatted(code)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+        trocar(code, "invalida").andExpect(status().isBadRequest());
+        trocar(code, "b".repeat(64)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+        trocar(code).andExpect(status().isOk()).andExpect(jsonPath("$.accessToken").isNotEmpty());
+        trocar(code).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void tentativaVencidaNaoEmiteCodigoETrocaRespeitaPrazoDaTentativa() throws Exception {
+        String challenge = BrowserLoginAttempt.challengeOf(PROOF);
+        assertThatThrownBy(() -> socialLoginService.completeLogin("github", "gh-exp-attempt",
+                "attempt@teste.com", "Teste", null, new BrowserLoginAttempt(challenge, LocalDateTime.now().minusSeconds(1))))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.EXPIRED));
+        assertThat(userRepository.count()).isZero();
+        assertThat(codeRepository.count()).isZero();
+
+        LocalDateTime deadline = LocalDateTime.now().plusSeconds(30).withNano(0);
+        String code = socialLoginService.completeLogin("github", "gh-exp-attempt",
+                "attempt@teste.com", "Teste", null, new BrowserLoginAttempt(challenge, deadline));
+        var saved = codeRepository.findAll().getFirst();
+        assertThat(saved.getExpiresAt()).isEqualTo(deadline);
+        saved.setExpiresAt(LocalDateTime.now().minusSeconds(1));
+        codeRepository.save(saved);
+        trocar(code).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void somenteUmaTrocaSimultaneaAbreSessao() throws Exception {
+        String code = completar("github", "gh-race", "race@teste.com", "Teste", null);
+        var start = new CyclicBarrier(2);
+        Callable<Integer> exchange = () -> {
+            start.await(10, TimeUnit.SECONDS);
+            var response = trocar(code).andReturn().getResponse();
+            if (response.getStatus() == 200) {
+                assertThat(com.jayway.jsonpath.JsonPath.<String>read(response.getContentAsString(), "$.accessToken"))
+                        .isNotBlank();
+            } else {
+                assertThat(response.getContentAsString()).doesNotContain("accessToken");
+            }
+            return response.getStatus();
+        };
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var first = pool.submit(exchange);
+            var second = pool.submit(exchange);
+            assertThat(java.util.List.of(first.get(20, TimeUnit.SECONDS), second.get(20, TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200, 401);
+        }
+    }
+
+    @Test
+    void emailDeTerceiroNoGoogleNaoVinculaContaExistente() throws Exception {
+        registrarComSenha("terceiro@teste.com", "Conta Existente");
+        assertThatThrownBy(() -> completar(
+                "google", "sub-terceiro", "terceiro@teste.com", "Perfil Google", null))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.LINK_NOT_ALLOWED));
+        assertThat(identityRepository.count()).isZero();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void semProvaNaoVinculaContaExistente() throws Exception {
+        registrarComSenha("existente@teste.com", "Conta Existente");
+        assertThatThrownBy(() -> completar("github", "gh-novo", null, "Perfil GitHub", null))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.EMAIL_UNVERIFIED));
+        assertThat(identityRepository.count()).isZero();
+        assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    @Test
     void contaDesativadaJaVinculadaNaoRecebeCodigoNemTrocaCodigoAnterior() throws Exception {
         String email = "inativa@teste.com";
-        String code = socialLoginService.completeLogin("google", "sub-inativo", email, "Conta Inativa");
+        String code = completar("google", "sub-inativo", email, "Conta Inativa", "teste.com");
         var user = userRepository.findByEmail(email).orElseThrow();
         user.setActive(false);
         userRepository.save(user);
 
-        assertThatThrownBy(() -> socialLoginService.completeLogin("google", "sub-inativo", email, "Conta Inativa"))
-                .isInstanceOf(UnauthorizedException.class);
+        assertThatThrownBy(() -> completar("google", "sub-inativo", email, "Conta Inativa", "teste.com"))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.ACCOUNT_INACTIVE));
         trocar(code).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.accessToken").doesNotExist());
     }
@@ -137,16 +237,15 @@ class SocialLoginTest {
     void provedorSemEmailNaoCriaConta(){
         // GitHub com e-mail privado chega aqui sem e-mail. Criar conta assim produziria
         // exatamente a duplicata que a conta única existe pra evitar.
-        assertThatThrownBy(() -> socialLoginService.completeLogin("github", "gh-7", null, "Sem Email"))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("e-mail");
+        assertThatThrownBy(() -> completar("github", "gh-7", null, "Sem Email", null))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.EMAIL_UNVERIFIED));
 
         assertThat(userRepository.count()).isZero();
     }
 
     @Test
     void contaCriadaPeloProvedorNaoEntraPorSenha() throws Exception {
-        socialLoginService.completeLogin("google", "sub-5", "sosocial@teste.com", "Só Social");
+        completar("google", "sub-5", "sosocial@teste.com", "Só Social", "teste.com");
 
         // Sem senha definida, e a resposta é a mesma de credencial errada: dizer "essa
         // conta usa Google" contaria a um estranho como a pessoa entra.
@@ -160,12 +259,21 @@ class SocialLoginTest {
 
     // ---------- Helpers ----------
 
+    private String completar(String provider, String subject, String email, String name, String hostedDomain) {
+        return socialLoginService.completeLogin(provider, subject, email, name, hostedDomain,
+                new BrowserLoginAttempt(BrowserLoginAttempt.challengeOf(PROOF), LocalDateTime.now().plusMinutes(5)));
+    }
+
     private org.springframework.test.web.servlet.ResultActions trocar(String code) throws Exception {
+        return trocar(code, PROOF);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions trocar(String code, String proof) throws Exception {
         return mockMvc.perform(post("/v1/auth/social/exchange")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
-                        {"code": "%s"}
-                        """.formatted(code)));
+                        {"code": "%s", "browserProof": "%s"}
+                        """.formatted(code, proof)));
     }
 
     private void registrarComSenha(String email, String displayName) throws Exception {
