@@ -19,6 +19,7 @@ public interface IEditorProfileRepository extends JpaRepository<EditorProfileEnt
     Optional<EditorProfileEntity> findByUserId(UUID userId);
 
     Optional<EditorProfileEntity> findBySlug(String slug);
+    Optional<EditorProfileEntity> findBySlugAndUser_ActiveTrue(String slug);
 
     boolean existsBySlug(String slug);
 
@@ -32,6 +33,7 @@ public interface IEditorProfileRepository extends JpaRepository<EditorProfileEnt
     @Query("""
             select distinct e from EditorProfileEntity e
             where e.vertical = :vertical
+              and e.user.active = true
               and (:niche is null or :niche member of e.niches)
               and (:tool is null or :tool member of e.tools)
               and (:style is null or :style member of e.styles)

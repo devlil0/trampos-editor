@@ -51,10 +51,6 @@ public class AuthService {
             throw new UnauthorizedException(INVALID_CREDENTIALS);
         }
 
-        if (!user.isActive()) {
-            throw new UnauthorizedException("Conta desativada");
-        }
-
         return buildResponse(user);
     }
 
@@ -64,6 +60,9 @@ public class AuthService {
      * entrar pelo Google não pode produzir uma sessão de segunda classe.
      */
     public AuthResponseDTO buildResponse(UserEntity user){
+        if (!user.isActive()) {
+            throw new UnauthorizedException("Conta desativada");
+        }
         return new AuthResponseDTO(
                 jwtService.generateToken(user),
                 TOKEN_TYPE,

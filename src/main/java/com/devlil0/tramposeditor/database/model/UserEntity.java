@@ -4,6 +4,7 @@ import com.devlil0.tramposeditor.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Entity
+@DynamicUpdate
 @Table(name = "users")
 @NoArgsConstructor
 @AllArgsConstructor
@@ -129,6 +131,9 @@ public class UserEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    @Column(name = "session_version", nullable = false, updatable = false)
+    private long sessionVersion;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

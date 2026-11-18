@@ -60,7 +60,7 @@ public class EditorProfileService {
 
     @Transactional(readOnly = true)
     public EditorProfileDTO getBySlug(String slug){
-        EditorProfileEntity profile = editorProfileRepository.findBySlug(slug)
+        EditorProfileEntity profile = editorProfileRepository.findBySlugAndUser_ActiveTrue(slug)
                 .orElseThrow(() -> new NotFoundException("Editor não encontrado: " + slug));
 
         return mapper.toDetail(profile);

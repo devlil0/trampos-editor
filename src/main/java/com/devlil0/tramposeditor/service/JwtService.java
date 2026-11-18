@@ -17,6 +17,8 @@ import java.util.List;
 @Service
 public class JwtService {
 
+    public static final String SESSION_VERSION_CLAIM = "session_version";
+
     private static final String ISSUER = "tramposeditor";
 
     private final JwtEncoder jwtEncoder;
@@ -39,6 +41,7 @@ public class JwtService {
                 .issuedAt(now)
                 .expiresAt(now.plus(ttl))
                 .subject(user.getId().toString())
+                .claim(SESSION_VERSION_CLAIM, user.getSessionVersion())
                 .claim("email", user.getEmail())
                 .claim("name", user.getDisplayName())
                 .claim("roles", roles)

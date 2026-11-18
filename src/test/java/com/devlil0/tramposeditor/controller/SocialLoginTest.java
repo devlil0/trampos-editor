@@ -4,6 +4,7 @@ import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.repository.IUserIdentityRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.exception.BusinessException;
+import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import com.devlil0.tramposeditor.service.SocialLoginService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -116,6 +117,20 @@ class SocialLoginTest {
     @Test
     void codigoInventadoNaoAbreSessao() throws Exception {
         trocar("codigo-que-nunca-existiu").andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void contaDesativadaJaVinculadaNaoRecebeCodigoNemTrocaCodigoAnterior() throws Exception {
+        String email = "inativa@teste.com";
+        String code = socialLoginService.completeLogin("google", "sub-inativo", email, "Conta Inativa");
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setActive(false);
+        userRepository.save(user);
+
+        assertThatThrownBy(() -> socialLoginService.completeLogin("google", "sub-inativo", email, "Conta Inativa"))
+                .isInstanceOf(UnauthorizedException.class);
+        trocar(code).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
     }
 
     @Test
