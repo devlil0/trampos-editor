@@ -1,11 +1,13 @@
 package com.devlil0.tramposeditor.notification;
 
 import com.devlil0.tramposeditor.database.model.UserEntity;
+import com.devlil0.tramposeditor.notification.NotificationDelivery.Kind;
+import com.devlil0.tramposeditor.notification.NotificationDelivery.PreparedEmail;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * A voz do produto fora do site (ESBOCO §4, ponto 7) — e o <b>canal</b> do §7 item 3.
@@ -21,7 +23,7 @@ import java.util.List;
  *       mensagens seguidas mandam <i>um</i> e-mail, não dez. Marketplace que enche a
  *       caixa de entrada é exatamente o que os 99% fazem (§6).</li>
  *   <li><b>Aviso automático só vai pra endereço provado.</b> {@link #quietly} recusa quem
- *       não confirmou; {@link #required} é a exceção, e vale para os e-mails de identidade que a
+ *       não confirmou; o envio obrigatório é a exceção, e vale para os e-mails de identidade que a
  *       própria pessoa pediu.</li>
  * </ol>
  * O texto segue o léxico do §4.1: trampo, vitrine, conversa. Nada de "usuário",
@@ -31,12 +33,11 @@ import java.util.List;
  * transforma isso em texto puro ou em HTML com a cara do produto é o adaptador de saída,
  * e é por isso que o texto de cada aviso mora aqui uma vez só, e não duas.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final EmailSender emailSender;
+    private final NotificationDelivery delivery;
     private final NotificationProperties properties;
 
     /**
@@ -49,37 +50,37 @@ public class NotificationService {
     public void newMessage(UserEntity recipient, UserEntity sender, boolean jaAvisado){
         if (jaAvisado) return;
 
-        quietly(recipient, () -> emailSender.send(recipient.getEmail(), new EmailContent(
+        quietly(Kind.MESSAGE, recipient, () -> new EmailContent(
                 sender.getDisplayName() + " te mandou uma mensagem",
                 firstName(recipient),
                 List.of(sender.getDisplayName() + " falou com você no TramposEditor."),
                 "Abrir a conversa",
                 properties.link("/painel/conversas"),
-                null)));
+                null));
     }
 
     /** O cliente aceitou o interesse do editor. Abre conversa sem mensagem, então este é o aviso. */
     public void interestAccepted(UserEntity editor, UserEntity client, String jobTitle){
-        quietly(editor, () -> emailSender.send(editor.getEmail(), new EmailContent(
+        quietly(Kind.INTEREST_ACCEPTED, editor, () -> new EmailContent(
                 "Você foi escolhido para \"" + jobTitle + "\"",
                 firstName(editor),
                 List.of("%s aceitou seu interesse no trampo \"%s\". A conversa já está aberta — quem fala primeiro são vocês."
                         .formatted(client.getDisplayName(), jobTitle)),
                 "Abrir a conversa",
                 properties.link("/painel/conversas"),
-                null)));
+                null));
     }
 
     /** Chegou candidato num pedido aberto. Vai pro cliente, que é quem decide. */
     public void newInterest(UserEntity client, UserEntity editor, String jobTitle){
-        quietly(client, () -> emailSender.send(client.getEmail(), new EmailContent(
+        quietly(Kind.INTEREST, client, () -> new EmailContent(
                 editor.getDisplayName() + " topou seu trampo",
                 firstName(client),
                 List.of("%s demonstrou interesse em \"%s\". Veja o perfil e o portfólio antes de escolher — o corte fala mais que a mensagem."
                         .formatted(editor.getDisplayName(), jobTitle)),
                 "Ver quem topou",
                 properties.link("/painel/pedidos"),
-                null)));
+                null));
     }
 
     /**
@@ -87,14 +88,14 @@ public class NotificationService {
      * girar (§3.1) — sem ele a avaliação depende de a pessoa lembrar sozinha.
      */
     public void dealClosed(UserEntity recipient, UserEntity counterpart, String subjectLine){
-        quietly(recipient, () -> emailSender.send(recipient.getEmail(), new EmailContent(
+        quietly(Kind.DEAL_CLOSED, recipient, () -> new EmailContent(
                 "Como foi trabalhar com " + counterpart.getDisplayName() + "?",
                 firstName(recipient),
                 List.of("O trampo \"%s\" foi marcado como concluído. Deixe sua avaliação — é ela que mostra quem está fazendo o que os outros não fazem."
                         .formatted(subjectLine)),
                 "Avaliar",
                 properties.link("/painel/trampos-fechados"),
-                null)));
+                null));
     }
 
     /**
@@ -109,7 +110,7 @@ public class NotificationService {
      * poder verificar.
      */
     public void signupCode(String email, String displayName, String code){
-        required(() -> emailSender.send(email, new EmailContent(
+        delivery.required(Kind.SIGNUP, () -> new PreparedEmail(email, new EmailContent(
                 code + " é seu código de confirmação",
                 firstNameOf(displayName),
                 List.of("Use o código abaixo pra terminar de criar sua conta no TramposEditor.",
@@ -127,7 +128,7 @@ public class NotificationService {
      * exigir a verificação pra poder verificar.
      */
     public void verifyEmail(UserEntity user, String token){
-        required(() -> emailSender.send(user.getEmail(), new EmailContent(
+        delivery.required(Kind.EMAIL_VERIFICATION, () -> new PreparedEmail(user.getEmail(), new EmailContent(
                 "Confirme seu e-mail",
                 firstName(user),
                 List.of("Falta um clique pra sua conta ficar completa. É por este endereço que você fica sabendo quando alguém te procura."),
@@ -142,7 +143,7 @@ public class NotificationService {
      * ficaria trancado do lado de fora pra sempre.
      */
     public void passwordReset(UserEntity user, String token){
-        required(() -> emailSender.send(user.getEmail(), new EmailContent(
+        delivery.required(Kind.PASSWORD_RESET, () -> new PreparedEmail(user.getEmail(), new EmailContent(
                 "Redefinir sua senha",
                 firstName(user),
                 List.of("Alguém pediu pra redefinir a senha desta conta. Se não foi você, ignore este e-mail — nada muda."),
@@ -163,31 +164,10 @@ public class NotificationService {
      * Não perde nada de verdade: a pessoa continua vendo tudo dentro do site, e volta a
      * receber assim que confirmar.
      */
-    private void quietly(UserEntity recipient, Runnable send){
-        if (!recipient.isEmailVerified()) {
-            log.debug("Aviso não enviado: {} ainda não confirmou o e-mail", recipient.getId());
-            return;
-        }
-
-        bestEffort(send);
-    }
-
-    /** Avisos de melhor esforço nunca desfazem a ação principal. */
-    private void bestEffort(Runnable send){
-        try {
-            send.run();
-        } catch (RuntimeException e) {
-            log.error("Falha em aviso de melhor esforço; ação principal preservada");
-        }
-    }
-
-    private void required(Runnable send) {
-        try {
-            send.run();
-        } catch (RuntimeException e) {
-            log.error("Falha no envio obrigatório de identidade");
-            throw new RequiredEmailException();
-        }
+    private void quietly(Kind kind, UserEntity recipient, Supplier<EmailContent> content) {
+        delivery.afterCommit(kind, () -> recipient.isEmailVerified()
+                ? new PreparedEmail(recipient.getEmail(), content.get())
+                : null);
     }
 
     private String firstName(UserEntity user){

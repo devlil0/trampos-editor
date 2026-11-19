@@ -119,8 +119,7 @@ tramposeditor:
       window: 15m
       cooldown: 0s
   notifications:
-    # `log` escreve o e-mail no console; `smtp` manda de verdade. O default é `log` pra
-    # que rodar local nunca exija credencial — prod troca isso explicitamente.
+    # `log` simula o envio e registra apenas metadados operacionais; `smtp` envia.
     transport: ${NOTIFICATIONS_TRANSPORT:log}
     from: ${NOTIFICATIONS_FROM:TramposEditor <nao-responda@tramposeditor.com>}
     # Raiz do frontend: todo link de e-mail leva a uma tela, não a um JSON.

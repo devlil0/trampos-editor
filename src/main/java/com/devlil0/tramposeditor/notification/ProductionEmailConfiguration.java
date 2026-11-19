@@ -32,6 +32,9 @@ public class ProductionEmailConfiguration {
             String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
             require(!host.equals("localhost") && !host.endsWith(".localhost")
                     && !host.equals("127.0.0.1") && !host.equals("[::1]"));
+            for (String timeout : new String[]{"connectiontimeout", "timeout", "writetimeout"}) {
+                require(env.getRequiredProperty("spring.mail.properties.mail.smtp." + timeout, Integer.class) > 0);
+            }
             require(!Boolean.parseBoolean(env.getProperty("spring.mail.properties.mail.debug", "false")));
         } catch (Exception ignored) {
             throw new IllegalStateException("Configuração de e-mail de produção inválida. Consulte docs/EMAIL.md.");

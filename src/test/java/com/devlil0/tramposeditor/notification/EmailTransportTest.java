@@ -25,7 +25,8 @@ class EmailTransportTest {
         var mail = spy(new JavaMailSenderImpl());
         doNothing().when(mail).send(any(jakarta.mail.internet.MimeMessage.class));
         var properties = new NotificationProperties("teste@example.com", "https://teste.example.com");
-        var service = new NotificationService(new SmtpEmailSender(mail, properties), properties);
+        var service = new NotificationService(
+                new NotificationDelivery(new SmtpEmailSender(mail, properties), "smtp", 1, 1, 0), properties);
         service.signupCode("destino@example.com", "Teste", "938471");
         var user = com.devlil0.tramposeditor.database.model.UserEntity.builder()
                 .email("destino@example.com").displayName("Teste").build();
@@ -41,6 +42,9 @@ class EmailTransportTest {
                 .withProperty("tramposeditor.notifications.base-url", "https://teste.example.com")
                 .withProperty("spring.mail.host", "smtp.example.com")
                 .withProperty("spring.mail.port", "587")
+                .withProperty("spring.mail.properties.mail.smtp.connectiontimeout", "5000")
+                .withProperty("spring.mail.properties.mail.smtp.timeout", "5000")
+                .withProperty("spring.mail.properties.mail.smtp.writetimeout", "5000")
                 .withProperty("spring.mail.username", "usuario-ficticio")
                 .withProperty("spring.mail.password", "senha-ficticia");
     }
@@ -67,7 +71,8 @@ class EmailTransportTest {
                             .containsEntry("mail.smtp.connectiontimeout", "5000")
                             .containsEntry("mail.smtp.timeout", "5000")
                             .containsEntry("mail.smtp.writetimeout", "5000")
-                            .containsEntry("mail.smtp.starttls.enable", "true");
+                            .containsEntry("mail.smtp.starttls.enable", "true")
+                            .containsEntry("mail.smtp.starttls.required", "true");
                 });
     }
 
@@ -82,6 +87,13 @@ class EmailTransportTest {
                 "tramposeditor.notifications.from", "tramposeditor.notifications.base-url")) {
             assertThatThrownBy(() -> new ProductionEmailConfiguration(valid().withProperty(key, "")))
                     .isInstanceOf(IllegalStateException.class).hasMessageContaining("docs/EMAIL.md").hasNoCause();
+        }
+        for (String timeout : List.of("connectiontimeout", "timeout", "writetimeout")) {
+            for (String value : List.of("", "0", "-1", "invalido")) {
+                assertThatThrownBy(() -> new ProductionEmailConfiguration(valid()
+                        .withProperty("spring.mail.properties.mail.smtp." + timeout, value)))
+                        .isInstanceOf(IllegalStateException.class).hasNoCause();
+            }
         }
         for (String url : List.of("http://teste.example.com", "https://localhost",
                 "https://teste.example.com/caminho", "https://teste.example.com?token=segredo")) {
@@ -109,10 +121,11 @@ class EmailTransportTest {
         var mail = spy(new JavaMailSenderImpl());
         doThrow(new MailSendException("token=segredo-do-provedor")).when(mail).send(any(jakarta.mail.internet.MimeMessage.class));
         var properties = new NotificationProperties("teste@example.com", "https://teste.example.com");
-        var service = new NotificationService(new SmtpEmailSender(mail, properties), properties);
+        var service = new NotificationService(
+                new NotificationDelivery(new SmtpEmailSender(mail, properties), "smtp", 1, 1, 0), properties);
         assertThatThrownBy(() -> service.signupCode("destino@example.com", "Teste", "938471"))
                 .isInstanceOf(RequiredEmailException.class).hasNoCause();
-        assertThat(output.getAll()).contains("Falha no envio obrigatório")
+        assertThat(output.getAll()).contains("tipo=SIGNUP categoria=transporte duracao_ms=")
                 .doesNotContain("938471", "segredo-do-provedor", "destino@example.com");
     }
 }
