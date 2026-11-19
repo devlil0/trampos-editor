@@ -8,11 +8,17 @@
 -- na camada logada é o erro que o §1 nomeia: ele infla a área que deveria só
 -- resolver, e nenhuma dessas perguntas é diária.
 --
--- Como usar:
---   docker exec -i tramposeditor_postgres psql -U tramposeditor -d tramposeditor \
---     -f - < docs/QUERIES-INSTRUMENTACAO.sql
+-- Como usar no banco de desenvolvimento, na raiz do projeto:
+--   docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 \
+--     -U tramposeditor -d tramposeditor -f - < docs/QUERIES-INSTRUMENTACAO.sql
 --
--- Ou cole uma de cada vez. Elas são independentes e todas somente-leitura.
+-- No PowerShell, use:
+--   $OutputEncoding = [Text.UTF8Encoding]::new($false)
+--   Get-Content -Raw -Encoding UTF8 docs/QUERIES-INSTRUMENTACAO.sql | docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U tramposeditor -d tramposeditor -f -
+--
+-- As consultas são independentes, somente leitura e sem recorte de datas.
+-- Criada é toda linha em deals. Concluída exige status = 'DONE'.
+-- CANCELLED também tem closed_at e fica fora da contagem de concluídas.
 -- =============================================================================
 
 
@@ -57,11 +63,10 @@ GROUP BY 1
 ORDER BY contas DESC;
 
 
--- 1.3 Como a pessoa entrou: senha ou provedor.
+-- 1.3 Contas por vínculo social atual.
 --
--- Derivável desde a V10 — está aqui porque a pergunta "o login social valeu a
--- pena?" é do mesmo fôlego das de cima, e ninguém vai lembrar de cruzar duas
--- tabelas pra respondê-la.
+-- Uma conta pode aparecer em mais de um provedor. Sem vínculo aparece em
+-- "senha". Vínculos atuais não identificam o método original de cadastro.
 SELECT
     COALESCE(i.provider, 'senha') AS metodo,
     COUNT(DISTINCT u.id)          AS contas
@@ -86,7 +91,8 @@ SELECT
     COUNT(*) FILTER (WHERE e.id IS NOT NULL)                        AS publicaram_perfil,
     COUNT(*) FILTER (WHERE c.conversas > 0)                         AS foram_procurados,
     COUNT(*) FILTER (WHERE m.respostas > 0)                         AS responderam,
-    COUNT(*) FILTER (WHERE d.fechados > 0)                          AS fecharam_trampo,
+    COUNT(*) FILTER (WHERE d.criadas > 0)                          AS com_contratacao_criada,
+    COUNT(*) FILTER (WHERE d.concluidas > 0)                       AS com_contratacao_concluida,
     COUNT(*) FILTER (WHERE e.rating_count > 0)                      AS receberam_nota
 FROM users u
 LEFT JOIN editor_profiles e ON e.user_id = u.id
@@ -97,8 +103,20 @@ LEFT JOIN LATERAL (
     SELECT COUNT(*) AS respostas FROM messages m2 WHERE m2.sender_user_id = u.id
 ) m ON TRUE
 LEFT JOIN LATERAL (
-    SELECT COUNT(*) AS fechados FROM deals d2 WHERE d2.editor_user_id = u.id
+    SELECT COUNT(*) AS criadas,
+           COUNT(*) FILTER (WHERE d2.status = 'DONE') AS concluidas
+    FROM deals d2
+    WHERE d2.editor_user_id = u.id
 ) d ON TRUE;
+
+
+-- 2.2 Contratações criadas e seu estado atual, nas duas portas de entrada.
+SELECT
+    COUNT(*)                                      AS contratacoes_criadas,
+    COUNT(*) FILTER (WHERE status = 'OPEN')       AS abertas,
+    COUNT(*) FILTER (WHERE status = 'DONE')       AS concluidas,
+    COUNT(*) FILTER (WHERE status = 'CANCELLED')  AS canceladas
+FROM deals;
 
 
 -- -----------------------------------------------------------------------------
@@ -126,20 +144,28 @@ FROM (
 ) por_cliente;
 
 
--- 3.2 Fechar trampo faz voltar?
+-- 3.2 Repetição de pedidos por situação das contratações.
 --
--- Cruza o retorno com o desfecho. Se quem fechou volta muito mais que quem não
--- fechou, o gatilho certo é o do fecho (§3.2, opção 1) e não o reconvite por
--- inatividade (opção 3) — que é o mais caro e o mais fácil de virar spam.
+-- Cada cliente com pelo menos um pedido entra em um grupo. "Voltaram"
+-- significa dois ou mais pedidos no histórico. A comparação não verifica
+-- a ordem dos eventos nem demonstra que concluir uma contratação causou retorno.
 SELECT
-    (d.fechados > 0)                    AS ja_fechou_algum,
-    COUNT(*)                            AS clientes,
+    CASE
+        WHEN d.concluidas > 0 THEN 'com_conclusao'
+        WHEN d.criadas > 0 THEN 'criada_sem_conclusao'
+        ELSE 'sem_contratacao'
+    END AS grupo,
+    COUNT(*) AS clientes,
     COUNT(*) FILTER (WHERE j.pedidos > 1) AS voltaram
 FROM (SELECT client_user_id, COUNT(*) AS pedidos FROM job_requests GROUP BY client_user_id) j
 LEFT JOIN LATERAL (
-    SELECT COUNT(*) AS fechados FROM deals d2 WHERE d2.client_user_id = j.client_user_id
+    SELECT COUNT(*) AS criadas,
+           COUNT(*) FILTER (WHERE d2.status = 'DONE') AS concluidas
+    FROM deals d2
+    WHERE d2.client_user_id = j.client_user_id
 ) d ON TRUE
-GROUP BY 1;
+GROUP BY 1
+ORDER BY 1;
 
 
 -- -----------------------------------------------------------------------------
@@ -160,17 +186,27 @@ SELECT
 FROM editor_profiles;
 
 
--- 4.2 Quantos trampos fechados viraram avaliação.
+-- 4.2 Cobertura de avaliações entre contratações concluídas.
 --
--- O e-mail de fecho existe pra isso. Proporção baixa aqui com e-mail chegando
--- significa que o pedido não convence; proporção baixa COM e-mail não chegando é
--- outro problema — cheque a 5.1 antes de mexer no texto.
+-- Cada contratação DONE conta uma vez na base. Com pelo menos uma nota,
+-- conta uma vez na cobertura, mesmo quando os dois lados avaliam. O total
+-- de avaliações é exibido à parte. Sem DONE, o percentual é NULL.
+WITH avaliacoes_por_contratacao AS (
+    SELECT deal_id, COUNT(*) AS avaliacoes
+    FROM reviews
+    GROUP BY deal_id
+)
 SELECT
-    COUNT(DISTINCT d.id)  AS trampos_fechados,
-    COUNT(DISTINCT r.id)  AS avaliacoes,
-    ROUND(100.0 * COUNT(DISTINCT r.id) / NULLIF(COUNT(DISTINCT d.id), 0), 1) AS pct
+    COUNT(*) AS contratacoes_concluidas,
+    COUNT(*) FILTER (WHERE r.avaliacoes > 0) AS concluidas_com_avaliacao,
+    COALESCE(SUM(r.avaliacoes), 0) AS avaliacoes,
+    ROUND(
+        100.0 * COUNT(*) FILTER (WHERE r.avaliacoes > 0) / NULLIF(COUNT(*), 0),
+        1
+    ) AS pct_concluidas_com_avaliacao
 FROM deals d
-LEFT JOIN reviews r ON r.deal_id = d.id;
+LEFT JOIN avaliacoes_por_contratacao r ON r.deal_id = d.id
+WHERE d.status = 'DONE';
 
 
 -- -----------------------------------------------------------------------------
@@ -194,8 +230,8 @@ FROM users;
 
 -- 5.2 Quanto tempo levam pra confirmar.
 --
--- Mediana alta ou muitos "nunca" apontam pro e-mail caindo em spam — o que se
--- resolve no DNS da Resend, não no texto do aviso.
+-- Mediana alta ou muitas contas sem confirmação pedem investigação.
+-- A métrica não mede entrega, pasta de spam ou a causa da demora.
 SELECT
     COUNT(*) FILTER (WHERE email_verified_at IS NULL)  AS nunca_confirmaram,
     -- PERCENTILE_CONT ignora nulo sozinho, então quem nunca confirmou não entra na
@@ -204,3 +240,21 @@ SELECT
         ORDER BY email_verified_at - created_at
     )) / 60)                                           AS mediana_minutos
 FROM users;
+
+-- -----------------------------------------------------------------------------
+-- Referência para validar em PostgreSQL descartável com dados sintéticos.
+--
+-- Quatro clientes publicaram ao menos um pedido:
+--   A publicou 2, tem 2 DONE com o mesmo editor e um deles recebeu duas notas.
+--   B publicou 1 e tem 1 OPEN com outro editor.
+--   C publicou 2 e tem 2 CANCELLED com um terceiro editor.
+--   D publicou 1 e não tem contratação.
+--
+-- Esperado em 2.1 e 2.2: 3 editores com contratação, 1 com conclusão;
+-- 5 criadas, 1 OPEN, 2 DONE e 2 CANCELLED.
+-- Esperado em 3.2: 1 de 1 voltou em com_conclusao, 1 de 2 em
+-- criada_sem_conclusao e 0 de 1 em sem_contratacao.
+-- Esperado em 4.2: 2 DONE, 1 com pelo menos uma nota, 2 notas, 50,0%.
+-- Sem DONE: 4.2 retorna 0 concluídas, 0 concluídas avaliadas, 0 notas
+-- contabilizadas e percentual NULL. O grupo com_conclusao não aparece em 3.2.
+-- -----------------------------------------------------------------------------

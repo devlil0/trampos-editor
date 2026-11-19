@@ -1,70 +1,121 @@
 # TramposEditor
 
-Marketplace que conecta **editores de vídeo** (short-form: Reels/TikTok/Shorts) a criadores e empresas.
-
-Contexto de produto, estratégia e roadmap: [`docs/FUNDACAO.md`](docs/FUNDACAO.md).
-
-## Stack
-
-Spring Boot 4.0.7 · Java 21 · PostgreSQL 16 · Flyway · Spring Security (JWT HS256) · Docker
+Marketplace que conecta **editores de vídeo** a criadores e empresas.
 
 ## Rodando localmente
 
-Requer Docker e JDK 21.
+Você precisa de Docker com Compose, JDK 21, Node.js 24 e npm. Use um clone
+limpo, sem copiar arquivos privados de outra máquina. O Compose de
+desenvolvimento sobe apenas o PostgreSQL 16. A API Spring Boot e o frontend
+Next.js rodam em terminais próprios.
 
-```bash
-docker compose up -d          # sobe o Postgres em localhost:5432
-./mvnw spring-boot:run        # perfil "dev" é o padrão
+No PowerShell, partindo da raiz do projeto:
+
+1. Suba o banco com `docker compose up -d --wait postgres`. O Compose
+   espera o banco ficar saudável. A porta 5432 fica disponível só na máquina local.
+2. Em outro terminal, rode na raiz `.\mvnw.cmd spring-boot:run '-Dspring-boot.run.profiles=dev'`. A API
+   usa o perfil de desenvolvimento e sobe em `http://localhost:8080`.
+3. Em outro terminal, rode os comandos abaixo na raiz e abra
+   `http://localhost:3000`.
+
+   ```powershell
+   Set-Location frontend
+   npm.cmd ci
+   npm.cmd run dev
+   ```
+
+No Linux ou macOS, use `bash ./mvnw spring-boot:run` para a API e
+`cd frontend`, `npm ci` e `npm run dev` para o frontend. Com a API e o
+Next nessas portas, os valores padrão atendem ao desenvolvimento.
+
+A saúde da API pode ser conferida com
+`Invoke-RestMethod http://localhost:8080/actuator/health` no PowerShell
+ou `curl http://localhost:8080/actuator/health` no Linux ou macOS. Para
+testar o backend com um PostgreSQL descartável, veja os comandos no
+[guia de CI](docs/CI.md#backend).
+
+## Cadastro por senha em duas etapas
+
+Para ler o código de teste, configure o [capturador SMTP local](docs/EMAIL.md#capturador-smtp-local)
+e reinicie apenas a API usando o perfil de desenvolvimento conforme o guia.
+Mantenha o banco e o Next rodando. O modo `log` simula o envio e registra
+metadados operacionais. O código fica disponível no Mailpit quando se usa
+o capturador.
+
+Pelo site, abra `http://localhost:3000/criar-conta`, preencha o cadastro
+com um endereço fictício e confirme o código de seis dígitos exibido
+na caixa local do Mailpit. A sessão só é criada na confirmação.
+
+Para conferir as mesmas duas chamadas diretamente na API em PowerShell,
+use outro endereço e nome de usuário fictícios. O primeiro pedido
+retorna `202` com `email` e `expiresIn` em segundos. Ele guarda uma
+pendência e solicita o envio do código.
+
+```powershell
+$cadastro = @{
+    email = 'cliente-teste@example.test'
+    password = 'senha-local-ficticia'
+    displayName = 'Cliente Teste'
+    username = 'cliente-teste'
+    roles = @('CLIENT')
+} | ConvertTo-Json -Compress
+$cadastro | curl.exe -sS -w "`nHTTP %{http_code}`n" -H 'Content-Type: application/json' --data-binary '@-' http://localhost:8080/v1/auth/register
 ```
 
-A API sobe em `http://localhost:8080`. Health: `GET /actuator/health`.
-Para testar códigos de cadastro e links de identidade, use o
-[capturador SMTP local](docs/EMAIL.md#capturador-smtp-local).
+Leia o código do pedido no Mailpit. O segundo POST deve retornar `201`,
+criar a conta com e-mail confirmado e devolver o usuário e o token de
+acesso. O exemplo descarta o corpo para evitar exibir o token no terminal.
 
-```bash
-./mvnw test                   # testes de integração com Testcontainers (precisa do Docker)
+```powershell
+$codigo = Read-Host 'Código de seis dígitos do Mailpit'
+$confirmacao = @{ email = 'cliente-teste@example.test'; code = $codigo } | ConvertTo-Json -Compress
+$confirmacao | curl.exe -sS -o NUL -w "HTTP %{http_code}`n" -H 'Content-Type: application/json' --data-binary '@-' http://localhost:8080/v1/auth/register/confirm
 ```
 
-## Endpoints
+No site, o formulário envia apenas `CLIENT`. Publicar o perfil de editor
+com o e-mail confirmado acrescenta `EDITOR` à mesma conta. Quem integra
+diretamente com a API pode enviar `CLIENT`, `EDITOR` ou ambos em
+`roles`. O cadastro público nunca concede `ADMIN`. Ter o papel `EDITOR`
+por si só não publica o perfil.
 
-| Método | Rota | Auth | Descrição |
-|---|---|---|---|
-| POST | `/v1/auth/register` | pública | Cadastro. `roles` aceita `EDITOR` e/ou `CLIENT` |
-| POST | `/v1/auth/login` | pública | Retorna access token |
-| GET | `/v1/users/me` | Bearer | Usuário autenticado |
-| PATCH | `/v1/users/me` | Bearer | Edita a própria conta. Hoje só `instagram` — aceita `@nome`, `nome` ou a URL colada; vazio remove |
-| GET | `/v1/editors` | pública | Vitrine: busca/filtro (`niche`, `tool`, `available`, `maxPriceCents`, `q`) + paginação (`page`, `size`) |
-| GET | `/v1/editors/{slug}` | pública | Perfil público do editor com portfólio |
-| GET | `/v1/me/editor-profile` | Bearer | Perfil de editor do usuário logado |
-| PUT | `/v1/me/editor-profile` | Bearer (EDITOR) | Cria/atualiza o próprio perfil |
-| POST | `/v1/me/editor-profile/portfolio` | Bearer (EDITOR) | Adiciona item de portfólio (link YouTube/Vimeo) |
-| DELETE | `/v1/me/editor-profile/portfolio/{itemId}` | Bearer (EDITOR) | Remove item de portfólio |
-| POST | `/v1/me/job-requests` | Bearer | Publica um pedido ("preciso de um editor") |
-| GET | `/v1/me/job-requests` | Bearer | Meus pedidos, com quem se candidatou |
-| POST | `/v1/me/job-requests/{id}/close` | Bearer | Fecha o pedido |
-| POST | `/v1/me/job-requests/{jobId}/interests/{interestId}/accept` | Bearer | Aceita um editor — **libera o contato dos dois lados** |
-| GET | `/v1/me/job-interests` | Bearer | Pedidos em que me candidatei |
-| GET | `/v1/job-requests` | Bearer | Feed de pedidos abertos (filtro `niche`) |
-| POST | `/v1/job-requests/{id}/interests` | Bearer (com perfil publicado) | Demonstra interesse num pedido |
-| GET | `/actuator/health` | pública | Health check |
+## Rotas principais da API
 
-> **Conta única:** todo cadastro entra como `CLIENT`. Publicar o perfil em `PUT /v1/me/editor-profile`
-> é o que concede o papel `EDITOR` — não existe cadastro separado de editor.
+| Método | Rota | Acesso e uso |
+| --- | --- | --- |
+| POST | `/v1/auth/register` | Público. Inicia o cadastro e retorna `202`. |
+| POST | `/v1/auth/register/confirm` | Público. Confirma o código e retorna `201` com a sessão. |
+| POST | `/v1/auth/register/resend` | Público. Solicita novo código. |
+| POST | `/v1/auth/login` | Público. Devolve o token de acesso para conta habilitada. |
+| GET, PATCH | `/v1/users/me` | Bearer. Consulta a conta ou edita o Instagram. |
+| PUT | `/v1/users/me/display-name`, `/v1/users/me/username` | Bearer. Editam nome e username em rotas separadas. |
+| POST | `/v1/users/me/password` | Bearer. Troca de senha com confirmação da atual. |
+| GET | `/v1/editors`, `/v1/editors/{slug}` | Público. Vitrine filtrada e detalhe com portfólio. |
+| GET, PUT | `/v1/me/editor-profile` | Bearer. Consulta ou publica o perfil. A publicação exige e-mail confirmado. |
+| POST, DELETE | `/v1/me/editor-profile/portfolio`, `/v1/me/editor-profile/portfolio/{itemId}` | Bearer. Adiciona ou remove item do perfil do titular. |
+| POST, GET | `/v1/me/job-requests` | Bearer. Publica ou lista os pedidos do cliente. |
+| POST | `/v1/me/job-requests/{jobId}/close` | Bearer. Fecha o pedido do cliente. |
+| POST | `/v1/me/job-requests/{jobId}/interests/{interestId}/accept` | Bearer. Aceita candidato, abre a conversa e registra a contratação. |
+| GET | `/v1/me/job-interests`, `/v1/job-requests` | Bearer. Lista as candidaturas do titular ou o feed de pedidos. |
+| POST | `/v1/job-requests/{jobId}/interests` | Bearer com perfil publicado. Demonstra interesse em um pedido. |
+| GET | `/actuator/health` | Público. Saúde da API. |
 
-```bash
-curl -X POST http://localhost:8080/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"editor@exemplo.com","password":"senhasegura123","displayName":"Editor","roles":["EDITOR"]}'
-```
+Em chamadas pela interface, o Next intermedeia as operações autenticadas
+e mantém o token em cookie `HttpOnly`. A leitura pública do avatar carrega
+a imagem direto da API. Upload e remoção passam pelo Next. No OAuth, o
+navegador segue os redirecionamentos entre Next, API e provedor. A troca
+do código por sessão é feita pelo servidor Next. Veja as URLs e os
+limites em [frontend/README.md](frontend/README.md).
 
-## Deploy na VPS
+## Operação e contexto
 
-```bash
-cp .env.example .env          # preencher; JWT_SECRET precisa de 32+ caracteres
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-A aplicação escuta apenas em `127.0.0.1:8080` e o Postgres não é exposto — quem fala com a
-internet é o Nginx na frente, terminando TLS e fazendo `proxy_pass` para a porta local.
-
-Configuração de e-mail obrigatório e contrato de falhas da autenticação: [docs/EMAIL.md](docs/EMAIL.md).
+- [Deploy, proxy, backup e rollback](docs/DEPLOY.md).
+- [E-mail, códigos de resposta e teste local](docs/EMAIL.md) e
+  [login social](docs/LOGIN-SOCIAL.md). A entrega real por SMTP e o
+  login completo com provedores reais aguardam validação autorizada.
+- [Consultas de instrumentação](docs/QUERIES-INSTRUMENTACAO.sql).
+- O upgrade afetado pela V12 permanece bloqueado e os avisos de
+  vulnerabilidades aguardam tratamento. Veja a [limitação da V12](docs/CI.md)
+  e o [inventário de vulnerabilidades](docs/T10-VULNERABILIDADES.md).
+- [Fundação](docs/FUNDACAO.md) e [esboço](docs/ESBOCO.md) registram
+  decisões e retratos históricos. As decisões de retenção e moderação
+  da T12 e as validações na infraestrutura de destino seguem pendentes.

@@ -1,5 +1,10 @@
 # TramposEditor — Esboço do Sistema Completo
 
+> **Registro histórico.** As tabelas e decisões datadas descrevem o
+> projeto na época. O [README atual](../README.md) indica o que rodar e
+> os contratos que estão no código. As decisões de retenção, retirada e
+> moderação da T12 continuam em aberto.
+>
 > O mapa do todo: cada superfície que o produto vai ter, o que faz o sistema girar, e
 > onde a estética, a ideologia e a cultura encostam no software.
 > Complementa o `FUNDACAO.md` (estratégia e decisões) — aqui é a forma do sistema.
@@ -153,6 +158,10 @@ toggle.
 
 ## 2. Inventário de superfícies
 
+> **Retrato histórico.** Para o estado da API e o roteiro do site, consulte
+> o [README atual](../README.md). OAuth é opcional e a validação com os
+> provedores reais segue pendente.
+
 | Superfície | Existe | Público | Papel | Fase |
 |---|:---:|---|---|---|
 | `/` landing | ✅ | ambos | define, prova oferta, roteia | MVP |
@@ -245,6 +254,11 @@ Entrou junto o que faltava pra isso funcionar: `sitemap.xml` (que exclui as tags
 ---
 
 ## 3. Os quatro laços que fazem o sistema girar
+
+> Os laços abaixo preservam as hipóteses originais. As
+> [consultas de instrumentação](QUERIES-INSTRUMENTACAO.sql) distinguem
+> contratação criada de contratação concluída (`DONE`). A comparação
+> entre grupos não demonstra o efeito de concluir uma contratação.
 
 Um marketplace não é um conjunto de telas, é um conjunto de **ciclos**. Se um ciclo não
 fecha, o produto vaza pelo buraco.
@@ -558,6 +572,13 @@ Os itens 1 a 4 separam "as peças existem" de "o marketplace funciona". **3 e 4 
 o canal sem o motivo manda e-mail de nada; o motivo sem o canal fica esperando a aba abrir.
 
 ### Item 3 — o software acabou; o que falta é do dia do deploy (2026-08-06)
+
+> **Diagnóstico histórico.** O Compose atual já recebe as variáveis
+> de SMTP e URLs. O cadastro por senha exige confirmação por código.
+> Os avisos do marketplace são disparados após o commit. O
+> [guia de e-mail](EMAIL.md) descreve a configuração e a validação local.
+> SMTP real, remetente e SPF/DKIM ainda dependem de validação autorizada
+> no ambiente de destino. Veja também o [guia de deploy](DEPLOY.md).
 
 O domínio foi adquirido (`.com` e `.com.br`) e a dívida de código foi paga: os seis e-mails
 existem e têm call site real (mensagem, interesse recebido, interesse aceito, trampo fechado,
