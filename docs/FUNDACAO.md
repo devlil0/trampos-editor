@@ -1,6 +1,11 @@
 # TramposEditor — Documento de Fundação
 
 > Marketplace para encontrar **editores de vídeo profissionais**.
+> **Registro histórico.** As decisões e os retratos datados abaixo
+> preservam o contexto em que foram escritos. Consulte o
+> [README atual](../README.md) para executar o projeto e conferir
+> os contratos vigentes.
+>
 > Dia 1: estudo, análise, mapeamento e planejamento. Nada de código de produto ainda.
 > Data: 2026-07-21 · Stack base já existente: Spring Boot 4.1.0 + Java 17 (esqueleto limpo).
 
@@ -299,6 +304,12 @@ Diretório de editores entregue ponta a ponta (taxonomia + perfil/portfólio + v
 
 ### 11.6. Frontend MVP — vitrine (2026-07-26)
 
+> **Retrato do MVP em julho de 2026.** Desde então entraram as telas de
+> autenticação e de gestão do perfil e o Dockerfile do Next. A API ainda
+> é acessada pelo servidor Next via `API_URL`. O navegador carrega
+> avatares públicos e segue redirecionamentos OAuth via `PUBLIC_API_URL`.
+> O [guia do frontend](../frontend/README.md) descreve essas rotas.
+
 Front iniciado em `frontend/` (app separado, como previsto no §5.3). Visual aprovado a partir
 de mockup HTML estático antes de escrever React (referências do cliente: Dolphin Anty pro
 minimalismo/violeta com dark de origem, 99freelas só pela lógica de card/filtro).
@@ -367,6 +378,9 @@ front já usava (`--accent: #8b5cf6`), então **nenhum token de tema mudou**.
 
 ### 11.8. Taxonomia por plataforma, auth no front e área logada (2026-07-27)
 
+> **Retrato anterior ao cadastro por código.** Consulte o
+> [fluxo atual em duas etapas](../README.md#cadastro-por-senha-em-duas-etapas).
+
 **Nichos deixaram de ser formato e viraram plataforma.** `EditorNiche` era
 `SHORTS | YOUTUBE | PODCAST`; agora é `TIKTOK | REELS | YOUTUBE | PODCAST`. Motivo: o cliente
 chega procurando "editor de TikTok", não "editor de short-form" — e cada plataforma tem marca
@@ -407,6 +421,11 @@ cliente, §5.2), `/como-funciona` (dois públicos, âncora `#para-editores` usad
 `<html>` via `useSyncExternalStore` — a fonte da verdade é o DOM que o script inline já escreveu.
 
 ### 11.9. Conta única e o coração do painel (2026-07-27)
+
+> **Decisão do produto e retrato da interface naquela data.** O site ainda
+> começa com `CLIENT` e a publicação do perfil acrescenta `EDITOR`.
+> O contrato da API aceita um ou ambos os papéis no cadastro por senha.
+> Veja [papéis e a confirmação do endereço](../README.md#cadastro-por-senha-em-duas-etapas).
 
 **Decisão de produto do usuário: a conta é uma só.** Não existe "cadastro de editor" separado —
 todo mundo entra podendo contratar, e **publicar o perfil de editor é o que registra a pessoa

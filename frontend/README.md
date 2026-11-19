@@ -1,53 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend do TramposEditor
 
-## Assets de marca
+Interface em Next.js com App Router. Para o desenvolvimento, use Node.js 24
+e npm. O backend Java e o PostgreSQL devem estar disponíveis conforme o
+[guia da raiz](../README.md#rodando-localmente).
 
-Ícones, favicon e imagem de compartilhamento são **gerados** a partir das artes originais em
-`../media/` (não editar na mão):
+## Desenvolvimento
 
-```bash
-node scripts/gen-brand-assets.mjs
+No PowerShell, partindo da raiz do projeto:
+
+```powershell
+Set-Location frontend
+npm.cmd ci
+npm.cmd run dev
 ```
 
-Saída: `src/app/{icon,apple-icon,opengraph-image,twitter-image}.png`, `src/app/favicon.ico` e
-`public/logo-mark.png` (a marca da nav). Decisões e pegadinhas em `../docs/FUNDACAO.md` §11.7.
+No Linux ou macOS, use `cd frontend`, `npm ci` e `npm run dev`.
+Abra `http://localhost:3000`. Para testar o cadastro por senha, use o
+[capturador SMTP local](../docs/EMAIL.md#capturador-smtp-local) ligado
+à API. O Next só cria a sessão após a confirmação do código.
 
 ## Variáveis de ambiente
 
-`API_URL` (backend, lido só no servidor) e `SITE_URL` (URL pública, usada no `metadataBase`
-pras URLs absolutas de `og:image`). Ver `.env.example`.
+Os valores padrão de localhost atendem quando os dois runtimes rodam na
+máquina local. Para mudar uma URL, use o exemplo sanitizado em
+[`.env.example`](.env.example).
 
-## Getting Started
+| Variável | Uso |
+| --- | --- |
+| `API_URL` | Endereço da API que o servidor Next alcança. Usado em consultas e operações autenticadas. Padrão `http://localhost:8080`. |
+| `PUBLIC_API_URL` | Endereço da API acessível pelo navegador para fotos públicas e redirecionamentos OAuth. Quando omitido, usa `API_URL`. |
+| `SITE_URL` | Origem pública do Next para metadados, robots.txt e sitemap. Padrão `http://localhost:3000`. No Compose de produção, mantenha o mesmo valor no build e em execução. |
 
-First, run the development server:
+O Next age como BFF, intermediando chamadas entre o navegador e a API.
+O servidor Next usa o token guardado em cookie `HttpOnly` para autenticar
+essas chamadas.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Avatar público.** O Next produz a URL e o navegador busca a imagem
+  em `GET /v1/avatars/{username}` na API pública. O upload e a remoção
+  passam pelas ações autenticadas no Next.
+- **OAuth.** O início passa pelo Next. O navegador segue para a origem
+  pública da API e para o provedor. A API recebe o callback do provedor e
+  redireciona de volta ao Next. O servidor Next troca o código de uso
+  único com a API interna, usando a prova do navegador. OAuth é opcional.
+  Veja o [contrato do login social](../docs/LOGIN-SOCIAL.md).
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Para publicar o frontend junto com a API, siga o
+[guia de deploy](../docs/DEPLOY.md).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Assets de marca
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ícones, favicon e imagem de compartilhamento são gerados a partir das
+artes originais em `../media/`. Para gerar novamente, rode
+`node scripts/gen-brand-assets.mjs` dentro de `frontend`.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+O script escreve os ícones e as imagens em `src/app/` e gera
+`public/logo-mark.png`. O contexto dessa decisão está na seção 11.7
+do [documento de fundação](../docs/FUNDACAO.md).
