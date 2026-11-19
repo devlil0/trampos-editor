@@ -9,6 +9,7 @@ import com.devlil0.tramposeditor.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
@@ -56,7 +57,7 @@ public class AvatarService {
             throw new BusinessException("Escolha uma imagem.");
         }
         if (file.getSize() > MAX_UPLOAD_BYTES) {
-            throw new BusinessException("A imagem precisa ter no máximo 5 MB.");
+            throw new MaxUploadSizeExceededException(MAX_UPLOAD_BYTES);
         }
 
         byte[] normalizada = normalizar(file);
