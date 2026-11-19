@@ -2,7 +2,10 @@ package com.devlil0.tramposeditor.service;
 
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.time.Duration;
@@ -62,7 +65,21 @@ public class UsernameService {
             "tiktok", "reels", "youtube", "podcast", "canal-dark",
             "premiere", "capcut", "after-effects", "davinci-resolve", "final-cut-pro");
 
+    // Namespace de advisory locks de username no PostgreSQL.
+    private static final int USERNAME_LOCK_NAMESPACE = 0x54453036;
     private final IUserRepository userRepository;
+    private final JdbcTemplate jdbc;
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void bloquearParaEscrita(String username) {
+        jdbc.query("select pg_advisory_xact_lock(?, hashtext(?))",
+                (result, row) -> null, USERNAME_LOCK_NAMESPACE, username);
+    }
+
+    private boolean tentarBloquearParaEscrita(String username) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("select pg_try_advisory_xact_lock(?, hashtext(?))",
+                Boolean.class, USERNAME_LOCK_NAMESPACE, username));
+    }
 
     public boolean isReserved(String username){
         return username != null && RESERVED.contains(username.toLowerCase(Locale.ROOT));
@@ -73,6 +90,14 @@ public class UsernameService {
      * {@code null} se estiver bom.
      */
     public String validar(String username, UUID donoAtual){
+        return validar(username, donoAtual, null);
+    }
+
+    public String validarParaCadastro(String username, String email) {
+        return validar(username, null, email);
+    }
+
+    private String validar(String username, UUID donoAtual, String emailDaPendencia) {
         if (username == null || username.isBlank()) {
             return "Escolha um nome de usuário.";
         }
@@ -93,10 +118,12 @@ public class UsernameService {
             return "Esse nome é reservado pela plataforma. Escolha outro.";
         }
 
-        return userRepository.findByUsername(limpo)
-                .filter(dono -> !dono.getId().equals(donoAtual))
-                .map(dono -> "Esse nome de usuário já está em uso.")
-                .orElse(null);
+        return switch (userRepository.findUsernameAvailability(limpo, donoAtual, emailDaPendencia, LocalDateTime.now())) {
+            case "IN_USE" -> "Esse nome de usuário já está em uso.";
+            case "RESERVED" -> "Esse nome de usuário está reservado por outro cadastro. Escolha outro.";
+            case "AVAILABLE" -> null;
+            default -> throw new IllegalStateException("Estado de disponibilidade de username desconhecido");
+        };
     }
 
     /** Forma canônica do que a pessoa digitou — é isto que vai pro banco. */
@@ -135,6 +162,7 @@ public class UsernameService {
      * Em colisão, sufixo curto aleatório em vez de contador: evita uma segunda consulta de
      * sondagem e não vaza quantos homônimos existem, mesma escolha do slug do editor.
      */
+    @Transactional(propagation = Propagation.MANDATORY)
     public String gerarPara(String displayName){
         String base = slugify(displayName);
         if (base.length() < MIN_LENGTH) {
@@ -142,7 +170,7 @@ public class UsernameService {
         }
 
         String candidato = base;
-        while (isReserved(candidato) || userRepository.existsByUsername(candidato)) {
+        while (!tentarBloquearParaEscrita(candidato) || validar(candidato, null) != null) {
             String sufixo = UUID.randomUUID().toString().substring(0, 6);
             candidato = truncate(base, MAX_LENGTH - sufixo.length() - 1) + "-" + sufixo;
         }

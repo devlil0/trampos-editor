@@ -48,7 +48,7 @@ public class PasswordResetService {
      */
     @Transactional
     public void request(String email){
-        userRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT)).ifPresent(user -> {
+        userRepository.findLockedByEmail(email.trim().toLowerCase(Locale.ROOT)).ifPresent(user -> {
             if (!user.isActive()) return;
 
             // Um link vivo por conta: pedir de novo invalida o anterior.
@@ -67,15 +67,19 @@ public class PasswordResetService {
 
     @Transactional
     public void confirm(PasswordResetConfirmDTO dto){
+        String hash = TokenSecrets.hash(dto.token());
+        // Emissão e consumo bloqueiam a mesma conta antes de tocar o token.
+        UserEntity user = tokenRepository.findUserIdByTokenHash(hash)
+                .flatMap(userRepository::findLockedById)
+                .filter(UserEntity::isActive)
+                .orElseThrow(() -> new BusinessException(INVALID_LINK));
         LocalDateTime now = LocalDateTime.now();
-        PasswordResetTokenEntity token = tokenRepository.findByTokenHash(TokenSecrets.hash(dto.token()))
-                // Token inexistente e token expirado dão a mesma resposta: distinguir
-                // contaria a quem tenta adivinhar que ele existiu um dia.
+        PasswordResetTokenEntity token = tokenRepository.findByTokenHash(hash)
                 .filter(t -> t.isUsable(now))
                 .orElseThrow(() -> new BusinessException(INVALID_LINK));
 
         if (userRepository.updatePasswordAndRevokeSessions(
-                token.getUser().getId(), passwordEncoder.encode(dto.password()), now) == 0) {
+                user.getId(), passwordEncoder.encode(dto.password()), now) == 0) {
             throw new BusinessException(INVALID_LINK);
         }
 

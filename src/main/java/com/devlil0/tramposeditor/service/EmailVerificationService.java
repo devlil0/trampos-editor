@@ -42,20 +42,20 @@ public class EmailVerificationService {
      * um e-mail no contador de reputação do domínio.
      */
     private static final Duration VALIDADE = Duration.ofDays(3);
+    private static final String INVALID_LINK = "Esse link expirou ou já foi usado. Peça outro.";
 
     private final IEmailVerificationTokenRepository tokenRepository;
     private final IUserRepository userRepository;
     private final NotificationService notificationService;
 
     /**
-     * Manda (ou remanda) o link. Chamado no cadastro por senha e pelo botão de reenviar.
+     * Manda (ou remanda) o link com a conta bloqueada.
      * <p>
      * Silencioso pra conta já verificada: reenviar não é erro que mereça tela vermelha, é
      * um clique a mais numa aba velha.
      */
-    @Transactional
-    public void send(UserEntity user){
-        if (user.isEmailVerified()) return;
+    private void send(UserEntity user){
+        if (!user.isActive() || user.isEmailVerified()) return;
 
         // Um link vivo por conta: pedir de novo invalida o anterior.
         tokenRepository.deleteByUserId(user.getId());
@@ -73,7 +73,7 @@ public class EmailVerificationService {
     /** Reenvio pedido por quem está logado. */
     @Transactional
     public void resend(UUID userId){
-        send(userRepository.findById(userId).orElseThrow(() -> new NotFoundException(userId)));
+        send(userRepository.findLockedById(userId).orElseThrow(() -> new NotFoundException(userId)));
     }
 
     /**
@@ -83,17 +83,18 @@ public class EmailVerificationService {
      */
     @Transactional
     public void confirm(String token){
-        EmailVerificationTokenEntity entity = tokenRepository
-                .findByTokenHash(TokenSecrets.hash(token))
-                .filter(t -> t.isUsable(LocalDateTime.now()))
-                .orElseThrow(() -> new BusinessException(
-                        "Esse link expirou ou já foi usado. Peça outro."));
+        String hash = TokenSecrets.hash(token);
+        UserEntity user = tokenRepository.findUserIdByTokenHash(hash)
+                .flatMap(userRepository::findLockedById)
+                .filter(UserEntity::isActive)
+                .orElseThrow(() -> new BusinessException(INVALID_LINK));
+        LocalDateTime now = LocalDateTime.now();
+        EmailVerificationTokenEntity entity = tokenRepository.findByTokenHash(hash)
+                .filter(t -> t.isUsable(now))
+                .orElseThrow(() -> new BusinessException(INVALID_LINK));
 
-        UserEntity user = entity.getUser();
-        user.setEmailVerifiedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-        entity.setUsedAt(LocalDateTime.now());
+        user.setEmailVerifiedAt(now);
+        entity.setUsedAt(now);
         tokenRepository.save(entity);
     }
 }
