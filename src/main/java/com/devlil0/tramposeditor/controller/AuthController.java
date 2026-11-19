@@ -1,5 +1,6 @@
 package com.devlil0.tramposeditor.controller;
 
+import com.devlil0.tramposeditor.config.AuthClientOrigin;
 import com.devlil0.tramposeditor.dto.AuthResponseDTO;
 import com.devlil0.tramposeditor.dto.EmailVerificationConfirmDTO;
 import com.devlil0.tramposeditor.dto.LoginRequestDTO;
@@ -10,12 +11,15 @@ import com.devlil0.tramposeditor.dto.SignupConfirmDTO;
 import com.devlil0.tramposeditor.dto.SignupStartedDTO;
 import com.devlil0.tramposeditor.dto.SocialExchangeDTO;
 import com.devlil0.tramposeditor.service.AuthService;
+import com.devlil0.tramposeditor.service.AuthRateLimiter;
+import com.devlil0.tramposeditor.service.AuthRateLimiter.Operation;
 import com.devlil0.tramposeditor.notification.RequiredEmailException;
 import com.devlil0.tramposeditor.service.EmailVerificationService;
 import com.devlil0.tramposeditor.service.PasswordResetService;
 import com.devlil0.tramposeditor.service.SignupService;
 import com.devlil0.tramposeditor.service.SocialLoginService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +34,8 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final SocialLoginService socialLoginService;
     private final EmailVerificationService emailVerificationService;
+    private final AuthRateLimiter rateLimiter;
+    private final AuthClientOrigin clientOrigin;
 
     /**
      * Passo 1 do cadastro: guarda o que foi preenchido e manda o código (V18).
@@ -41,7 +47,8 @@ public class AuthController {
      */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public SignupStartedDTO register(@Valid @RequestBody RegisterRequestDTO dto){
+    public SignupStartedDTO register(@Valid @RequestBody RegisterRequestDTO dto, HttpServletRequest request){
+        rateLimiter.check(Operation.SIGNUP, dto.email(), clientOrigin.resolve(request));
         return signupService.start(dto);
     }
 
@@ -58,13 +65,15 @@ public class AuthController {
      */
     @PostMapping("/register/resend")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resendSignupCode(@Valid @RequestBody PasswordResetRequestDTO dto){
+    public void resendSignupCode(@Valid @RequestBody PasswordResetRequestDTO dto, HttpServletRequest request){
+        rateLimiter.check(Operation.SIGNUP, dto.email(), clientOrigin.resolve(request));
         signupService.resend(dto.email());
     }
 
     @PostMapping("/login")
     @ResponseStatus(HttpStatus.OK)
-    public AuthResponseDTO login(@Valid @RequestBody LoginRequestDTO dto){
+    public AuthResponseDTO login(@Valid @RequestBody LoginRequestDTO dto, HttpServletRequest request){
+        rateLimiter.check(Operation.LOGIN, dto.email(), clientOrigin.resolve(request));
         return authService.login(dto);
     }
 
@@ -74,7 +83,8 @@ public class AuthController {
      */
     @PostMapping("/password-reset/request")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO dto){
+    public void requestPasswordReset(@Valid @RequestBody PasswordResetRequestDTO dto, HttpServletRequest request){
+        rateLimiter.check(Operation.PASSWORD_RESET, dto.email(), clientOrigin.resolve(request));
         try {
             passwordResetService.request(dto.email());
         } catch (RequiredEmailException ignored) {
