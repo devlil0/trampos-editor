@@ -92,6 +92,7 @@ public class UserService {
             }
         }
 
+        usernameService.bloquearParaEscrita(novo);
         String problema = usernameService.validar(novo, id);
         if (problema != null) {
             throw new BusinessException(problema);

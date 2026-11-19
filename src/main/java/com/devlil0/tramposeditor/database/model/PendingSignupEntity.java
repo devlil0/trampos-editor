@@ -76,6 +76,6 @@ public class PendingSignupEntity {
     private String signupLanding;
 
     public boolean isExpired(LocalDateTime now){
-        return expiresAt.isBefore(now);
+        return !expiresAt.isAfter(now);
     }
 }

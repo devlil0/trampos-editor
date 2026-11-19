@@ -2,6 +2,10 @@ package com.devlil0.tramposeditor.notification;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.mail.MailSendException;
@@ -43,11 +47,28 @@ class EmailTransportTest {
 
     @Test
     void producaoNuncaSelecionaAdaptadorDeLog() {
-        new org.springframework.boot.test.context.runner.ApplicationContextRunner()
+        new ApplicationContextRunner()
                 .withInitializer(context -> context.getEnvironment().setActiveProfiles("prod"))
                 .withUserConfiguration(LogEmailSender.class)
                 .withPropertyValues("tramposeditor.notifications.transport=log")
                 .run(context -> assertThat(context).doesNotHaveBean(EmailSender.class));
+    }
+
+    @Test
+    void perfilProdMantemTimeoutsNoJavaMailSender() {
+        new ApplicationContextRunner()
+                .withInitializer(context -> context.getEnvironment().setActiveProfiles("prod"))
+                .withInitializer(new ConfigDataApplicationContextInitializer())
+                .withConfiguration(AutoConfigurations.of(MailSenderAutoConfiguration.class))
+                .withPropertyValues("spring.mail.host=smtp.example.invalid", "spring.mail.test-connection=false")
+                .run(context -> {
+                    var mail = context.getBean(JavaMailSenderImpl.class);
+                    assertThat(mail.getJavaMailProperties())
+                            .containsEntry("mail.smtp.connectiontimeout", "5000")
+                            .containsEntry("mail.smtp.timeout", "5000")
+                            .containsEntry("mail.smtp.writetimeout", "5000")
+                            .containsEntry("mail.smtp.starttls.enable", "true");
+                });
     }
 
     @Test
