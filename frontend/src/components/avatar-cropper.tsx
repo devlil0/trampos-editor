@@ -144,8 +144,7 @@ export function AvatarCropper({
       setImg(imagem);
       setZoomUi(1);
     };
-    // Arquivo corrompido ou formato que o browser não abre: o backend também recusaria,
-    // mas dizer aqui evita uma ida ao servidor pra receber a mesma resposta.
+    // O navegador precisa conseguir abrir o arquivo para convertê-lo em JPEG.
     imagem.onerror = () => {
       if (!vivo) return;
       setErro(true);
@@ -165,6 +164,7 @@ export function AvatarCropper({
     if (!img || !el) return;
     const { x, y, zoom } = geo.current;
     el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom})`;
+    boxRef.current?.focus();
   }, [img]);
 
   useEffect(() => {
@@ -288,7 +288,10 @@ export function AvatarCropper({
     canvas.width = OUT;
     canvas.height = OUT;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      setErro(true);
+      return;
+    }
 
     // Fundo branco pelo mesmo motivo do backend: JPEG não tem canal alfa, e PNG
     // transparente sem fundo sai com as áreas vazias pretas.
@@ -303,7 +306,10 @@ export function AvatarCropper({
     const s = escalaBase * zoom;
     ctx.drawImage(img, -x / s, -y / s, BOX / s, BOX / s, 0, 0, OUT, OUT);
 
-    canvas.toBlob((blob) => blob && onConfirm(blob), "image/jpeg", 0.92);
+    canvas.toBlob((blob) => {
+      if (blob) onConfirm(blob);
+      else setErro(true);
+    }, "image/jpeg", 0.92);
   }
 
   if (erro) {
@@ -312,7 +318,7 @@ export function AvatarCropper({
         <p role="alert" className="text-sm text-busy">
           Não consegui abrir essa imagem. Tente outra — JPG, PNG ou WebP.
         </p>
-        <button type="button" onClick={onCancel} className="btn btn-ghost btn-sm mt-3">
+        <button type="button" autoFocus onClick={onCancel} className="btn btn-ghost btn-sm mt-3">
           Escolher outra
         </button>
       </div>
