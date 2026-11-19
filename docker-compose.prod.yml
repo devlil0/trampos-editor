@@ -1,40 +1,44 @@
-# Produção na VPS (KingHost / Hostinger).
-#   docker compose -f docker-compose.prod.yml up -d --build
-# Variáveis vêm do arquivo .env ao lado deste (ver .env.example).
+# Veja docs/DEPLOY.md para configurar o ambiente e o proxy HTTPS.
 services:
   postgres:
-    image: postgres:16-alpine
-    container_name: tramposeditor_postgres
+    image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     restart: unless-stopped
+    cpus: ${DB_CPUS:-1}
+    mem_limit: ${DB_MEMORY:-512m}
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:?Defina DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME:?Defina DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Defina DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 10
-    # Sem "ports": o banco só existe na rede interna do compose.
-    # Nunca exponha 5432 na internet — é varrido por bots em minutos.
 
   app:
+    image: ${API_IMAGE:-${COMPOSE_PROJECT_NAME}-api:local}
     build: .
-    container_name: tramposeditor_app
     restart: unless-stopped
+    cpus: ${API_CPUS:-1.5}
+    mem_limit: ${API_MEMORY:-768m}
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      # Ausente por padrão. Só declare os provedores que serão ativados.
+      - path: ${OAUTH_ENV_FILE:-.env.oauth}
+        required: false
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      SERVER_FORWARD_HEADERS_STRATEGY: none
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET}
       JWT_TTL: ${JWT_TTL:-PT12H}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-${FRONTEND_BASE_URL}}
       NOTIFICATIONS_TRANSPORT: ${NOTIFICATIONS_TRANSPORT:-smtp}
       MAIL_HOST: ${MAIL_HOST:?Defina MAIL_HOST}
       MAIL_PORT: ${MAIL_PORT:-587}
@@ -42,10 +46,33 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:?Defina MAIL_PASSWORD}
       NOTIFICATIONS_FROM: ${NOTIFICATIONS_FROM:?Defina NOTIFICATIONS_FROM}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:?Defina FRONTEND_BASE_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health/readiness || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
     ports:
-      # Só no loopback: quem fala com a internet é o Nginx (TLS/Let's Encrypt),
-      # que faz proxy_pass pra 127.0.0.1:8080.
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-${COMPOSE_PROJECT_NAME}-frontend:local}
+    build:
+      context: ./frontend
+      args:
+        SITE_URL: ${SITE_URL:?Defina SITE_URL}
+    restart: unless-stopped
+    cpus: ${FRONTEND_CPUS:-1}
+    mem_limit: ${FRONTEND_MEMORY:-512m}
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      API_URL: ${API_URL:-http://app:8080}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:?Defina PUBLIC_API_URL}
+      SITE_URL: ${SITE_URL:?Defina SITE_URL}
+    ports:
+      - "127.0.0.1:${FRONTEND_HOST_PORT:-3000}:3000"
 
 volumes:
   postgres_data:
