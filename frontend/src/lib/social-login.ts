@@ -18,7 +18,7 @@ const messages: Readonly<Record<string, string>> = {
   cancelled: "Login cancelado. Você pode tentar de novo.",
   expired: "Essa tentativa de login expirou ou é inválida. Comece de novo.",
   email_unverified: "Confirme seu e-mail no provedor ou entre com senha.",
-  link_not_allowed: "Entre com o método que você já usa para acessar sua conta.",
+  link_not_allowed: "Entre com seu método habitual ou tente recuperar a senha.",
   account_inactive: "Conta desativada.",
   unavailable: "Serviço de login indisponível. Tente de novo mais tarde.",
   failed: "Não foi possível concluir o login. Tente de novo.",

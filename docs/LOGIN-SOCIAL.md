@@ -9,11 +9,15 @@ endereço verificado pelo provedor. O Google fornece essa indicação no ID toke
 validado. O GitHub precisa do escopo `user:email` para consultar `/user/emails`,
 inclusive quando o perfil exibe um endereço público.
 
-O Google pode ter verificado um e-mail de terceiro no passado sem controlar a
-caixa de entrada hoje. Para vincular automaticamente uma conta já existente,
-aceitamos Gmail ou um domínio que corresponda ao `hd` do ID token do Workspace.
-Para os demais domínios, a pessoa pode entrar pelo método que já usa. Não há um
-novo fluxo de confirmação nesta entrega.
+O Google pode ter verificado um e-mail de terceiro antes de a caixa mudar de
+titular. Para criar ou vincular uma conta pelo Google, aceitamos Gmail ou um
+domínio que corresponda ao `hd` do ID token do Workspace.
+
+Tanto no Google quanto no GitHub, o vínculo automático por e-mail também exige que
+o endereço da conta existente já esteja confirmado no TramposEditor. Nas recusas
+por essa política, `link_not_allowed` orienta a usar o método habitual ou tentar
+recuperar a senha. Vínculos já registrados continuam resolvidos pelo identificador
+do provedor. A entrega usa os fluxos de entrada e recuperação existentes.
 
 ## Contrato com o frontend
 
@@ -54,7 +58,13 @@ O login por e-mail e senha permanece no fluxo atual.
 
 ## Validação
 
-Os testes locais usam PostgreSQL descartável e provedores simulados. O teste
-com apps OAuth reais de Google e GitHub continua pendente e deve ocorrer
-em ambiente autorizado, com URLs de retorno específicas e sem credenciais
+Os testes backend usam PostgreSQL descartável e provedores simulados. O teste
+automatizado do fluxo completo, do Next ao provedor simulado e de volta ao
+callback, continua pendente. Ele precisa executar Next e Spring juntos com um
+provedor local configurável e dois contextos de navegador isolados. Deve
+verificar que somente o navegador que iniciou o login cria sessão, além da
+limpeza do cookie no sucesso e no cancelamento.
+
+O teste com apps OAuth reais de Google e GitHub continua pendente e deve
+ocorrer em ambiente autorizado, com URLs de retorno específicas e sem credenciais
 de produção.

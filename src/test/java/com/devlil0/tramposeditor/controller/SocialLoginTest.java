@@ -10,6 +10,8 @@ import com.devlil0.tramposeditor.service.SocialLoginService;
 import com.devlil0.tramposeditor.service.BrowserLoginAttempt;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -208,6 +210,49 @@ class SocialLoginTest {
                 .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.LINK_NOT_ALLOWED));
         assertThat(identityRepository.count()).isZero();
         assertThat(userRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void emailDeTerceiroNoGoogleNaoCriaContaNova() {
+        assertThatThrownBy(() -> completar(
+                "google", "sub-terceiro", "terceiro@teste.com", "Perfil Google", null))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.LINK_NOT_ALLOWED));
+
+        assertThat(userRepository.count()).isZero();
+        assertThat(identityRepository.count()).isZero();
+        assertThat(codeRepository.count()).isZero();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"google", "github"})
+    void emailVerificadoNoProvedorNaoVinculaContaLegadaSemConfirmacao(String provider) throws Exception {
+        String email = "legada@teste.com";
+        registrarComSenha(email, "Conta Legada");
+        var user = userRepository.findByEmail(email).orElseThrow();
+        user.setEmailVerifiedAt(null);
+        userRepository.saveAndFlush(user);
+
+        String hostedDomain = "google".equals(provider) ? "teste.com" : null;
+        assertThatThrownBy(() -> completar(provider, "id-novo", email, "Perfil Provedor", hostedDomain))
+                .isInstanceOfSatisfying(SocialLoginFailure.class, e -> assertThat(e.reason()).isEqualTo(Reason.LINK_NOT_ALLOWED));
+
+        assertThat(userRepository.count()).isEqualTo(1);
+        assertThat(userRepository.findByEmail(email).orElseThrow().isEmailVerified()).isFalse();
+        assertThat(identityRepository.count()).isZero();
+        assertThat(codeRepository.count()).isZero();
+    }
+
+    @Test
+    void gmailVerificadoCriaContaEIdJaVinculadoContinuaValidoComEmailDeTerceiro() throws Exception {
+        String email = "pessoa@gmail.com";
+        String code = completar("google", "sub-gmail", email, "Perfil Google", null);
+        trocar(code).andExpect(status().isOk()).andExpect(jsonPath("$.user.email").value(email));
+        assertThat(userRepository.findByEmail(email).orElseThrow().isEmailVerified()).isTrue();
+
+        String codeDepoisDaMudanca = completar("google", "sub-gmail", "novo@teste.com", "Perfil Google", null);
+        trocar(codeDepoisDaMudanca).andExpect(status().isOk()).andExpect(jsonPath("$.user.email").value(email));
+        assertThat(userRepository.count()).isEqualTo(1);
+        assertThat(identityRepository.count()).isEqualTo(1);
     }
 
     @Test

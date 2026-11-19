@@ -98,10 +98,14 @@ public class SocialLoginService {
             throw new SocialLoginFailure(EMAIL_UNVERIFIED);
         }
 
-        var existente = userRepository.findByEmail(email);
         String domain = email.substring(at + 1);
-        if (existente.isPresent() && "google".equals(provider)
+        if ("google".equals(provider)
                 && !"gmail.com".equals(domain) && !domain.equalsIgnoreCase(hostedDomain)) {
+            throw new SocialLoginFailure(LINK_NOT_ALLOWED);
+        }
+
+        var existente = userRepository.findByEmail(email);
+        if (existente.isPresent() && !existente.get().isEmailVerified()) {
             throw new SocialLoginFailure(LINK_NOT_ALLOWED);
         }
         UserEntity user = existente.orElseGet(() -> createUser(email, displayName));
