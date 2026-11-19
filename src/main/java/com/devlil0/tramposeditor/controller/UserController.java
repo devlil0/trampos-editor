@@ -1,10 +1,16 @@
 package com.devlil0.tramposeditor.controller;
 
+import com.devlil0.tramposeditor.config.AuthClientOrigin;
+import com.devlil0.tramposeditor.dto.DisplayNameUpdateDTO;
+import com.devlil0.tramposeditor.dto.PasswordChangeDTO;
 import com.devlil0.tramposeditor.dto.UserResponseDTO;
 import com.devlil0.tramposeditor.dto.UserUpdateDTO;
 import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
 import com.devlil0.tramposeditor.service.EmailVerificationService;
+import com.devlil0.tramposeditor.service.JwtService;
+import com.devlil0.tramposeditor.service.PasswordChangeService;
 import com.devlil0.tramposeditor.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +34,8 @@ public class UserController {
 
     private final UserService userService;
     private final EmailVerificationService emailVerificationService;
+    private final PasswordChangeService passwordChangeService;
+    private final AuthClientOrigin clientOrigin;
 
     @GetMapping("/me")
     @ResponseStatus(HttpStatus.OK)
@@ -40,6 +48,20 @@ public class UserController {
     @ResponseStatus(HttpStatus.OK)
     public UserResponseDTO updateMe(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody UserUpdateDTO dto){
         return userService.updateMe(UUID.fromString(jwt.getSubject()), dto);
+    }
+
+    @PutMapping("/me/display-name")
+    public UserResponseDTO updateDisplayName(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody DisplayNameUpdateDTO dto) {
+        return userService.updateDisplayName(UUID.fromString(jwt.getSubject()), dto);
+    }
+
+    @PostMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody PasswordChangeDTO dto,
+                               HttpServletRequest request) {
+        Number sessionVersion = jwt.getClaim(JwtService.SESSION_VERSION_CLAIM);
+        passwordChangeService.change(UUID.fromString(jwt.getSubject()), sessionVersion.longValue(), dto,
+                clientOrigin.resolve(request));
     }
 
     /**

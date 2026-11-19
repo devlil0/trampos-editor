@@ -13,10 +13,11 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.UUID;
 
 @Service
 public class AuthRateLimiter {
-    public enum Operation { LOGIN, SIGNUP, PASSWORD_RESET }
+    public enum Operation { LOGIN, SIGNUP, PASSWORD_RESET, PASSWORD_CHANGE }
 
     private record Key(Operation operation, boolean account, String value) {}
     private record Expiry(Key key, Instant at) {}
@@ -47,6 +48,10 @@ public class AuthRateLimiter {
         reserve(operation, normalized, origin);
     }
 
+    public void checkPasswordChange(UUID userId, String origin) {
+        reserve(Operation.PASSWORD_CHANGE, TokenSecrets.hash(userId.toString()), origin);
+    }
+
     private synchronized void reserve(Operation operation, String account, String origin) {
         Instant now = clock.instant();
         while (!expiry.isEmpty() && !expiry.peek().at().isAfter(now)) {
@@ -63,6 +68,7 @@ public class AuthRateLimiter {
             case LOGIN -> limits.login();
             case SIGNUP -> limits.signup();
             case PASSWORD_RESET -> limits.passwordReset();
+            case PASSWORD_CHANGE -> limits.passwordChange();
         };
 
         var accountKey = new Key(operation, true, account);

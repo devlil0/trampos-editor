@@ -11,6 +11,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -93,10 +94,22 @@ class AuthRateLimiterTest {
         }
     }
 
+    @Test
+    void trocaDeSenhaRespeitaCotaPorOrigemSemConsumirCotaDoLogin() {
+        var limiter = limiter(20, 2, 1, 0);
+        String origin = "ip-1";
+        limiter.checkPasswordChange(UUID.randomUUID(), origin);
+        UUID anotherUser = UUID.randomUUID();
+        assertThat(assertThrows(AuthRateLimitException.class,
+                () -> limiter.checkPasswordChange(anotherUser, origin)).retryAfterSeconds()).isEqualTo(60);
+        limiter.check(LOGIN, "conta@teste.com", origin);
+        limiter.checkPasswordChange(anotherUser, "ip-2");
+    }
+
     private AuthRateLimiter limiter(int capacity, int account, int origin, int cooldownSeconds) {
         var policy = new AuthLimitProperties.Policy(account, origin, Duration.ofMinutes(1),
                 Duration.ofSeconds(cooldownSeconds));
-        return new AuthRateLimiter(new AuthLimitProperties(capacity, List.of(), policy, policy, policy), clock);
+        return new AuthRateLimiter(new AuthLimitProperties(capacity, List.of(), policy, policy, policy, policy), clock);
     }
 
     private static final class MutableClock extends Clock {

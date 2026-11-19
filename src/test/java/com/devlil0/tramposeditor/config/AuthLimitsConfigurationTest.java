@@ -14,7 +14,7 @@ class AuthLimitsConfigurationTest {
     @Test
     void rejeitaConfiguracoesQueReescrevemIpAntesDaValidacao() {
         var policy = new AuthLimitProperties.Policy(1, 1, Duration.ofMinutes(1), Duration.ZERO);
-        var properties = new AuthLimitProperties(10, List.of("192.0.2.1"), policy, policy, policy);
+        var properties = new AuthLimitProperties(10, List.of("192.0.2.1"), policy, policy, policy, policy);
         var configuration = new AuthLimitsConfiguration();
         for (String strategy : List.of("native", "framework")) {
             var environment = new MockEnvironment().withProperty("server.forward-headers-strategy", strategy);

@@ -113,6 +113,11 @@ tramposeditor:
       per-origin: 30
       window: 15m
       cooldown: 60s
+    password-change:
+      per-account: 5
+      per-origin: 30
+      window: 15m
+      cooldown: 0s
   notifications:
     # `log` escreve o e-mail no console; `smtp` manda de verdade. O default é `log` pra
     # que rodar local nunca exija credencial — prod troca isso explicitamente.

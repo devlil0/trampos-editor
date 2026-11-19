@@ -2,12 +2,14 @@ package com.devlil0.tramposeditor.service;
 
 import com.devlil0.tramposeditor.database.model.UserEntity;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.dto.DisplayNameUpdateDTO;
 import com.devlil0.tramposeditor.dto.UserResponseDTO;
 import com.devlil0.tramposeditor.dto.UserUpdateDTO;
 import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
 import com.devlil0.tramposeditor.exception.PostgresIntegrityViolation;
+import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -55,6 +57,14 @@ public class UserService {
         user.setInstagram(normalizeInstagram(dto.instagram()));
         userRepository.save(user);
 
+        return userMapper.toDTO(user);
+    }
+
+    @Transactional
+    public UserResponseDTO updateDisplayName(UUID id, DisplayNameUpdateDTO dto) {
+        UserEntity user = userRepository.findById(id).filter(UserEntity::isActive)
+                .orElseThrow(() -> new UnauthorizedException("Sessão inválida. Entre novamente."));
+        user.setDisplayName(dto.displayName());
         return userMapper.toDTO(user);
     }
 
