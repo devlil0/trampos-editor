@@ -10,6 +10,7 @@ import com.devlil0.tramposeditor.dto.SignupOriginDTO;
 import com.devlil0.tramposeditor.dto.SignupStartedDTO;
 import com.devlil0.tramposeditor.enums.UserRole;
 import com.devlil0.tramposeditor.exception.BusinessException;
+import com.devlil0.tramposeditor.exception.PostgresIntegrityViolation;
 import com.devlil0.tramposeditor.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -143,7 +144,11 @@ public class SignupService {
         try {
             pendingRepository.saveAndFlush(pendente);
         } catch (DataIntegrityViolationException e) {
-            // Corrida entre dois cadastros do mesmo e-mail ou username. O UNIQUE decide.
+            var duplicate = PostgresIntegrityViolation.from(e).duplicate();
+            if (duplicate != PostgresIntegrityViolation.Duplicate.SIGNUP_EMAIL
+                    && duplicate != PostgresIntegrityViolation.Duplicate.SIGNUP_USERNAME) {
+                throw e;
+            }
             throw new BusinessException(
                     "Esse nome de usuário ou e-mail acabou de ser pedido. Tente de novo.");
         }
@@ -212,6 +217,11 @@ public class SignupService {
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
+            var duplicate = PostgresIntegrityViolation.from(e).duplicate();
+            if (duplicate != PostgresIntegrityViolation.Duplicate.ACCOUNT_EMAIL
+                    && duplicate != PostgresIntegrityViolation.Duplicate.ACCOUNT_USERNAME) {
+                throw e;
+            }
             throw new BusinessException(
                     "Esse nome de usuário ou e-mail acabou de ser registrado. Tente outro.");
         }

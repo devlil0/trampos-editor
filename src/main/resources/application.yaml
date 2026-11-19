@@ -79,6 +79,11 @@ spring:
   #   http://localhost:8080/login/oauth2/code/github
   # ---------------------------------------------------------------------------------
 
+logging:
+  level:
+    # A API registra falhas de integridade sem imprimir a mensagem do driver.
+    org.hibernate.orm.jdbc.error: "OFF"
+
 management:
   endpoints:
     web:

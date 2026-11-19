@@ -7,6 +7,7 @@ import com.devlil0.tramposeditor.dto.UserUpdateDTO;
 import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
+import com.devlil0.tramposeditor.exception.PostgresIntegrityViolation;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -107,8 +108,9 @@ public class UserService {
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            // Mesma corrida do cadastro: entre validar e gravar, outra pessoa pode ter
-            // levado o nome. Quem decide é o UNIQUE.
+            if (PostgresIntegrityViolation.from(e).duplicate() != PostgresIntegrityViolation.Duplicate.ACCOUNT_USERNAME) {
+                throw e;
+            }
             throw new BusinessException("Esse nome de usuário acabou de ser tomado. Tente outro.");
         }
 
