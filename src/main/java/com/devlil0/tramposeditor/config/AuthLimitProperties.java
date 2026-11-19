@@ -8,13 +8,14 @@ import java.util.Objects;
 
 @ConfigurationProperties("tramposeditor.auth-limits")
 public record AuthLimitProperties(int maxEntries, List<String> trustedProxies, Policy login,
-                                  Policy signup, Policy passwordReset) {
+                                  Policy signup, Policy passwordReset, Policy passwordChange) {
     public AuthLimitProperties {
         if (maxEntries < 2) throw new IllegalArgumentException("auth-limits.max-entries deve ser pelo menos 2");
         trustedProxies = trustedProxies == null ? List.of() : List.copyOf(trustedProxies);
         Objects.requireNonNull(login);
         Objects.requireNonNull(signup);
         Objects.requireNonNull(passwordReset);
+        Objects.requireNonNull(passwordChange);
     }
 
     public record Policy(int perAccount, int perOrigin, Duration window, Duration cooldown) {
