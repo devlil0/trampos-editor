@@ -42,8 +42,8 @@ import java.util.stream.Collectors;
  * controla" — e aí ele já está pagando por endereço, que é o custo que se queria impor.
  * <p>
  * <b>O que isto custa, dito em voz alta:</b> o cadastro passa a depender do e-mail sair de
- * verdade. Enquanto o transporte for {@code log} (ESBOCO §7 item 3), o código só aparece no
- * console do servidor — e em produção, sem a Resend ligada, ninguém cria conta. É uma
+ * verdade. Para conferir o código em desenvolvimento, use um capturador SMTP local.
+ * Em produção, o cadastro depende do transporte SMTP configurado. É uma
  * dependência dura, não um detalhe de configuração.
  * <p>
  * Quem entra por Google ou GitHub não passa por aqui: o provedor já provou o endereço, e

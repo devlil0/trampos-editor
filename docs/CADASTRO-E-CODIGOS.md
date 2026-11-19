@@ -53,6 +53,6 @@ A configuração de SMTP define 5 segundos para conexão, 5 para leitura e 5
 para escrita. Cada valor se aplica a uma operação de rede. A requisição
 pode demorar mais, somando espera pelo banco e várias operações no SMTP.
 
-Na T11, medir o impacto da espera e avaliar como reduzir o tempo de
-bloqueio, mantendo a resposta de falha e a validade do código ou link
-anterior quando o envio falhar.
+A T11 desacopla os avisos de marketplace. Para identidade, mantivemos o
+bloqueio durante SMTP para preservar o código ou link anterior e o
+contrato de falha. Consulte [operação de e-mail](EMAIL.md#avisos-e-operação--t11).

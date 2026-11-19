@@ -18,6 +18,8 @@ docker compose up -d          # sobe o Postgres em localhost:5432
 ```
 
 A API sobe em `http://localhost:8080`. Health: `GET /actuator/health`.
+Para testar códigos de cadastro e links de identidade, use o
+[capturador SMTP local](docs/EMAIL.md#capturador-smtp-local).
 
 ```bash
 ./mvnw test                   # testes de integração com Testcontainers (precisa do Docker)

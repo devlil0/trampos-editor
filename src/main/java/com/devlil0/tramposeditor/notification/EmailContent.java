@@ -37,9 +37,7 @@ public record EmailContent(
      * A versão em texto puro.
      * <p>
      * Não é plano B: vai junto no mesmo envio, e é o que aparece em cliente que bloqueia
-     * HTML, em leitor de tela e na pré-visualização da caixa de entrada. Também é o que o
-     * {@link LogEmailSender} imprime no console — conferir texto e link em dev não deve
-     * exigir ler markup.
+     * HTML, em leitor de tela e na pré-visualização da caixa de entrada.
      */
     public String toPlainText(){
         StringBuilder texto = new StringBuilder(greeting).append(",\n\n");
