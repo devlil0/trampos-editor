@@ -1,6 +1,8 @@
 package com.devlil0.tramposeditor.exception;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -11,6 +13,14 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AuthRateLimitException.class)
+    public ResponseEntity<Map<String, String>> handleAuthRateLimit(AuthRateLimitException exception) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.retryAfterSeconds()))
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(Map.of("error", "Muitas tentativas. Aguarde e tente novamente."));
+    }
 
     @ExceptionHandler(com.devlil0.tramposeditor.notification.RequiredEmailException.class)
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)

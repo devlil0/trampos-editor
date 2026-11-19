@@ -5,6 +5,8 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.env.Environment;
+import org.springframework.test.context.DynamicPropertyRegistrar;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -15,6 +17,22 @@ import org.testcontainers.utility.DockerImageName;
  */
 @TestConfiguration(proxyBeanMethods = false)
 public class TestcontainersConfiguration {
+    @Bean
+    DynamicPropertyRegistrar limitesDosTestesDeNegocio(Environment environment) {
+        return registry -> {
+            // Os testes de negócio compartilham contexto, IP e endereços fictícios.
+            // A suíte da T05 usa as cotas reais e controla o próprio relógio.
+            if (!environment.getProperty("test.auth-limits.enabled", Boolean.class, false)) {
+                for (String operation : new String[]{"login", "signup", "password-reset"}) {
+                    String prefix = "tramposeditor.auth-limits." + operation;
+                    registry.add(prefix + ".per-account", () -> 1000);
+                    registry.add(prefix + ".per-origin", () -> 1000);
+                    registry.add(prefix + ".cooldown", () -> "0s");
+                }
+            }
+        };
+    }
+
 
     /**
      * O código que o cadastro em dois passos (V18) espera em teste.

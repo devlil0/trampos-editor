@@ -43,7 +43,8 @@ Corpo do 503:
 {"error":"Não foi possível enviar o e-mail agora. Tente novamente mais tarde."}
 
 Em 503 o frontend deve permitir nova tentativa e não afirmar envio.
-Nenhum Retry-After ou limite de frequência é introduzido pela T01 (T05).
+Pedidos de cadastro, reenvio e recuperação também podem receber `429` com
+`Retry-After` quando bloqueados pela [T05](LIMITES-AUTH.md).
 Erros de validação, autorização e negócio existentes permanecem.
 
 O reset é a exceção pública deliberada: a resposta confirma o recebimento do pedido,

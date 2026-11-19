@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: none
 
 spring:
   application:
@@ -81,6 +82,24 @@ management:
         enabled: true
 
 tramposeditor:
+  auth-limits:
+    max-entries: 10000
+    trusted-proxies: []
+    login:
+      per-account: 8
+      per-origin: 80
+      window: 5m
+      cooldown: 0s
+    signup:
+      per-account: 5
+      per-origin: 60
+      window: 10m
+      cooldown: 60s
+    password-reset:
+      per-account: 5
+      per-origin: 30
+      window: 15m
+      cooldown: 60s
   notifications:
     # `log` escreve o e-mail no console; `smtp` manda de verdade. O default é `log` pra
     # que rodar local nunca exija credencial — prod troca isso explicitamente.
