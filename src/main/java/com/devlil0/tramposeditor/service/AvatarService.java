@@ -12,12 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import javax.imageio.stream.MemoryCacheImageInputStream;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,6 +46,8 @@ public class AvatarService {
 
     /** Teto do arquivo recebido, antes de qualquer processamento. */
     private static final long MAX_UPLOAD_BYTES = 5L * 1024 * 1024;
+    private static final int MAX_DIMENSION = 8192;
+    private static final long MAX_PIXELS = 16_000_000L;
 
     private static final String OUTPUT_TYPE = "image/jpeg";
 
@@ -111,13 +115,35 @@ public class AvatarService {
      */
     private byte[] normalizar(MultipartFile file){
         BufferedImage original;
-        try {
-            original = ImageIO.read(file.getInputStream());
+        try (var source = file.getInputStream();
+             var input = new MemoryCacheImageInputStream(source)) {
+            var readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) {
+                throw new BusinessException("Esse arquivo não é uma imagem válida. Use JPG ou PNG.");
+            }
+            var reader = readers.next();
+            try {
+                String format = reader.getFormatName().toLowerCase(Locale.ROOT);
+                if (!format.equals("jpeg") && !format.equals("png")) {
+                    throw new BusinessException("Formato não suportado. Use JPG ou PNG.");
+                }
+                reader.setInput(input, true, true);
+                int width = reader.getWidth(0);
+                int height = reader.getHeight(0);
+                if (width <= 0 || height <= 0 || width > MAX_DIMENSION || height > MAX_DIMENSION
+                        || (long) width * height > MAX_PIXELS) {
+                    throw new BusinessException(
+                            "A imagem precisa ter até 8192 pixels por lado e no máximo 16 milhões de pixels.");
+                }
+                original = reader.read(0);
+            } finally {
+                reader.dispose();
+            }
         } catch (IOException e) {
             throw new BusinessException("Não consegui ler essa imagem. Tente outra.");
         }
         if (original == null) {
-            throw new BusinessException("Esse arquivo não é uma imagem válida (use JPG, PNG ou WebP).");
+            throw new BusinessException("Esse arquivo não é uma imagem válida. Use JPG ou PNG.");
         }
 
         int lado = Math.min(original.getWidth(), original.getHeight());
@@ -141,7 +167,9 @@ public class AvatarService {
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
-            ImageIO.write(destino, "jpg", out);
+            if (!ImageIO.write(destino, "jpg", out)) {
+                throw new IllegalStateException("Codificador JPEG indisponível");
+            }
         } catch (IOException e) {
             throw new BusinessException("Não consegui processar essa imagem. Tente outra.");
         }

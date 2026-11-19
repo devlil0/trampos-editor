@@ -22,8 +22,7 @@ const EMPTY: AvatarFormState = {};
  * botão de "salvar" separado — "Usar esta foto" é ao mesmo tempo a confirmação do
  * enquadramento e o envio, então não voltou o clique morto que a versão anterior evitava.
  *
- * A prévia local só troca depois que o recorte é confirmado, e é o recorte de verdade (o
- * mesmo blob que sobe), não mais uma aproximação do que o servidor faria.
+ * A foto exibida só muda quando o servidor confirma a gravação ou a remoção.
  */
 export function AvatarForm({
   displayName,
@@ -33,35 +32,38 @@ export function AvatarForm({
   /** URL pronta, montada no servidor: `PUBLIC_API_URL` não existe no browser. */
   avatarUrl: string | null;
 }) {
-  const [state, formAction, pending] = useActionState(uploadAvatarAction, EMPTY);
+  const [state, formAction, pending] = useActionState(
+    async (previous: AvatarFormState, data: FormData) =>
+      data.get("operation") === "remove" ? removeAvatarAction() : uploadAvatarAction(previous, data),
+    EMPTY,
+  );
   const [escolhido, setEscolhido] = useState<File | null>(null);
-  const [previa, setPrevia] = useState<string | null>(null);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const feedbackRef = useRef<HTMLParagraphElement>(null);
 
-  // A prévia é um object URL: sem revogar, cada troca de foto na mesma visita vaza um blob.
   useEffect(() => {
-    return () => {
-      if (previa) URL.revokeObjectURL(previa);
-    };
-  }, [previa]);
-
-  const src = previa ?? avatarUrl;
+    if (state.error || state.ok || selectionError) feedbackRef.current?.focus();
+  }, [state, selectionError]);
 
   function limparEscolha() {
     setEscolhido(null);
     // Zera o input: sem isto, escolher o mesmo arquivo de novo não dispara `change` e o
     // recorte não reabre — o caso exato de quem cancelou e se arrependeu.
     if (inputRef.current) inputRef.current.value = "";
+    inputRef.current?.focus();
   }
+
+  const error = selectionError ?? (escolhido ? null : state.error);
 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-5">
         <span className="relative">
-          {src ? (
+          {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={src}
+              src={avatarUrl}
               alt=""
               width={88}
               height={88}
@@ -86,16 +88,24 @@ export function AvatarForm({
           </p>
 
           <div className="mt-3 flex flex-wrap items-center gap-2.5">
-            <label className="btn btn-ghost btn-sm cursor-pointer">
+            <label className="btn btn-ghost btn-sm cursor-pointer focus-within:ring-2 focus-within:ring-accent">
               {avatarUrl ? "Trocar foto" : "Escolher foto"}
               <input
                 ref={inputRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
                 className="sr-only"
+                disabled={pending}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
-                  if (file) setEscolhido(file);
+                  setSelectionError(null);
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) {
+                    setSelectionError("A imagem precisa ter no máximo 5 MB.");
+                    limparEscolha();
+                    return;
+                  }
+                  setEscolhido(file);
                 }}
               />
             </label>
@@ -103,9 +113,12 @@ export function AvatarForm({
             {avatarUrl && !escolhido && (
               <button
                 type="button"
+                disabled={pending}
                 onClick={() => {
-                  setPrevia(null);
-                  void removeAvatarAction();
+                  setSelectionError(null);
+                  const data = new FormData();
+                  data.set("operation", "remove");
+                  startTransition(() => formAction(data));
                 }}
                 className="text-sm font-semibold text-muted hover:text-busy"
               >
@@ -126,8 +139,6 @@ export function AvatarForm({
           pending={pending}
           onCancel={limparEscolha}
           onConfirm={(blob) => {
-            setPrevia(URL.createObjectURL(blob));
-
             // A action é chamada direto com o FormData, sem `<form>`: o que sobe não é mais
             // o arquivo que o input tem, é o recorte que acabou de sair do canvas.
             //
@@ -144,11 +155,13 @@ export function AvatarForm({
         />
       )}
 
-      {state.error && (
-        <p role="alert" className="mt-2.5 rounded-xl border border-busy/40 bg-busy/10 px-3.5 py-2 text-sm text-busy">
-          {state.error}
+      {error ? (
+        <p ref={feedbackRef} tabIndex={-1} role="alert" className="mt-2.5 rounded-xl border border-busy/40 bg-busy/10 px-3.5 py-2 text-sm text-busy">
+          {error}
         </p>
-      )}
+      ) : !escolhido && state.ok ? (
+        <p ref={feedbackRef} tabIndex={-1} role="status" className="mt-2.5 text-sm text-muted">{state.message}</p>
+      ) : null}
     </div>
   );
 }

@@ -11,7 +11,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,19 +29,19 @@ public class AvatarController {
     /**
      * Serve a imagem.
      * <p>
-     * O {@code Cache-Control} é longo e {@code immutable} porque a URL carrega a versão
-     * (`?v=`), que muda a cada upload: o browser pode guardar pra sempre o que já baixou,
-     * e uma troca de foto gera outra URL. Sem a versão, cache longo faria a foto antiga
-     * grudar por um ano.
+     * A URL por username sempre resolve a foto atual, mesmo com um `?v=` antigo.
+     * Revalidar permite refletir troca, remoção e conta inativa. A versão é o ETag.
      */
     @GetMapping("/v1/avatars/{username}")
     public ResponseEntity<byte[]> get(@PathVariable String username){
         return avatarService.byUsername(username)
                 .map(avatar -> ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(avatar.getContentType()))
-                        .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
+                        .cacheControl(CacheControl.noCache().cachePublic().mustRevalidate())
+                        .eTag(avatar.getVersion().toString())
                         .body(avatar.getBytes()))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .cacheControl(CacheControl.noStore()).build());
     }
 
     @PutMapping(value = "/v1/me/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
