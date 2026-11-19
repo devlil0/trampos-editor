@@ -57,9 +57,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         if (clientRegistrations.getIfAvailable() != null) {
+            OAuth2SuccessHandler handler = oauth2SuccessHandler.getObject();
             http.oauth2Login(login -> login
+                    .authorizationEndpoint(endpoint -> endpoint
+                            .authorizationRequestRepository(new BrowserOAuthAuthorizationRequests()))
                     .userInfoEndpoint(userInfo -> userInfo.userService(gitHubEmailUserService))
-                    .successHandler(oauth2SuccessHandler.getObject()));
+                    .successHandler(handler)
+                    .failureHandler(handler::onAuthenticationFailure));
         }
         return http.build();
     }

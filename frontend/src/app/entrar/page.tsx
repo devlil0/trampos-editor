@@ -4,6 +4,7 @@ import { LoginForm } from "@/components/auth-forms";
 import { AuthShell } from "@/components/auth-shell";
 import { SocialLogin } from "@/components/social-login";
 import { getCurrentUser } from "@/lib/session";
+import { oauthErrorMessage } from "@/lib/social-login";
 
 export const metadata: Metadata = {
   title: "Entrar — TramposEditor",
@@ -17,11 +18,10 @@ type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>;
 export default async function EntrarPage({ searchParams }: { searchParams: SearchParams }) {
   if (await getCurrentUser()) redirect("/painel");
 
-  // O login social que falha volta pra cá com o motivo — quem redireciona é o backend,
-  // que não tem tela pra mostrar erro.
   const sp = await searchParams;
-  const raw = sp.erro;
-  const erro = Array.isArray(raw) ? raw[0] : raw;
+  const raw = sp.oauth_error;
+  const code = Array.isArray(raw) ? raw[0] : raw;
+  const erro = code ? oauthErrorMessage(code) : null;
 
   return (
     <AuthShell title="Bem-vindo de volta" subtitle="Entre pra continuar de onde parou.">

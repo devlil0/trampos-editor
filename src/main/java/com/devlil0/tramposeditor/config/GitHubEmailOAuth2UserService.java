@@ -18,18 +18,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Preenche o e-mail que o GitHub esconde.
- * <p>
- * O {@code /user} do GitHub só traz {@code email} quando a pessoa marcou o endereço como
- * público no perfil — o padrão é privado, e aí vem {@code null}. O escopo
- * {@code user:email} não muda isso: ele libera um segundo endpoint, {@code /user/emails},
- * que o Spring não chama sozinho porque a especificação OAuth2 prevê um user-info só.
- * <p>
- * Sem esse complemento, quem tem e-mail privado chega aqui sem e-mail e o login morre com
- * "seu github não expôs um e-mail" — e a conta única do {@code FUNDACAO} §11.9, que casa
- * as identidades justamente pelo e-mail, não teria por onde casar.
- * <p>
- * Google não passa por aqui: o OIDC já entrega o e-mail no id_token.
+ * Obtém a prova de e-mail do GitHub em /user/emails, inclusive para perfis
+ * que já expõem um endereço público em /user.
  */
 @Slf4j
 @Component
@@ -38,31 +28,38 @@ public class GitHubEmailOAuth2UserService implements OAuth2UserService<OAuth2Use
     private static final String GITHUB = "github";
     private static final String EMAILS_URI = "https://api.github.com/user/emails";
     private static final String EMAIL_ATTRIBUTE = "email";
+    static final String VERIFIED_EMAIL_ATTRIBUTE = "tramposeditor_verified_email";
 
-    private final DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
-    private final RestClient restClient = RestClient.create();
+    private final OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate;
+    private final RestClient restClient;
+
+    public GitHubEmailOAuth2UserService() {
+        this(new DefaultOAuth2UserService(), RestClient.create());
+    }
+
+    GitHubEmailOAuth2UserService(OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate, RestClient restClient) {
+        this.delegate = delegate;
+        this.restClient = restClient;
+    }
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest request) throws OAuth2AuthenticationException {
         OAuth2User user = delegate.loadUser(request);
 
         boolean isGitHub = GITHUB.equals(request.getClientRegistration().getRegistrationId());
-        if (!isGitHub || user.getAttribute(EMAIL_ATTRIBUTE) != null) {
+        if (!isGitHub) {
             return user;
         }
 
         String email = buscarEmailPrincipal(request.getAccessToken().getTokenValue());
-        if (email == null) {
-            // Devolve como veio: quem decide a mensagem de erro é o SocialLoginService,
-            // que já sabe dizer o que a pessoa precisa fazer.
-            return user;
-        }
-
         // DefaultOAuth2User exige que o mapa contenha a chave usada como nome do
         // principal — por isso copiamos os atributos originais em vez de montar um mapa só
         // com o e-mail.
         Map<String, Object> atributos = new HashMap<>(user.getAttributes());
-        atributos.put(EMAIL_ATTRIBUTE, email);
+        atributos.remove(VERIFIED_EMAIL_ATTRIBUTE);
+        if (email != null) {
+            atributos.put(VERIFIED_EMAIL_ATTRIBUTE, email);
+        }
 
         String nameAttribute = request.getClientRegistration()
                 .getProviderDetails()
@@ -93,13 +90,13 @@ public class GitHubEmailOAuth2UserService implements OAuth2UserService<OAuth2Use
 
             return emails.stream()
                     .filter(e -> Boolean.TRUE.equals(e.get("verified")))
+                    .filter(e -> e.get(EMAIL_ATTRIBUTE) instanceof String address && !address.isBlank())
                     .max(Comparator.comparing(e -> Boolean.TRUE.equals(e.get("primary"))))
                     .map(e -> (String) e.get(EMAIL_ATTRIBUTE))
                     .orElse(null);
         } catch (RuntimeException e) {
-            // Falha aqui não pode derrubar o login: cai no fluxo de "não expôs e-mail",
-            // que já tem mensagem pra pessoa.
-            log.warn("Não consegui ler /user/emails do GitHub: {}", e.getMessage());
+            // Sem prova, o serviço só pode usar um vínculo já existente pelo ID.
+            log.warn("Não foi possível consultar e-mails verificados do GitHub");
             return null;
         }
     }
