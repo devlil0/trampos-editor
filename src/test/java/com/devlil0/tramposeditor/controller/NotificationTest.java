@@ -4,7 +4,9 @@ import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.repository.IConversationRepository;
 import com.devlil0.tramposeditor.database.repository.IJobRequestRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.dto.MessageCreateDTO;
 import com.devlil0.tramposeditor.notification.EmailContent;
+import com.devlil0.tramposeditor.service.ConversationService;
 import com.devlil0.tramposeditor.notification.EmailSender;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,13 +20,18 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.after;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * O que estes testes protegem não é "o e-mail sai" — é a regra que impede o produto de
  * virar spam: <b>um aviso por vez, não um por evento</b>.
  */
-@SpringBootTest
+@SpringBootTest(properties = "tramposeditor.notifications.notice-workers=1")
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 class NotificationTest {
@@ -53,6 +60,12 @@ class NotificationTest {
 
     @Autowired
     private IUserRepository userRepository;
+
+    @Autowired
+    private ConversationService conversationService;
+
+    @Autowired
+    private TransactionTemplate transactions;
 
     /** Substitui o LogEmailSender: aqui o interesse é o que foi mandado, não o log. */
     @MockitoBean
@@ -75,7 +88,7 @@ class NotificationTest {
 
         // 1ª mensagem: o editor não tinha nada pendente, então é avisado.
         falarComEditor(cliente, slug, "Topa editar uns Reels?");
-        verify(emailSender).send(eq("editor@teste.com"), any());
+        verify(emailSender, timeout(3000)).send(eq("editor@teste.com"), any());
 
         reset(emailSender);
 
@@ -84,7 +97,7 @@ class NotificationTest {
         String conversaId = primeiraConversaDe(cliente);
         responder(cliente, conversaId, "Posso mandar o material hoje.");
         responder(cliente, conversaId, "Ou amanhã, como preferir.");
-        verify(emailSender, never()).send(eq("editor@teste.com"), any());
+        verify(emailSender, after(150).never()).send(eq("editor@teste.com"), any());
 
         // O editor abre a conversa — abrir é o que marca como lida.
         mockMvc.perform(get("/v1/me/conversations/" + conversaId)
@@ -93,7 +106,7 @@ class NotificationTest {
 
         // Agora ele voltou ao zero, e a próxima mensagem avisa de novo.
         responder(cliente, conversaId, "Fechou?");
-        verify(emailSender, times(1)).send(eq("editor@teste.com"), any());
+        verify(emailSender, timeout(3000).times(1)).send(eq("editor@teste.com"), any());
     }
 
     @Test
@@ -112,7 +125,7 @@ class NotificationTest {
                                 {"message": "Topo o trampo."}
                                 """))
                 .andExpect(status().isCreated());
-        verify(emailSender).send(eq("cliente@teste.com"), any());
+        verify(emailSender, timeout(3000)).send(eq("cliente@teste.com"), any());
 
         String meusPedidos = mockMvc.perform(get("/v1/me/job-requests")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
@@ -128,7 +141,7 @@ class NotificationTest {
         // A conversa do aceite nasce sem mensagem: sem este e-mail o editor nunca
         // descobriria que foi escolhido.
         ArgumentCaptor<EmailContent> enviado = ArgumentCaptor.forClass(EmailContent.class);
-        verify(emailSender).send(eq("editor@teste.com"), enviado.capture());
+        verify(emailSender, timeout(3000)).send(eq("editor@teste.com"), enviado.capture());
 
         assertThat(enviado.getValue().subject()).contains("Corte de podcast");
         assertThat(enviado.getValue().ctaUrl())
@@ -150,13 +163,48 @@ class NotificationTest {
         publicarPerfil(editor);
         String slug = slugDoEditor(editor);
 
-        org.mockito.Mockito.doThrow(new RuntimeException("SMTP caiu"))
-                .when(emailSender).send(any(), any());
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch finished = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            started.countDown();
+            try {
+                assertThat(release.await(5, TimeUnit.SECONDS)).isTrue();
+                throw new IllegalStateException("falha fictícia no SMTP");
+            } finally {
+                finished.countDown();
+            }
+        }).when(emailSender).send(any(), any());
 
-        // A mensagem tem que ser salva mesmo assim: perder o aviso é ruim, perder o que
-        // a pessoa escreveu é pior.
-        falarComEditor(cliente, slug, "Topa editar uns Reels?");
-        assertThat(conversationRepository.count()).isEqualTo(1);
+        try {
+            falarComEditor(cliente, slug, "Topa editar uns Reels?");
+            assertThat(started.await(3, TimeUnit.SECONDS)).isTrue();
+            assertThat(finished.getCount()).isEqualTo(1);
+            assertThat(conversationRepository.count()).isEqualTo(1);
+        } finally {
+            release.countDown();
+        }
+        assertThat(finished.await(3, TimeUnit.SECONDS)).isTrue();
+    }
+
+    @Test
+    void rollbackDaConversaNaoEnviaAviso() throws Exception {
+        registrar("cliente@teste.com", "Cliente Maria");
+        String editor = registrar("editor@teste.com", "Editor Bruno");
+        publicarPerfil(editor);
+        String slug = slugDoEditor(editor);
+        var clienteId = userRepository.findByEmail("cliente@teste.com").orElseThrow().getId();
+
+        transactions.executeWithoutResult(status -> {
+            conversationService.startWithEditor(clienteId, slug, new MessageCreateDTO("Mensagem revertida."));
+            verify(emailSender, after(150).never()).send(any(), any());
+            status.setRollbackOnly();
+        });
+
+        assertThat(conversationRepository.count()).isZero();
+        conversationService.startWithEditor(clienteId, slug, new MessageCreateDTO("Mensagem confirmada."));
+        verify(emailSender, timeout(3000).times(1)).send(eq("editor@teste.com"), any());
+        verify(emailSender, after(150).times(1)).send(any(), any());
     }
 
     // ---------- Helpers ----------

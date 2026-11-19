@@ -3,6 +3,8 @@ target/
 
 ### Segredos ###
 .env
+/.env.oauth
+/.env.oauth.*
 !.env.example
 # Credenciais locais (OAuth do Google/GitHub). O `.example` fica versionado como modelo.
 src/main/resources/application-local.yaml

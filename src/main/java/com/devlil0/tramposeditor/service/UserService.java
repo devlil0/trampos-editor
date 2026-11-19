@@ -2,11 +2,14 @@ package com.devlil0.tramposeditor.service;
 
 import com.devlil0.tramposeditor.database.model.UserEntity;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.dto.DisplayNameUpdateDTO;
 import com.devlil0.tramposeditor.dto.UserResponseDTO;
 import com.devlil0.tramposeditor.dto.UserUpdateDTO;
 import com.devlil0.tramposeditor.dto.UsernameUpdateDTO;
 import com.devlil0.tramposeditor.exception.BusinessException;
 import com.devlil0.tramposeditor.exception.NotFoundException;
+import com.devlil0.tramposeditor.exception.PostgresIntegrityViolation;
+import com.devlil0.tramposeditor.exception.UnauthorizedException;
 import com.devlil0.tramposeditor.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -57,6 +60,14 @@ public class UserService {
         return userMapper.toDTO(user);
     }
 
+    @Transactional
+    public UserResponseDTO updateDisplayName(UUID id, DisplayNameUpdateDTO dto) {
+        UserEntity user = userRepository.findById(id).filter(UserEntity::isActive)
+                .orElseThrow(() -> new UnauthorizedException("Sessão inválida. Entre novamente."));
+        user.setDisplayName(dto.displayName());
+        return userMapper.toDTO(user);
+    }
+
     /**
      * Escolhe ou troca o username — o endereço da pessoa em {@code /{username}}.
      * <p>
@@ -92,6 +103,7 @@ public class UserService {
             }
         }
 
+        usernameService.bloquearParaEscrita(novo);
         String problema = usernameService.validar(novo, id);
         if (problema != null) {
             throw new BusinessException(problema);
@@ -106,8 +118,9 @@ public class UserService {
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
-            // Mesma corrida do cadastro: entre validar e gravar, outra pessoa pode ter
-            // levado o nome. Quem decide é o UNIQUE.
+            if (PostgresIntegrityViolation.from(e).duplicate() != PostgresIntegrityViolation.Duplicate.ACCOUNT_USERNAME) {
+                throw e;
+            }
             throw new BusinessException("Esse nome de usuário acabou de ser tomado. Tente outro.");
         }
 

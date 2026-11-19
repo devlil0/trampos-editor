@@ -1,6 +1,7 @@
 package com.devlil0.tramposeditor.config;
 
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -57,9 +58,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         if (clientRegistrations.getIfAvailable() != null) {
+            OAuth2SuccessHandler handler = oauth2SuccessHandler.getObject();
             http.oauth2Login(login -> login
+                    .authorizationEndpoint(endpoint -> endpoint
+                            .authorizationRequestRepository(new BrowserOAuthAuthorizationRequests()))
                     .userInfoEndpoint(userInfo -> userInfo.userService(gitHubEmailUserService))
-                    .successHandler(oauth2SuccessHandler.getObject()));
+                    .successHandler(handler)
+                    .failureHandler(handler::onAuthenticationFailure));
         }
         return http.build();
     }
@@ -75,6 +80,8 @@ public class SecurityConfig {
                 .requestCache(AbstractHttpConfigurer::disable)
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint()))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(request -> request.getDispatcherType() == DispatcherType.ERROR
+                                && (request.getContextPath() + "/error").equals(request.getRequestURI())).permitAll()
                         .requestMatchers("/v1/auth/**").permitAll()
                         // Vitrine pública: só leitura. A gestão do perfil mora em /v1/me/** e segue autenticada.
                         .requestMatchers(HttpMethod.GET, "/v1/editors", "/v1/editors/**").permitAll()

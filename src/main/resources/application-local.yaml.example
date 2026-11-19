@@ -12,9 +12,8 @@ spring:
   # ---------------------------------------------------------------------------------
   # Envio real de e-mail (Resend). OPCIONAL — e por padrão você NÃO quer isto ligado.
   #
-  # Sem este bloco o transporte continua sendo `log`: o e-mail aparece no console e não
-  # vai pra rede. É o certo pro dia a dia. Ligue aqui só quando quiser ver um envio de
-  # verdade chegando numa caixa.
+  # Sem este bloco, `log` simula envio e registra só metadados operacionais.
+  # Para ler mensagens fictícias, configure o capturador local em docs/EMAIL.md.
   #
   # A chave é a API key da Resend, e ela vai em `password`. Duas coisas que ela NÃO é:
   # não é a senha de nenhuma caixa de e-mail (não existe caixa — `nao-responda@` só

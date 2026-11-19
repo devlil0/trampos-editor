@@ -7,6 +7,8 @@ RUN npm ci --include=dev
 COPY next.config.ts postcss.config.mjs tsconfig.json ./
 COPY src ./src
 COPY public ./public
+# SITE_URL is also used by metadata generated during the build.
+ARG SITE_URL=http://localhost:3000
 # next/font/google precisa acessar o Google Fonts durante o build.
 RUN npm run build
 

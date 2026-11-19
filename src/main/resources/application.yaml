@@ -1,5 +1,6 @@
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: none
 
 spring:
   application:
@@ -32,6 +33,14 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+  mail:
+    properties:
+      mail:
+        smtp:
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
   threads:
     virtual:
@@ -70,6 +79,11 @@ spring:
   #   http://localhost:8080/login/oauth2/code/github
   # ---------------------------------------------------------------------------------
 
+logging:
+  level:
+    # A API registra falhas de integridade sem imprimir a mensagem do driver.
+    org.hibernate.orm.jdbc.error: "OFF"
+
 management:
   endpoints:
     web:
@@ -81,9 +95,31 @@ management:
         enabled: true
 
 tramposeditor:
+  auth-limits:
+    max-entries: 10000
+    trusted-proxies: []
+    login:
+      per-account: 8
+      per-origin: 80
+      window: 5m
+      cooldown: 0s
+    signup:
+      per-account: 5
+      per-origin: 60
+      window: 10m
+      cooldown: 60s
+    password-reset:
+      per-account: 5
+      per-origin: 30
+      window: 15m
+      cooldown: 60s
+    password-change:
+      per-account: 5
+      per-origin: 30
+      window: 15m
+      cooldown: 0s
   notifications:
-    # `log` escreve o e-mail no console; `smtp` manda de verdade. O default é `log` pra
-    # que rodar local nunca exija credencial — prod troca isso explicitamente.
+    # `log` simula o envio e registra apenas metadados operacionais; `smtp` envia.
     transport: ${NOTIFICATIONS_TRANSPORT:log}
     from: ${NOTIFICATIONS_FROM:TramposEditor <nao-responda@tramposeditor.com>}
     # Raiz do frontend: todo link de e-mail leva a uma tela, não a um JSON.

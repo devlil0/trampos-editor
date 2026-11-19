@@ -10,13 +10,14 @@ import com.devlil0.tramposeditor.dto.SignupOriginDTO;
 import com.devlil0.tramposeditor.dto.SignupStartedDTO;
 import com.devlil0.tramposeditor.enums.UserRole;
 import com.devlil0.tramposeditor.exception.BusinessException;
+import com.devlil0.tramposeditor.exception.PostgresIntegrityViolation;
 import com.devlil0.tramposeditor.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -41,14 +42,13 @@ import java.util.stream.Collectors;
  * controla" — e aí ele já está pagando por endereço, que é o custo que se queria impor.
  * <p>
  * <b>O que isto custa, dito em voz alta:</b> o cadastro passa a depender do e-mail sair de
- * verdade. Enquanto o transporte for {@code log} (ESBOCO §7 item 3), o código só aparece no
- * console do servidor — e em produção, sem a Resend ligada, ninguém cria conta. É uma
+ * verdade. Para conferir o código em desenvolvimento, use um capturador SMTP local.
+ * Em produção, o cadastro depende do transporte SMTP configurado. É uma
  * dependência dura, não um detalhe de configuração.
  * <p>
  * Quem entra por Google ou GitHub não passa por aqui: o provedor já provou o endereço, e
  * exigir código depois disso seria pedir a prova duas vezes.
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SignupService {
@@ -85,22 +85,34 @@ public class SignupService {
     private final AuthService authService;
     private final SignupCodes signupCodes;
     private final SignupAttempts signupAttempts;
+    private final TransactionTemplate transactions;
+
+    private static class SignupRejected extends BusinessException {
+        SignupRejected(String message) {
+            super(message);
+        }
+    }
 
     /**
      * Passo 1: guarda o cadastro e manda o código. <b>Não cria conta.</b>
      */
-    @Transactional
     public SignupStartedDTO start(RegisterRequestDTO dto){
-        pendingRepository.deleteExpired(LocalDateTime.now());
+        // A limpeza libera suas linhas antes de persistir e enviar um código.
+        transactions.executeWithoutResult(status -> pendingRepository.deleteExpired(LocalDateTime.now()));
+        return transactions.execute(status -> createPending(dto));
+    }
 
+    private SignupStartedDTO createPending(RegisterRequestDTO dto) {
         String email = normalizeEmail(dto.email());
+        String username = usernameService.normalizar(dto.username());
+        usernameService.bloquearParaEscrita(username);
+        var previous = pendingRepository.findLockedForStart(email, username, LocalDateTime.now());
 
         if (userRepository.existsByEmail(email)) {
             throw new BusinessException("Já existe uma conta com este e-mail");
         }
 
-        String username = usernameService.normalizar(dto.username());
-        String problemaNoUsername = usernameService.validar(username, null);
+        String problemaNoUsername = usernameService.validarParaCadastro(username, email);
         if (problemaNoUsername != null) {
             throw new BusinessException(problemaNoUsername);
         }
@@ -109,14 +121,12 @@ public class SignupService {
         // é agora que a pessoa tem o campo na frente pra corrigir. Deixar passar faria dois
         // cadastros receberem código e o segundo a confirmar levar erro tendo feito tudo
         // certo.
-        pendingRepository.findByEmail(email).ifPresent(p -> pendingRepository.delete(p));
+        String previousHash = previous.stream().filter(pending -> pending.getEmail().equals(email))
+                .map(PendingSignupEntity::getCodeHash).findFirst().orElse(null);
+        pendingRepository.deleteAll(previous);
         pendingRepository.flush();
-        if (pendingRepository.existsByUsername(username)) {
-            throw new BusinessException(
-                    "Esse nome de usuário acabou de ser pedido por outra pessoa. Escolha outro.");
-        }
 
-        String codigo = signupCodes.generate();
+        String codigo = signupCodes.generateDifferentFrom(previousHash);
 
         PendingSignupEntity pendente = PendingSignupEntity.builder()
                 .email(email)
@@ -134,7 +144,11 @@ public class SignupService {
         try {
             pendingRepository.saveAndFlush(pendente);
         } catch (DataIntegrityViolationException e) {
-            // Corrida entre dois cadastros do mesmo e-mail ou username. O UNIQUE decide.
+            var duplicate = PostgresIntegrityViolation.from(e).duplicate();
+            if (duplicate != PostgresIntegrityViolation.Duplicate.SIGNUP_EMAIL
+                    && duplicate != PostgresIntegrityViolation.Duplicate.SIGNUP_USERNAME) {
+                throw e;
+            }
             throw new BusinessException(
                     "Esse nome de usuário ou e-mail acabou de ser pedido. Tente de novo.");
         }
@@ -150,31 +164,37 @@ public class SignupService {
      * A conta nasce com o e-mail já verificado — o código <i>é</i> a prova de posse, e a
      * mesma que o link da V17 produziria. Pedir o link depois disso seria provar duas vezes.
      */
-    @Transactional
+    @Transactional(noRollbackFor = SignupRejected.class)
     public AuthResponseDTO confirm(String emailBruto, String codigo){
         String email = normalizeEmail(emailBruto);
 
-        PendingSignupEntity pendente = pendingRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException(CODIGO_INVALIDO));
+        String username = pendingRepository.findUsernameByEmail(email)
+                .orElseThrow(() -> new SignupRejected(CODIGO_INVALIDO));
+        usernameService.bloquearParaEscrita(username);
+        PendingSignupEntity pendente = pendingRepository.findLockedByEmail(email)
+                .filter(pending -> pending.getUsername().equals(username))
+                .orElseThrow(() -> new SignupRejected(CODIGO_INVALIDO));
 
-        // Toda escrita dos caminhos de FALHA passa pelo `signupAttempts`, e isso não é
-        // estilo: cada um deles termina lançando, o lançamento faz rollback desta transação,
-        // e uma contagem desfeita é uma contagem que não existe. Foi exatamente esse o bug —
-        // o limite de tentativas não valia nada até o `REQUIRES_NEW` entrar.
+        // As recusas esperadas preservam o contador ou a remoção da pendência.
+        // Falhas inesperadas continuam revertendo a transação inteira.
         if (pendente.isExpired(LocalDateTime.now())) {
-            signupAttempts.descartar(pendente.getId());
-            throw new BusinessException(CODIGO_INVALIDO);
+            pendingRepository.delete(pendente);
+            throw new SignupRejected(CODIGO_INVALIDO);
         }
 
         if (!TokenSecrets.hash(codigo).equals(pendente.getCodeHash())) {
             signupAttempts.registrarErro(pendente.getId(), MAX_TENTATIVAS);
-            throw new BusinessException(CODIGO_INVALIDO);
+            throw new SignupRejected(CODIGO_INVALIDO);
         }
 
         // Entre o pedido e a confirmação cabe outro cadastro com o mesmo e-mail ou username.
         if (userRepository.existsByEmail(email)) {
-            signupAttempts.descartar(pendente.getId());
-            throw new BusinessException("Já existe uma conta com este e-mail");
+            pendingRepository.delete(pendente);
+            throw new SignupRejected("Já existe uma conta com este e-mail");
+        }
+        if (userRepository.existsByUsername(username)) {
+            pendingRepository.delete(pendente);
+            throw new SignupRejected("Esse nome de usuário acabou de ser registrado. Tente outro.");
         }
 
         UserEntity user = UserEntity.builder()
@@ -197,6 +217,11 @@ public class SignupService {
         try {
             userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException e) {
+            var duplicate = PostgresIntegrityViolation.from(e).duplicate();
+            if (duplicate != PostgresIntegrityViolation.Duplicate.ACCOUNT_EMAIL
+                    && duplicate != PostgresIntegrityViolation.Duplicate.ACCOUNT_USERNAME) {
+                throw e;
+            }
             throw new BusinessException(
                     "Esse nome de usuário ou e-mail acabou de ser registrado. Tente outro.");
         }
@@ -216,13 +241,13 @@ public class SignupService {
     public void resend(String emailBruto){
         String email = normalizeEmail(emailBruto);
 
-        pendingRepository.findByEmail(email).ifPresent(pendente -> {
+        pendingRepository.findLockedByEmail(email).ifPresent(pendente -> {
             if (pendente.isExpired(LocalDateTime.now())) {
                 pendingRepository.delete(pendente);
                 return;
             }
 
-            String codigo = signupCodes.generate();
+            String codigo = signupCodes.generateDifferentFrom(pendente.getCodeHash());
             pendente.setCodeHash(TokenSecrets.hash(codigo));
             // O contador zera junto: o código novo merece as tentativas dele. Sem isto,
             // quem errou quatro vezes recebe um código que já nasce com uma chance só.

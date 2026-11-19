@@ -171,8 +171,8 @@ class AvatarTest {
     @Test
     void serviceRecusaExcessoDeBytes() throws Exception {
         // MockMvc ignora o parser multipart do servidor. Este caso exercita a barreira do service.
-        upload(token, new byte[5 * 1024 * 1024 + 1]).andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("A imagem precisa ter no máximo 5 MB."));
+        upload(token, new byte[5 * 1024 * 1024 + 1]).andExpect(status().isContentTooLarge())
+                .andExpect(jsonPath("$.error").value("O upload excede o tamanho permitido."));
         assertThat(avatars.findById(owner.getId())).isEmpty();
     }
 
@@ -247,10 +247,11 @@ class AvatarTest {
             System.out.println("T23 multipart real: status=" + response.statusCode()
                     + ", content-type=" + response.headers().firstValue("content-type").orElse("(ausente)")
                     + ", body=" + response.body());
-            // T07 deve fixar o JSON comum. Este teste mantém explícito o limite real do Spring.
+            // T07 padroniza o limite real do Spring com o mesmo JSON da barreira do service.
             assertThat(response.statusCode()).isEqualTo(413);
-            assertThat(response.body()).isEmpty();
-            assertThat(response.headers().firstValue("content-type")).isEmpty();
+            assertThat(JsonPath.<String>read(response.body(), "$.error"))
+                    .isEqualTo("O upload excede o tamanho permitido.");
+            assertThat(response.headers().firstValue("content-type")).hasValue("application/json");
             assertThat(avatars.findById(owner.getId())).isEmpty();
         }
     }

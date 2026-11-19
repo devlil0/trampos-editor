@@ -1,10 +1,12 @@
 package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.TestcontainersConfiguration;
+import com.devlil0.tramposeditor.database.repository.IPendingSignupRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.service.JwtService;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,9 @@ class AuthControllerTest {
     private IUserRepository userRepository;
 
     @Autowired
+    private IPendingSignupRepository pendingSignupRepository;
+
+    @Autowired
     private JwtEncoder jwtEncoder;
 
     @Autowired
@@ -60,6 +65,11 @@ class AuthControllerTest {
     @BeforeEach
     void clean(){
         userRepository.deleteAll();
+    }
+
+    @AfterEach
+    void limparPendencias() {
+        pendingSignupRepository.deleteAll();
     }
 
     /**
@@ -142,9 +152,13 @@ class AuthControllerTest {
     void cadastroMorreDepoisDeCincoChutes() throws Exception {
         pedirCadastro("bruto@teste.com");
 
-        for (int i = 0; i < 5; i++) {
+        for (short attempt = 1; attempt <= 4; attempt++) {
             confirmar("bruto@teste.com", "111111").andExpect(status().isConflict());
+            assertThat(pendingSignupRepository.findByEmail("bruto@teste.com").orElseThrow().getAttempts())
+                    .isEqualTo(attempt);
         }
+        confirmar("bruto@teste.com", "111111").andExpect(status().isConflict());
+        assertThat(pendingSignupRepository.findByEmail("bruto@teste.com")).isEmpty();
 
         // Na quinta o pendente foi descartado — nem o código certo vale mais.
         confirmar("bruto@teste.com", TestcontainersConfiguration.CODIGO_DE_CADASTRO)

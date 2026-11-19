@@ -38,16 +38,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, OAuthApiIsolationTest.FakeProvider.class})
 class OAuthApiIsolationTest {
+    private static final String CHALLENGE = "a".repeat(64);
     @Autowired
     private MockMvc mockMvc;
 
     @Test
     void inicioOAuthGuardaEstadoNaSessaoSemContatarProvedor() throws Exception {
-        var result = mockMvc.perform(get("/oauth2/authorization/github"))
+        var result = mockMvc.perform(get("/oauth2/authorization/github").param("browser_challenge", CHALLENGE))
                 .andExpect(status().isFound())
                 .andReturn();
         var location = UriComponentsBuilder.fromUriString(result.getResponse().getRedirectedUrl()).build();
         assertThat(location.getHost()).isEqualTo("oauth.example.invalid");
+        assertThat(location.getQueryParams()).doesNotContainKey("browser_challenge");
         String state = location.getQueryParams().getFirst("state");
         assertThat(state).isNotBlank();
 
@@ -73,6 +75,22 @@ class OAuthApiIsolationTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(HttpHeaders.WWW_AUTHENTICATE, startsWith("Bearer")))
                 .andExpect(header().doesNotExist(HttpHeaders.LOCATION));
+    }
+
+    @Test
+    void cancelamentoNoProvedorVoltaAoFrontendSemDetalheDaExcecao() throws Exception {
+        var start = mockMvc.perform(get("/oauth2/authorization/github").param("browser_challenge", CHALLENGE))
+                .andReturn();
+        var redirect = UriComponentsBuilder.fromUriString(start.getResponse().getRedirectedUrl()).build();
+        String state = UriUtils.decode(redirect.getQueryParams().getFirst("state"), StandardCharsets.UTF_8);
+        var session = (MockHttpSession) start.getRequest().getSession(false);
+
+        var response = mockMvc.perform(get("/login/oauth2/code/github").session(session)
+                        .param("state", state).param("error", "access_denied")
+                        .param("error_description", "detalhe-interno-ficticio"))
+                .andExpect(status().isFound()).andReturn().getResponse();
+        assertThat(response.getRedirectedUrl()).contains("/entrar/callback?oauth_error=cancelled&attempt=" + CHALLENGE)
+                .doesNotContain("detalhe-interno-ficticio");
     }
 
     @TestConfiguration(proxyBeanMethods = false)

@@ -22,4 +22,12 @@ public class SignupCodes {
     public String generate(){
         return TokenSecrets.generateCode();
     }
+
+    String generateDifferentFrom(String previousHash) {
+        String code = generate();
+        while (previousHash != null && TokenSecrets.hash(code).equals(previousHash)) {
+            code = TokenSecrets.generateCode();
+        }
+        return code;
+    }
 }
