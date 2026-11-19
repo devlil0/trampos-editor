@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (Java 21)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verificar Docker e executar a suíte
+        run: |
+          docker info --format '{{.ServerVersion}}'
+          bash ./mvnw -B clean verify \
+            -Dspring.config.location=classpath:/application.yaml \
+            -Dspring.profiles.active=test \
+            -Dtramposeditor.notifications.transport=log \
+            -Dtramposeditor.security.jwt.secret=ci-chave-ficticia-sem-uso-externo-para-testes
+      - name: Resumir resultados do Surefire
+        if: ${{ !cancelled() }}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from xml.etree import ElementTree
+
+          reports = [ElementTree.parse(path).getroot()
+                     for path in Path("target/surefire-reports").glob("TEST-*.xml")]
+          totals = {key: sum(int(report.attrib[key]) for report in reports)
+                    for key in ("tests", "skipped", "failures", "errors")}
+          target = Path("target/ci-reports/backend-tests.json")
+          target.parent.mkdir(exist_ok=True)
+          target.write_text(json.dumps(totals, indent=2) + "\n", encoding="utf-8")
+          print(totals)
+          if not totals["tests"] or any(totals[key] for key in ("skipped", "failures", "errors")):
+              raise SystemExit("A suíte precisa executar sem falhas, erros ou testes ignorados.")
+          PY
+      - name: Inspecionar JAR
+        run: python scripts/verify_backend_jar.py target/TramposEditor-0.0.1-SNAPSHOT.jar
+      - name: Disponibilizar relatórios
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: backend-surefire
+          path: target/ci-reports/backend-tests.json
+          if-no-files-found: error
+          retention-days: 14
+
+  frontend:
+    name: Frontend (Node 24)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      API_URL: http://127.0.0.1:8080
+      PUBLIC_API_URL: https://api.example.test
+      SITE_URL: https://site.example.test
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Verificar TypeScript
+        run: |
+          npm exec --no -- next typegen
+          npm exec --no -- tsc --noEmit
+      - run: npm run build
