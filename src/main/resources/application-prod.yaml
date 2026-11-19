@@ -1,3 +1,11 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
+
 spring:
   jpa:
     show-sql: false
@@ -15,6 +23,14 @@ spring:
           auth: true
           starttls:
             enable: true
+            required: true
+
+management:
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db
 
 logging:
   level:
