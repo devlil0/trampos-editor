@@ -2,10 +2,15 @@ package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.repository.IJobRequestRepository;
+import com.devlil0.tramposeditor.database.repository.IDealRepository;
+import com.devlil0.tramposeditor.database.repository.IConversationRepository;
+import com.devlil0.tramposeditor.notification.NotificationService;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -13,6 +18,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import static org.mockito.Mockito.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -26,6 +34,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(TestcontainersConfiguration.class)
 class JobRequestTest {
 
+    @Autowired private IDealRepository dealRepository;
+    @Autowired private IConversationRepository conversationRepository;
+    @MockitoSpyBean private NotificationService notificationService;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -37,6 +49,8 @@ class JobRequestTest {
 
     @BeforeEach
     void limpar(){
+        dealRepository.deleteAll();
+        conversationRepository.deleteAll();
         jobRequestRepository.deleteAll();
         userRepository.deleteAll();
     }
@@ -182,6 +196,117 @@ class JobRequestTest {
     }
 
     // ---------- Helpers ----------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"done", "cancel"})
+    void replayDoAceiteEncerradoNaoReabreNemRepeteAviso(String outcome) throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        publicarPerfilDeEditor(editor);
+        String job = criarPedido(cliente);
+        String interest = candidatar(job, editor, cliente);
+        clearInvocations(notificationService);
+        aceitar(job, interest, cliente, 200);
+        var original = dealRepository.findAll().getFirst();
+        mockMvc.perform(post("/v1/me/deals/" + original.getId() + "/" + outcome)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)).andExpect(status().isOk());
+        aceitar(job, interest, cliente, 200);
+        aceitar(job, interest, cliente, 200);
+        assertThat(dealRepository.findAll()).extracting(d -> d.getId()).containsExactly(original.getId());
+        assertThat(dealRepository.findById(original.getId()).orElseThrow().getStatus().name())
+                .isEqualTo(outcome.equals("done") ? "DONE" : "CANCELLED");
+        assertThat(conversationRepository.count()).isEqualTo(1);
+        verify(notificationService, times(1)).interestAccepted(any(), any(), anyString());
+    }
+
+    @Test
+    void aceiteEscolheUmEditorFechaPedidoEProtegePropriedade() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        String outro = registrar("outro@teste.com", "Outro");
+        publicarPerfilDeEditor(editor);
+        publicarPerfilDeEditor(outro);
+        String job = criarPedido(cliente);
+        String first = candidatar(job, editor, cliente);
+        String second = candidatar(job, outro, cliente);
+        aceitar(job, first, editor, 403);
+        aceitar(job, first, outro, 403);
+        aceitar(job, first, cliente, 200);
+        aceitar(job, second, cliente, 409);
+        aceitar(job, first, cliente, 200);
+        assertThat(dealRepository.count()).isEqualTo(1);
+        assertThat(conversationRepository.count()).isEqualTo(1);
+        assertThat(jobRequestRepository.findById(java.util.UUID.fromString(job)).orElseThrow().getStatus().name())
+                .isEqualTo("CLOSED");
+        mockMvc.perform(get("/v1/job-requests").header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void fecharPedidoComInteressadoImpedeAceiteSemApagarHistorico() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        publicarPerfilDeEditor(editor);
+        String job = criarPedido(cliente);
+        String interest = candidatar(job, editor, cliente);
+        mockMvc.perform(post("/v1/me/job-requests/" + job + "/close")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)).andExpect(status().isOk());
+        aceitar(job, interest, cliente, 409);
+        assertThat(dealRepository.count()).isZero();
+        mockMvc.perform(get("/v1/me/job-requests").header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(jsonPath("$[0].id").value(job))
+                .andExpect(jsonPath("$[0].interests.length()").value(1))
+                .andExpect(jsonPath("$[0].interests[0].status").value("PENDING"));
+    }
+
+    private String candidatar(String job, String editor, String cliente) throws Exception {
+        mockMvc.perform(post("/v1/job-requests/" + job + "/interests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"message\":\"Topo\"}"))
+                .andExpect(status().isCreated());
+        String json = mockMvc.perform(get("/v1/me/job-requests")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        return JsonPath.read(json, "$[0].interests[-1].id");
+    }
+
+    @Test
+    void doisAceitesSimultaneosEscolhemSomenteUmEditor() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        String outro = registrar("outro@teste.com", "Outro");
+        publicarPerfilDeEditor(editor);
+        publicarPerfilDeEditor(outro);
+        String job = criarPedido(cliente);
+        String first = candidatar(job, editor, cliente);
+        String second = candidatar(job, outro, cliente);
+        var ready = new java.util.concurrent.CountDownLatch(2);
+        var start = new java.util.concurrent.CountDownLatch(1);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var futures = java.util.List.of(first, second).stream().map(interest -> executor.submit(() -> {
+                ready.countDown();
+                if (!start.await(10, java.util.concurrent.TimeUnit.SECONDS)) throw new AssertionError("Sem início");
+                return mockMvc.perform(post("/v1/me/job-requests/" + job + "/interests/" + interest + "/accept")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                        .andReturn().getResponse().getStatus();
+            })).toList();
+            assertThat(ready.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            assertThat(java.util.List.of(futures.get(0).get(20, java.util.concurrent.TimeUnit.SECONDS),
+                    futures.get(1).get(20, java.util.concurrent.TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200, 409);
+        } finally {
+            start.countDown();
+        }
+        assertThat(dealRepository.count()).isEqualTo(1);
+        assertThat(conversationRepository.count()).isEqualTo(1);
+    }
+
+    private void aceitar(String job, String interest, String token, int expected) throws Exception {
+        mockMvc.perform(post("/v1/me/job-requests/" + job + "/interests/" + interest + "/accept")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().is(expected));
+    }
 
     @Test
     void feedDeTramposPaginaEEscondeOPedidoDeQuemEstaLendo() throws Exception {

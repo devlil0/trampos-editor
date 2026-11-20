@@ -2,6 +2,7 @@ package com.devlil0.tramposeditor.controller;
 
 import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.database.repository.IConversationRepository;
+import com.devlil0.tramposeditor.database.repository.IDealRepository;
 import com.devlil0.tramposeditor.database.repository.IJobRequestRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.jayway.jsonpath.JsonPath;
@@ -32,6 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(TestcontainersConfiguration.class)
 class ConversationTest {
 
+    @Autowired private IDealRepository dealRepository;
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -46,6 +49,7 @@ class ConversationTest {
 
     @BeforeEach
     void limpar(){
+        dealRepository.deleteAll();
         conversationRepository.deleteAll();
         jobRequestRepository.deleteAll();
         userRepository.deleteAll();
@@ -207,6 +211,8 @@ class ConversationTest {
         }
 
         mockMvc.perform(get("/v1/me/conversations").header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(get("/v1/me/deals").header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
                 .andExpect(jsonPath("$.length()").value(1));
     }
 

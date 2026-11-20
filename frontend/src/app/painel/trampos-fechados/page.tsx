@@ -126,7 +126,7 @@ function DealCard({ deal }: { deal: Deal }) {
       </div>
 
       <div className="mt-3.5 flex flex-wrap gap-2.5 text-sm">
-        <Link href="/painel/conversas" className="text-accent hover:underline">
+        <Link href={`/painel/conversas/${deal.conversationId}`} className="text-accent hover:underline">
           Abrir conversa
         </Link>
         {/* O "chamar de novo" do §3.2: repetição de fornecedor em um clique. */}

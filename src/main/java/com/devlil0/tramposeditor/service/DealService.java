@@ -65,7 +65,7 @@ public class DealService {
      */
     @Transactional
     public DealEntity openForJob(ConversationEntity conversation, JobRequestEntity job, UserEntity editor){
-        return dealRepository.findByConversationIdAndStatus(conversation.getId(), DealStatus.OPEN)
+        return dealRepository.findFirstByJobRequestIdOrderByCreatedAtAsc(job.getId())
                 .orElseGet(() -> dealRepository.save(DealEntity.builder()
                         .conversation(conversation)
                         .jobRequest(job)
