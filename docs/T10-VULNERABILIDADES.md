@@ -215,3 +215,46 @@ SMTP e OAuth reais ficaram fora da validação.
 Os avisos nas imagens do frontend e do PostgreSQL seguem fora desta
 atualização. A falha de upgrade com dados legados afetados pela V12
 continua registrada separadamente em [CI.md](CI.md#falha-reproduzida-na-v12).
+
+## Correção de zlib na imagem da API
+
+Validação local em 20/11/2026, a partir de `dbab47a`. O estágio final usa
+`eclipse-temurin:21-jre-alpine-3.24@sha256:5d7689f47d670aca766b9503a70bccc2d73b4eb9221ae8f714ae958313c4ce70`.
+Esse digest é o índice oficial OCI para `linux/amd64` e
+`linux/arm64/v8`. A tag Maven já usada no estágio de compilação anuncia
+essas duas plataformas. O Dockerfile deixa a seleção de arquitetura a
+cargo do Docker. Build, varredura e ensaio funcional foram executados em
+`linux/amd64`. A validação da imagem final em ARM64 está pendente.
+[Imagens oficiais do Eclipse Temurin](https://hub.docker.com/_/eclipse-temurin)
+
+A imagem final usou Eclipse Temurin `21.0.13.1+2`, Alpine `3.24.4` e
+`zlib 1.4-r0`. A base já inclui OpenSSL (`openssl`, `libcrypto3` e
+`libssl3`) em `3.5.9-r1` e GnuTLS em `3.8.14-r0`. A comparação do
+inventário APK com a base fixada confirmou que a única diferença foi
+`zlib 1.3.2-r1 → 1.4-r0`. O digest fixa a base. Um build sem cache resolve
+o pacote nos repositórios oficiais do Alpine 3.24 e pode receber uma
+revisão posterior do `zlib`.
+[Registro da CVE-2026-4738 no Alpine](https://security.alpinelinux.org/vuln/CVE-2026-4738)
+
+| Imagem Linux/amd64 | Digest da configuração | Ocorrências nos pacotes do SO |
+| --- | --- | ---: |
+| API local da triagem anterior | `sha256:e974230151a9cb0d41a47511291bdbbeb30b1da1a8e4c8fa4dc38f6cb7629c2a` | 19 |
+| Base Temurin 21 Alpine 3.24 fixada | `sha256:5649cf3d873b6600b777ddff8a1a89cffbfa19755e5334bfb61136e8ec7a59a9` | 1 |
+| API reconstruída | `sha256:505720eeac0e5a68c1c7c4300a8ab8af4bb295115a7c2a15824980fc474379f7` | 0 |
+
+A varredura offline usou o Trivy 0.76.2 e o mesmo banco de avisos do
+diagnóstico, atualizado em 20/11/2026 às 13h11 UTC. O relatório final
+inventariou 73 pacotes do sistema e deixou de apontar a CVE-2026-4738.
+O resultado de zero ocorrências vale para essa imagem, essa base e o
+escopo de pacotes do sistema. A rodada não reavaliou as dependências Java.
+Preservar o Alpine manteve os comandos de criação de usuário e o
+`wget` dos health checks.
+
+O processo Java rodou como `tramposeditor`, UID/GID `100:101`. O JAR
+estava legível, com dono `100:101` e modo `0644`. A cópia do runtime
+tinha o mesmo SHA-256 do JAR do estágio de build, e a inspeção confirmou
+os 23 recursos esperados. Em rede descartável sem portas publicadas, com
+PostgreSQL em memória e SMTP capturado pelo Mailpit, o health check do
+Docker ficou saudável e as rotas de saúde, vida e prontidão responderam
+`UP`. O ensaio passou pelo cadastro, pelo upload autenticado de PNG,
+pela leitura pública do JPEG gerado com ETag e pela remoção do avatar.

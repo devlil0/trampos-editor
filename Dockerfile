@@ -10,9 +10,10 @@ COPY src/main ./src/main
 RUN mvn -B clean package -DskipTests
 
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-alpine-3.24@sha256:5d7689f47d670aca766b9503a70bccc2d73b4eb9221ae8f714ae958313c4ce70
 WORKDIR /app
 
+RUN apk upgrade --no-cache zlib
 RUN addgroup -S tramposeditor && adduser -S tramposeditor -G tramposeditor
 
 COPY --from=build /build/target/*.jar app.jar
