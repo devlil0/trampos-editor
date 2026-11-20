@@ -212,15 +212,17 @@ export function RegisterForm() {
  * expira sozinho e nunca chega a ocupar o username.
  */
 function ConfirmSignupForm({ email, onBack }: { email: string; onBack: () => void }) {
-  const [resendRetryAt, setResendRetryAt] = useState<number>();
-  const [state, formAction, pending] = useActionState(
-    async (previous: AuthFormState, data: FormData) => {
+  const [code, setCode] = useState("");
+  const [state, formAction, pending] = useActionState<
+    AuthFormState & { confirmRetryAt?: number; resendRetryAt?: number }, FormData
+  >(
+    async (previous, data) => {
       if (data.get("operation") === "resend") {
         const result = await resendSignupCodeAction(email);
-        setResendRetryAt(result.retryAt);
-        return result;
+        return { ...result, resendRetryAt: result.retryAt, confirmRetryAt: previous.confirmRetryAt };
       }
-      return confirmSignupAction(previous, data);
+      const result = await confirmSignupAction(previous, data);
+      return { ...result, confirmRetryAt: result.retryAt, resendRetryAt: previous.resendRetryAt };
     },
     EMPTY,
   );
@@ -248,6 +250,8 @@ function ConfirmSignupForm({ email, onBack }: { email: string; onBack: () => voi
         <input
           id="code"
           name="code"
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
           // `text` com `inputMode numeric`, e não `type="number"`: o campo numérico traz
           // setinhas de incremento e come zero à esquerda — e o código pode começar com zero.
           type="text"
@@ -263,12 +267,14 @@ function ConfirmSignupForm({ email, onBack }: { email: string; onBack: () => voi
         />
       </div>
 
-      <AuthSubmitButton pending={pending}>Confirmar e entrar</AuthSubmitButton>
+      <AuthSubmitButton key={`confirm-${state.confirmRetryAt ?? 0}`} pending={pending} retryAt={state.confirmRetryAt}>
+        Confirmar e entrar
+      </AuthSubmitButton>
 
       <AuthSubmitButton
-        key={resendRetryAt ?? 0}
+        key={`resend-${state.resendRetryAt ?? 0}`}
         pending={pending}
-        retryAt={resendRetryAt}
+        retryAt={state.resendRetryAt}
         name="operation"
         value="resend"
         formNoValidate
