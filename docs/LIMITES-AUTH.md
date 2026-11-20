@@ -1,13 +1,14 @@
 # Limites de autenticação na T05
 
 A API conta pedidos válidos antes de consultar a conta, verificar senha ou
-enviar e-mail. Cada pedido precisa caber tanto na cota do e-mail normalizado
-quanto na cota da origem. As duas reservas são feitas juntas.
+enviar e-mail. Nas operações com cota por conta, o pedido precisa caber
+na cota do e-mail normalizado e na cota da origem. As duas reservas são feitas juntas.
 
 | Operação | Por conta | Por origem | Janela | Intervalo entre pedidos de envio |
 | --- | ---: | ---: | --- | --- |
 | Login por senha | 8 | 80 | 5 minutos | — |
 | Início e reenvio de cadastro, somados | 5 | 60 | 10 minutos | 60 segundos por conta |
+| Confirmação de cadastro | — | 40 | 5 minutos | — |
 | Pedido de recuperação de senha | 5 | 30 | 15 minutos | 60 segundos por conta |
 
 Os valores são configuráveis em `tramposeditor.auth-limits`, com `per-account`,
@@ -15,8 +16,7 @@ Os valores são configuráveis em `tramposeditor.auth-limits`, com `per-account`
 `password-reset`. A janela começa na primeira tentativa admitida de cada
 conta ou origem. O intervalo entre envios continua valendo quando a janela
 vira. O pedido admitido ocupa a cota e o intervalo, inclusive quando não há
-conta, falta uma pendência ou ocorre falha de envio. Confirmação do cadastro
-continua usando o limite existente de cinco erros por código.
+conta, falta uma pendência ou ocorre falha de envio.
 
 Ao bloquear um pedido, a API responde com `429`, `Retry-After` em segundos
 arredondados para cima e `Cache-Control: no-store`. O JSON tem apenas
@@ -25,6 +25,15 @@ contas ativas, inativas e inexistentes recebem o mesmo `204` enquanto a
 tentativa é admitida e a mesma regra de `429` quando bloqueada. O controle
 não busca a conta antes de decidir. A regra existente de e-mail duplicado
 no início do cadastro permanece.
+
+A confirmação usa `tramposeditor.auth-limits.signup-confirm.per-origin`
+e `window`. A cota é independente de início e reenvio, que continuam
+compartilhando seus limites. A API valida o formato do pedido e consulta
+a cota antes de chamar o serviço. Um pedido admitido ocupa uma vaga da
+origem mesmo quando a pendência não existe. Um `429` de volume não abre
+a transação de confirmação, não consulta o banco e não altera a pendência.
+Só códigos incorretos admitidos contam para os cinco erros que encerram a
+pendência. Depois da janela, um código vigente ainda pode ser confirmado.
 
 ## Origem e cadeia de confiança
 
@@ -49,21 +58,47 @@ Nos testes, o MockMvc simula separadamente o par TCP e os headers. A cota
 direta permanece a mesma quando o cliente muda o header, e um proxy
 permitido mantém cotas distintas para dois clientes encaminhados.
 
-## Contrato proposto para a T16
+## Contrato proposto para T09 e T16
 
-O ponto de integração é `frontend/src/app/actions/auth.ts`. As quatro
-ações devem receber a origem somente do ingresso confiável e encaminhá-la
-no header dedicado, por uma rota de rede que a API possa identificar como
-par confiável. O Next não deve copiar headers arbitrários do navegador.
-Quando a API devolver `429`, a ação pode ler `Retry-After` e expor apenas
-o número de segundos e a mensagem genérica no estado do formulário. Os
-componentes envolvidos em exibir esse estado são
-`frontend/src/components/auth-forms.tsx` e
-`frontend/src/components/password-forms.tsx`.
+1. **Ingresso.** Descartar o `X-Trampos-Client-IP` que veio de fora e
+   escrever um único IP literal, sem porta, obtido do par da conexão.
+   Quando houver CDN ou balanceador antes do ingresso, aceitar metadados
+   de origem somente pelos pares autorizados desse serviço e restringir
+   o acesso por esse caminho. Remover `Forwarded` e `X-Real-IP` recebidos
+   e substituir `X-Forwarded-For` pelo IP verificado. Definir `Host` e
+   `X-Forwarded-Host` pelo host público aceito e `X-Forwarded-Proto`
+   pelo esquema externo efetivo. Preservar `Origin` para a verificação
+   das Server Actions. [NGINX Real IP](https://nginx.org/en/docs/http/ngx_http_realip_module.html)
+2. **Next.** A porta do frontend deve receber tráfego somente do ingresso
+   autorizado. Em `frontend/src/app/actions/auth.ts`, ler no servidor
+   somente o `X-Trampos-Client-IP` emitido pelo ingresso e reenviar um
+   único IP válido ao construir o `fetch` para a `API_URL` interna.
+   Omitir o header quando o valor faltar ou for inválido. Aplicar a login,
+   início, reenvio, confirmação e pedido de recuperação. Para `429`, ler
+   `Retry-After` em segundos e manter a confirmação no passo do código.
+   O bloqueio por volume deve indicar espera e preservar o formulário.
+3. **API.** Manter a reescrita genérica desativada e identificar o emissor
+   com `request.getRemoteAddr()`. Medir em pedidos vindos do Next e, se
+   houver repasse direto, também em pedidos vindos do ingresso. Adicionar
+   somente os IPs exatos medidos de emissores exclusivos. Um gateway
+   compartilhado ou um endereço reutilizável sem controle não serve para
+   identificar o emissor. Até isolar o caminho, manter a lista vazia.
 
-Sem essa integração, o limite por conta funciona, mas pedidos enviados
-pelo Next compartilham a cota por origem observada pela API. A integração
-e a validação da topologia real ficam pendentes de T16/T09.
+No ensaio local, uma rede Docker dedicada a Next e API pode reservar
+o IP do Next via IPAM. A rede do banco deve ficar separada e as portas
+diretas devem ficar inacessíveis a clientes externos. Usar endereços do
+projeto descartável apenas nesse ensaio. Recriar os serviços, conferir o
+par observado e testar duas origens, headers inválidos e o `Retry-After`
+na tela. Se os endereços forem dinâmicos, coordenar a atualização da lista
+e retirar endereços antigos antes da reutilização.
+[Redes no Docker Compose](https://docs.docker.com/compose/how-tos/networking/)
+
+O ambiente candidato deve confirmar as redes, firewall, pares IPv4/IPv6 e
+eventual NAT ou CDN. Conferir os consumidores da API pública antes de
+propor qualquer restrição de rota e preservar os fluxos acordados, como
+OAuth e leitura de avatar. A validação com MockMvc simula par e headers.
+O ensaio completo com ingresso e Next depende da integração frontend da
+T16. Até lá, os pedidos do Next compartilham a cota da origem observada.
 
 ## Capacidade e operação
 

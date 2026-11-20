@@ -55,7 +55,8 @@ public class AuthController {
     /** Passo 2: o código de volta. É aqui que a conta nasce, e com o e-mail já provado. */
     @PostMapping("/register/confirm")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponseDTO confirmRegistration(@Valid @RequestBody SignupConfirmDTO dto){
+    public AuthResponseDTO confirmRegistration(@Valid @RequestBody SignupConfirmDTO dto, HttpServletRequest request){
+        rateLimiter.checkSignupConfirmation(clientOrigin.resolve(request));
         return signupService.confirm(dto.email(), dto.code());
     }
 

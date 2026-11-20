@@ -29,6 +29,7 @@ public class TestcontainersConfiguration {
                     registry.add(prefix + ".per-origin", () -> 1000);
                     registry.add(prefix + ".cooldown", () -> "0s");
                 }
+                registry.add("tramposeditor.auth-limits.signup-confirm.per-origin", () -> 1000);
             }
         };
     }
