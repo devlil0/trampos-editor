@@ -3,6 +3,7 @@ package com.devlil0.tramposeditor.controller;
 import com.devlil0.tramposeditor.TestcontainersConfiguration;
 import com.devlil0.tramposeditor.config.AuthClientOrigin;
 import com.devlil0.tramposeditor.database.model.UserEntity;
+import com.devlil0.tramposeditor.database.repository.IPendingSignupRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
 import com.devlil0.tramposeditor.notification.EmailSender;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +19,15 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.devlil0.tramposeditor.TestcontainersConfiguration.CODIGO_DE_CADASTRO;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -45,6 +53,7 @@ class AuthRateLimitIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired IUserRepository users;
+    @Autowired IPendingSignupRepository pendings;
     @MockitoBean EmailSender sender;
     @MockitoBean(name = "authRateLimitClock") Clock clock;
 
@@ -102,6 +111,103 @@ class AuthRateLimitIntegrationTest {
         limit(login("mesma-conta", "198.51.100.9", "203.0.113.1"), 10);
         advance(10);
         login("mesma-conta", "198.51.100.9", "203.0.113.1").andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rajadaConcorrenteAplicaCotaPadraoSemAlterarPendenciaBloqueada() throws Exception {
+        String peer = "198.51.100.50";
+        String address = "volume-confirm@teste.com";
+        startSignup(address, "volume-confirm", peer).andExpect(status().isAccepted());
+        confirm(address, "111111", peer).andExpect(status().isConflict());
+
+        var start = new CountDownLatch(1);
+        var results = new ArrayList<Future<Integer>>();
+        try (var pool = Executors.newFixedThreadPool(12)) {
+            for (int i = 0; i < 47; i++) {
+                int index = i;
+                results.add(pool.submit(() -> {
+                    start.await();
+                    return confirm("ausente-" + index + "@teste.com", "111111", peer,
+                            "203.0.113." + (index + 1)).andReturn().getResponse().getStatus();
+                }));
+            }
+            start.countDown();
+            var statuses = new ArrayList<Integer>();
+            for (var result : results) {
+                statuses.add(result.get(30, TimeUnit.SECONDS));
+            }
+            assertThat(statuses).containsOnly(409, 429);
+            assertThat(statuses.stream().filter(value -> value == 409).count()).isEqualTo(39);
+            assertThat(statuses.stream().filter(value -> value == 429).count()).isEqualTo(8);
+        }
+
+        var before = pendings.findByEmail(address).orElseThrow();
+        assertThat(before.getAttempts()).isEqualTo((short) 1);
+        limit(confirm(address, "111111", peer, "203.0.113.99"), 300);
+        limit(confirm(address, CODIGO_DE_CADASTRO, peer), 300);
+        assertThat(pendings.findByEmail(address).orElseThrow())
+                .usingRecursiveComparison().isEqualTo(before);
+        assertThat(users.findByEmail(address)).isEmpty();
+
+        startSignup("volume-outro@teste.com", "volume-outro", peer).andExpect(status().isAccepted());
+        advance(299);
+        limit(confirm(address, CODIGO_DE_CADASTRO, peer), 1);
+        advance(1);
+        confirm(address, CODIGO_DE_CADASTRO, peer).andExpect(status().isCreated());
+        assertThat(pendings.findByEmail(address)).isEmpty();
+        assertThat(users.findByEmail(address))
+                .hasValueSatisfying(user -> assertThat(user.isEmailVerified()).isTrue());
+    }
+
+    @Test
+    void confirmacaoAgrupaHeadersInvalidosNoParEPreservaCincoErrosPorPendencia() throws Exception {
+        String proxy = "192.0.2.1";
+        String client = "203.0.113.50";
+        String address = "cinco-confirm@teste.com";
+        startSignup(address, "cinco-confirm", proxy).andExpect(status().isAccepted());
+        for (int i = 0; i < 40; i++) {
+            confirm("sem-pendencia@teste.com", "111111", proxy).andExpect(status().isConflict());
+        }
+        limit(confirm(address, "111111", proxy, "invalid"), 300);
+        limit(confirm(address, "111111", proxy, client, client), 300);
+        limit(confirm(address, "111111", proxy, client + ", 203.0.113.51"), 300);
+        assertThat(pendings.findByEmail(address).orElseThrow().getAttempts()).isZero();
+
+        for (int attempt = 1; attempt <= 4; attempt++) {
+            confirm(address, "111111", proxy, client).andExpect(status().isConflict());
+            assertThat(pendings.findByEmail(address).orElseThrow().getAttempts()).isEqualTo((short) attempt);
+        }
+        confirm(address, "111111", proxy, "203.0.113.51").andExpect(status().isConflict());
+        assertThat(pendings.findByEmail(address)).isEmpty();
+        confirm(address, CODIGO_DE_CADASTRO, proxy, client).andExpect(status().isConflict());
+        assertThat(users.findByEmail(address)).isEmpty();
+    }
+
+    private ResultActions startSignup(String address, String username, String peer) throws Exception {
+        return mvc.perform(post("/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .with(request -> {
+                    request.setRemoteAddr(peer);
+                    return request;
+                })
+                .content("""
+                        {"email":"%s","password":"senha-ficticia","displayName":"Pessoa",
+                         "username":"%s","roles":["CLIENT"]}
+                        """.formatted(address, username)));
+    }
+
+    private ResultActions confirm(String address, String code, String peer, String... origins) throws Exception {
+        var request = post("/v1/auth/register/confirm").contentType(MediaType.APPLICATION_JSON)
+                .with(mock -> {
+                    mock.setRemoteAddr(peer);
+                    return mock;
+                })
+                .content("""
+                        {"email":"%s","code":"%s"}
+                        """.formatted(address, code));
+        for (String origin : origins) {
+            request.header(AuthClientOrigin.CLIENT_IP_HEADER, origin);
+        }
+        return mvc.perform(request);
     }
 
     private void saveUser(String username, boolean active) {

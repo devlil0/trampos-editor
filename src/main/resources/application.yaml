@@ -108,6 +108,9 @@ tramposeditor:
       per-origin: 60
       window: 10m
       cooldown: 60s
+    signup-confirm:
+      per-origin: 40
+      window: 5m
     password-reset:
       per-account: 5
       per-origin: 30

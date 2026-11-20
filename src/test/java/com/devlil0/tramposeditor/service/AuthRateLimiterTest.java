@@ -106,10 +106,27 @@ class AuthRateLimiterTest {
         limiter.checkPasswordChange(anotherUser, "ip-2");
     }
 
+    @Test
+    void confirmacaoUsaUmaEntradaPorOrigemERecuperaCapacidadeAposExpiracao() {
+        var limiter = limiter(2, 5, 2, 0);
+        limiter.checkSignupConfirmation("ip-1");
+        limiter.checkSignupConfirmation("ip-2");
+        for (int i = 0; i < 50; i++) {
+            String origin = "new-" + i;
+            assertThat(assertThrows(AuthRateLimitException.class,
+                    () -> limiter.checkSignupConfirmation(origin)).retryAfterSeconds()).isEqualTo(60);
+        }
+        limiter.checkSignupConfirmation("ip-1");
+        assertThrows(AuthRateLimitException.class, () -> limiter.checkSignupConfirmation("ip-1"));
+        clock.now = clock.now.plusSeconds(60);
+        limiter.checkSignupConfirmation("ip-3");
+    }
+
     private AuthRateLimiter limiter(int capacity, int account, int origin, int cooldownSeconds) {
         var policy = new AuthLimitProperties.Policy(account, origin, Duration.ofMinutes(1),
                 Duration.ofSeconds(cooldownSeconds));
-        return new AuthRateLimiter(new AuthLimitProperties(capacity, List.of(), policy, policy, policy, policy), clock);
+        return new AuthRateLimiter(new AuthLimitProperties(capacity, List.of(), policy, policy, policy, policy,
+                new AuthLimitProperties.OriginPolicy(origin, Duration.ofMinutes(1))), clock);
     }
 
     private static final class MutableClock extends Clock {

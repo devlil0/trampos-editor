@@ -17,9 +17,10 @@ import java.util.UUID;
 
 @Service
 public class AuthRateLimiter {
-    public enum Operation { LOGIN, SIGNUP, PASSWORD_RESET, PASSWORD_CHANGE }
+    public enum Operation { LOGIN, SIGNUP, PASSWORD_RESET, PASSWORD_CHANGE, SIGNUP_CONFIRM }
 
     private record Key(Operation operation, boolean account, String value) {}
+    private record Quota(Key key, int limit, Duration window, Duration cooldown) {}
     private record Expiry(Key key, Instant at) {}
 
     private static final class Window {
@@ -52,7 +53,28 @@ public class AuthRateLimiter {
         reserve(Operation.PASSWORD_CHANGE, TokenSecrets.hash(userId.toString()), origin);
     }
 
-    private synchronized void reserve(Operation operation, String account, String origin) {
+    public void checkSignupConfirmation(String origin) {
+        var policy = limits.signupConfirm();
+        reserve(originQuota(Operation.SIGNUP_CONFIRM, origin, policy.perOrigin(), policy.window()));
+    }
+
+    private void reserve(Operation operation, String account, String origin) {
+        var policy = switch (operation) {
+            case LOGIN -> limits.login();
+            case SIGNUP -> limits.signup();
+            case PASSWORD_RESET -> limits.passwordReset();
+            case PASSWORD_CHANGE -> limits.passwordChange();
+            case SIGNUP_CONFIRM -> throw new IllegalArgumentException("Signup confirmation only accepts an origin");
+        };
+        reserve(new Quota(new Key(operation, true, account), policy.perAccount(), policy.window(), policy.cooldown()),
+                originQuota(operation, origin, policy.perOrigin(), policy.window()));
+    }
+
+    private Quota originQuota(Operation operation, String origin, int limit, Duration window) {
+        return new Quota(new Key(operation, false, origin), limit, window, Duration.ZERO);
+    }
+
+    private synchronized void reserve(Quota... quotas) {
         Instant now = clock.instant();
         while (!expiry.isEmpty() && !expiry.peek().at().isAfter(now)) {
             var due = expiry.remove();
@@ -64,20 +86,13 @@ public class AuthRateLimiter {
                 windows.remove(due.key());
             }
         }
-        var policy = switch (operation) {
-            case LOGIN -> limits.login();
-            case SIGNUP -> limits.signup();
-            case PASSWORD_RESET -> limits.passwordReset();
-            case PASSWORD_CHANGE -> limits.passwordChange();
-        };
-
-        var accountKey = new Key(operation, true, account);
-        var originKey = new Key(operation, false, origin);
-        var accountWindow = windows.get(accountKey);
-        var originWindow = windows.get(originKey);
-        Instant retryAt = later(blockedUntil(accountWindow, policy.perAccount(), now),
-                blockedUntil(originWindow, policy.perOrigin(), now));
-        int required = (accountWindow == null ? 1 : 0) + (originWindow == null ? 1 : 0);
+        Instant retryAt = now;
+        int required = 0;
+        for (Quota quota : quotas) {
+            Window window = windows.get(quota.key());
+            retryAt = later(retryAt, blockedUntil(window, quota.limit(), now));
+            if (window == null) required++;
+        }
         if (required > limits.maxEntries() - windows.size()) {
             retryAt = later(retryAt, expiry.peek().at());
         }
@@ -87,11 +102,13 @@ public class AuthRateLimiter {
             throw new AuthRateLimitException(seconds);
         }
 
-        Window acceptedAccount = existingOrNew(accountKey, accountWindow, now, policy.window());
-        Window acceptedOrigin = existingOrNew(originKey, originWindow, now, policy.window());
-        acceptedAccount.count++;
-        acceptedAccount.nextAllowed = now.plus(policy.cooldown());
-        acceptedOrigin.count++;
+        for (Quota quota : quotas) {
+            Window window = existingOrNew(quota.key(), windows.get(quota.key()), now, quota.window());
+            window.count++;
+            if (quota.key().account()) {
+                window.nextAllowed = now.plus(quota.cooldown());
+            }
+        }
     }
 
     private Window existingOrNew(Key key, Window window, Instant now, Duration duration) {
