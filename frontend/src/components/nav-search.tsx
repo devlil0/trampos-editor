@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 /**
@@ -15,14 +15,20 @@ import { useState } from "react";
  * Preserva os filtros ativos quando já se está na vitrine: quem filtrou por CapCut e
  * depois busca "motion" espera refinar, não recomeçar.
  */
-export function NavSearch() {
+export function NavSearch({ mobile = false }: { mobile?: boolean }) {
+  const params = useSearchParams();
+  return <SearchForm key={params.get("q") ?? ""} mobile={mobile} />;
+}
+
+function SearchForm({ mobile }: { mobile: boolean }) {
+  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(pathname === "/editores" ? searchParams.toString() : "");
     // `page` some junto: resultado novo começa da primeira página.
     params.delete("page");
     if (query.trim()) params.set("q", query.trim());
@@ -35,14 +41,15 @@ export function NavSearch() {
     <form
       onSubmit={onSubmit}
       role="search"
-      className="hidden min-w-0 flex-1 items-center gap-1 rounded-xl border border-line bg-card p-1 pl-3.5 focus-within:border-accent md:flex"
+      className={`${mobile ? "mb-4 flex md:hidden" : "hidden flex-1 md:flex"} min-w-0 items-center gap-1 rounded-xl border border-line bg-card p-1 pl-3.5 focus-within:border-accent`}
     >
       <input
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Busque um editor por nome, estilo ou nicho…"
-        aria-label="Buscar editores"
+        placeholder="Busque por nome ou chamada…"
+        aria-label="Buscar editores por nome ou chamada"
+        maxLength={120}
         className="min-w-0 flex-1 bg-transparent py-1.5 text-sm outline-none placeholder:text-muted"
       />
       <button

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { fetchMyConversations } from "@/lib/api";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 import type { ConversationSummary } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -16,7 +15,7 @@ export const metadata: Metadata = {
  * seria trabalho dela pra resolver um problema do sistema.
  */
 export default async function ConversasPage() {
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
 
   const token = await getSessionToken();
   const conversas = token ? await fetchMyConversations(token) : [];

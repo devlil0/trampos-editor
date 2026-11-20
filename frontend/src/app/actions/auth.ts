@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { redirect } from "next/navigation";
 import { createSession, destroySession } from "@/lib/session";
 import { readSignupOrigin } from "@/lib/signup-origin";
@@ -65,7 +66,7 @@ export async function loginAction(
 
   let auth: AuthResponse;
   try {
-    const res = await fetch(`${API_URL}/v1/auth/login`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -120,7 +121,7 @@ export async function registerAction(
   // segunda cópia aqui poderia recusar um nome que o campo tinha acabado de aprovar.
 
   try {
-    const res = await fetch(`${API_URL}/v1/auth/register`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // A origem da primeira visita (§3.1). Vai como campo opcional e nunca pode fazer o
@@ -176,7 +177,7 @@ export async function confirmSignupAction(
 
   let auth: AuthResponse;
   try {
-    const res = await fetch(`${API_URL}/v1/auth/register/confirm`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/register/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
@@ -205,7 +206,7 @@ export async function confirmSignupAction(
  */
 export async function resendSignupCodeAction(email: string): Promise<AuthFormState> {
   try {
-    const res = await fetch(`${API_URL}/v1/auth/register/resend`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/register/resend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -251,7 +252,7 @@ export async function requestPasswordResetAction(
   if (!email) return { error: "Diga o e-mail da conta.", values };
 
   try {
-    const res = await fetch(`${API_URL}/v1/auth/password-reset/request`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/password-reset/request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -280,7 +281,7 @@ export async function confirmPasswordResetAction(
   if (password !== confirm) return { error: "As duas senhas não batem." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/auth/password-reset/confirm`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/password-reset/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, password }),

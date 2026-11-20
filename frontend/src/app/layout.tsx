@@ -7,7 +7,7 @@ import "./globals.css";
 import { BottomDock } from "@/components/bottom-dock";
 import { Nav } from "@/components/nav";
 import { avatarUrl } from "@/lib/api";
-import { getCurrentUser } from "@/lib/session";
+import { getSessionState } from "@/lib/session";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,14 +61,14 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // Ler a sessão aqui torna as rotas dinâmicas — aceitável porque a vitrine já era
   // `no-store` e continua renderizada no servidor (o HTML pro SEO não muda).
-  const user = await getCurrentUser();
+  const { user, status } = await getSessionState();
 
   return (
     <html lang="pt-BR" data-theme="dark" className={`${inter.variable} ${jetbrainsMono.variable} h-full`}>
       <body className="min-h-full flex flex-col antialiased">
         {/* `id` é obrigatório em script inline — é como o Next rastreia e não duplica. */}
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <Nav user={user} />
+        <Nav user={user} sessionUnavailable={status === "unavailable"} />
         {/* pb quando logado: a barra flutuante cobre a base, e sem isso ela tapa o fim de
             toda página rolada até o fim. */}
         <main className={`flex-1 ${user ? "pb-24" : ""}`}>{children}</main>

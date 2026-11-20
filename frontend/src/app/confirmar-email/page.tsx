@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AuthShell } from "@/components/auth-shell";
@@ -72,7 +73,7 @@ export default async function ConfirmarEmailPage({ searchParams }: { searchParam
  */
 async function confirmar(token: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/v1/auth/email-verification/confirm`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/auth/email-verification/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),

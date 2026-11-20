@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
@@ -12,6 +13,9 @@ export interface DealFormState {
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (res.status === 403) return "Você não tem permissão para fazer isso.";
+  if (res.status >= 500) return fallback;
   try {
     const body = await res.json();
     if (typeof body?.error === "string") return body.error;
@@ -28,7 +32,7 @@ async function post(path: string, body?: unknown, extraPaths: string[] = []): Pr
   if (!token) redirect("/entrar");
 
   try {
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetchWithTimeout(`${API_URL}${path}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

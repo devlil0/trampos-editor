@@ -1,5 +1,7 @@
 "use client";
 
+import { AuthFeedback } from "./auth-feedback";
+import { removePortfolioAction } from "@/app/actions/editor-profile";
 import { useActionState } from "react";
 import {
   addPortfolioAction,
@@ -267,6 +269,20 @@ export function AddPortfolioForm() {
         </button>
       </div>
       <p className="text-xs text-muted">Cole o link de um vídeo do YouTube ou do Vimeo.</p>
+    </form>
+  );
+}
+
+export function RemovePortfolioForm({ itemId, title }: { itemId: string; title: string }) {
+  const [state, action, pending] = useActionState(removePortfolioAction, EMPTY);
+  return (
+    <form action={action} className="min-w-0">
+      <AuthFeedback state={state} />
+      <input type="hidden" name="itemId" value={itemId} />
+      <button type="submit" disabled={pending} aria-label={"Remover vídeo: " + title}
+        className="rounded px-2 py-1 text-xs font-semibold text-muted hover:text-busy disabled:opacity-60">
+        {pending ? "Removendo…" : "Remover"}
+      </button>
     </form>
   );
 }

@@ -11,12 +11,12 @@ import type { AuthUser } from "@/lib/types";
  * (`ThemeToggle`): tema é preferência de conta, ajustada uma vez, e o espaço na barra
  * serve melhor à busca.
  */
-export function Nav({ user }: { user: AuthUser | null }) {
+export function Nav({ user, sessionUnavailable }: { user: AuthUser | null; sessionUnavailable: boolean }) {
   return (
     <nav className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur-md backdrop-saturate-150">
       {/* Largura de marketplace, não de site institucional: a barra acompanha a vitrine,
           que é a tela mais larga do produto. */}
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-5 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1440px] items-center gap-3 px-4 sm:gap-5 sm:px-6">
         <Link href="/" className="flex flex-none items-center gap-2.5 font-bold tracking-tight">
           {/* alt vazio: o wordmark ao lado já nomeia o link, evita leitura duplicada */}
           <Image
@@ -27,7 +27,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
             priority
             className="rounded-full"
           />
-          <span>
+          <span className="max-[399px]:sr-only">
             Trampos<span className="text-accent">Editor</span>
           </span>
         </Link>
@@ -41,7 +41,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
             decisão de quem chega num marketplace de dois lados é "qual desses eu sou?".
             Só pra quem está deslogado — quem entrou navega pela barra de baixo, e link
             repetido nos dois lugares é ruído. */}
-        {!user && (
+        {!user && !sessionUnavailable && (
           <div className="hidden flex-none gap-5 text-sm text-muted lg:flex">
             <Link href="/para-clientes" className="hover:text-fg">
               Para clientes
@@ -57,7 +57,9 @@ export function Nav({ user }: { user: AuthUser | null }) {
         )}
 
         <div className="ml-auto flex flex-none items-center gap-2.5">
-          {user ? (
+          {sessionUnavailable ? (
+            <span role="status" className="text-xs text-muted">Sessão indisponível</span>
+          ) : user ? (
             /* Barra enxuta pra quem entrou: navegação é a barra de baixo, e aqui ficam só
                os dois atalhos que não cabem nela. Nome, "Painel", "Vitrine" e "Sair"
                saíram em 2026-08-04 — o logout foi pras configurações, onde rede social
@@ -80,7 +82,7 @@ export function Nav({ user }: { user: AuthUser | null }) {
             <>
               <Link
                 href="/entrar"
-                className="hidden btn btn-ghost btn-sm sm:inline-block"
+                className="btn btn-ghost btn-sm"
               >
                 Entrar
               </Link>

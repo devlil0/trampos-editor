@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { hasAdjustedFilters, normalizeFeedQuery } from "@/lib/query-filters";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CategoryChips, FeedPager } from "@/components/feed-nav";
@@ -7,7 +8,7 @@ import { InterestForm } from "@/components/job-forms";
 import { NicheTag } from "@/components/niche-tag";
 import { fetchJobFeed, fetchMyEditorProfile, fetchMyJobInterests } from "@/lib/api";
 import { formatPrice, formatTurnaround } from "@/lib/format";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 import type { JobRequestFeedItem } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -38,13 +39,13 @@ export default async function FeedPage({ searchParams }: { searchParams: SearchP
   // queria a lista de editores seria uma porta trancada sem motivo.
   if (pick(sp.class) === "editores") redirect("/editores");
 
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
 
   const token = await getSessionToken();
   if (!token) redirect("/entrar");
 
-  const niche = pick(sp.niche);
-  const page = pick(sp.page);
+  const raw = { niche: pick(sp.niche), page: pick(sp.page) };
+  const { niche, page } = normalizeFeedQuery(raw);
 
   const perfil = await fetchMyEditorProfile(token);
   const [feed, candidaturas] = await Promise.all([
@@ -67,6 +68,12 @@ export default async function FeedPage({ searchParams }: { searchParams: SearchP
       <div className="mt-5">
         <FeedSwitch active="trampos" />
       </div>
+
+      {hasAdjustedFilters(raw, { niche, page }) && (
+        <p role="status" className="mt-4 text-sm text-muted">
+          Alguns filtros foram ajustados. <Link href="/painel/feed" className="underline">Limpar filtros</Link>
+        </p>
+      )}
 
       {!perfil && (
         <p className="mt-6 rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 text-sm">
@@ -143,7 +150,7 @@ function FeedCard({ job, podeCandidatar }: { job: JobRequestFeedItem; podeCandid
         </Meta>
       </div>
 
-      <p className="mt-3.5 whitespace-pre-line text-sm text-muted">{job.description}</p>
+      <p className="mt-3.5 whitespace-pre-line [overflow-wrap:anywhere] text-sm text-muted">{job.description}</p>
 
       {job.referenceUrl && (
         <a

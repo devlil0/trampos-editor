@@ -8,6 +8,9 @@
  * Login social (Google) entra depois sem mexer aqui: basta a nova action trocar o
  * código do provedor por um AuthResponse do nosso backend e chamar createSession.
  */
+import { cache } from "react";
+import { redirect } from "next/navigation";
+import { fetchWithTimeout } from "./api-fetch";
 import { cookies } from "next/headers";
 import type { AuthResponse, AuthUser } from "./types";
 
@@ -37,23 +40,38 @@ export async function getSessionToken(): Promise<string | null> {
   return jar.get(SESSION_COOKIE)?.value ?? null;
 }
 
-/**
- * Usuário logado, perguntando pro backend (nunca decodificando o JWT aqui).
- * Token expirado ou usuário desativado devolve null — a UI trata como deslogado.
- */
-export async function getCurrentUser(): Promise<AuthUser | null> {
+
+type SessionState =
+  | { status: "active"; user: AuthUser }
+  | { status: "anonymous" | "expired" | "unavailable"; user: null };
+
+export const getSessionState = cache(async (): Promise<SessionState> => {
   const token = await getSessionToken();
-  if (!token) return null;
+  if (!token) return { status: "anonymous", user: null };
 
   try {
-    const res = await fetch(`${API_URL}/v1/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetchWithTimeout(API_URL + "/v1/users/me", {
+      headers: { Authorization: "Bearer " + token },
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    return (await res.json()) as AuthUser;
+    if (res.status === 401 || res.status === 403) return { status: "expired", user: null };
+    if (res.ok) return { status: "active", user: await res.json() as AuthUser };
   } catch {
-    // Backend fora do ar não pode derrubar a página inteira — trata como deslogado.
-    return null;
+    return { status: "unavailable", user: null };
   }
+  return { status: "unavailable", user: null };
+});
+
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const session = await getSessionState();
+  if (session.status === "unavailable") throw new Error("Falha ao consultar a sessão");
+  return session.user;
+}
+
+export async function requireCurrentUser(): Promise<AuthUser> {
+  const session = await getSessionState();
+  if (session.status === "unavailable") throw new Error("Falha ao consultar a sessão");
+  if (session.status === "expired") redirect("/entrar?motivo=sessao");
+  if (!session.user) redirect("/entrar");
+  return session.user;
 }

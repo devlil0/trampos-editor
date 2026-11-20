@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { getSessionToken } from "@/lib/session";
 import type { EditorNiche, EditorStyle, EditorTool } from "@/lib/types";
@@ -12,6 +13,9 @@ export interface ProfileFormState {
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (res.status === 403) return "Você não tem permissão para fazer isso.";
+  if (res.status >= 500) return fallback;
   try {
     const body = await res.json();
     if (typeof body?.error === "string") return body.error;
@@ -71,7 +75,7 @@ export async function saveProfileAction(
   };
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/editor-profile`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/editor-profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -102,7 +106,7 @@ export async function addPortfolioAction(
   if (!title || !videoUrl) return { error: "Título e link do vídeo são obrigatórios." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/editor-profile/portfolio`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/editor-profile/portfolio`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ title, videoUrl }),
@@ -121,16 +125,26 @@ export async function addPortfolioAction(
   return { ok: true };
 }
 
-export async function removePortfolioAction(formData: FormData): Promise<void> {
+export async function removePortfolioAction(
+  _prev: ProfileFormState,
+  formData: FormData,
+): Promise<ProfileFormState> {
   const token = await getSessionToken();
+  if (!token) return { error: "Sua sessão expirou. Entre novamente." };
   const itemId = String(formData.get("itemId") ?? "");
-  if (!token || !itemId) return;
+  if (!itemId) return { error: "Vídeo não encontrado. Atualize a página." };
 
-  await fetch(`${API_URL}/v1/me/editor-profile/portfolio/${itemId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+  try {
+    const res = await fetchWithTimeout(API_URL + "/v1/me/editor-profile/portfolio/" + encodeURIComponent(itemId), {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + token },
+      cache: "no-store",
+    });
+    if (!res.ok) return { error: await readError(res, "Não foi possível remover o vídeo. Tente novamente.") };
+  } catch {
+    return { error: "Não foi possível confirmar a remoção. Atualize a página antes de tentar novamente." };
+  }
 
-  revalidatePath("/painel/meu-perfil");
+  revalidatePath("/painel/meu-perfil", "layout");
+  return { ok: true };
 }

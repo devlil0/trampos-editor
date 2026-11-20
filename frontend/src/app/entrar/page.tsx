@@ -21,7 +21,7 @@ export default async function EntrarPage({ searchParams }: { searchParams: Searc
   const sp = await searchParams;
   const raw = sp.oauth_error;
   const code = Array.isArray(raw) ? raw[0] : raw;
-  const erro = code ? oauthErrorMessage(code) : null;
+  const erro = code ? oauthErrorMessage(code) : sp.motivo === "sessao" ? "Sua sessão não está mais válida. Entre novamente para continuar." : null;
 
   return (
     <AuthShell title="Bem-vindo de volta" subtitle="Entre pra continuar de onde parou.">

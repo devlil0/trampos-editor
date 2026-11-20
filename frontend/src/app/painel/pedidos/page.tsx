@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { JobDecisionForm } from "@/components/job-forms";
 import { NicheTag } from "@/components/niche-tag";
 import { fetchMyJobRequests } from "@/lib/api";
 import { formatPrice, formatTurnaround } from "@/lib/format";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 import type { JobInterest, JobRequest } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function MeusPedidosPage() {
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
 
   const token = await getSessionToken();
   const pedidos = token ? await fetchMyJobRequests(token) : [];
@@ -83,7 +82,7 @@ function PedidoCard({ pedido }: { pedido: JobRequest }) {
         </span>
       </div>
 
-      <p className="mt-3.5 whitespace-pre-line text-sm text-muted">{pedido.description}</p>
+      <p className="mt-3.5 whitespace-pre-line [overflow-wrap:anywhere] text-sm text-muted">{pedido.description}</p>
 
       {pedido.referenceUrl && (
         <a

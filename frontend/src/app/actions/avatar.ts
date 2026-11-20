@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { getSessionToken } from "@/lib/session";
 
@@ -47,7 +48,7 @@ export async function uploadAvatarAction(
   upstream.append("file", file);
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/avatar`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/avatar`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: upstream,
@@ -70,7 +71,7 @@ export async function removeAvatarAction(): Promise<AvatarFormState> {
   if (!token) return { error: "Sua sessão expirou. Entre de novo." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/avatar`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/avatar`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",

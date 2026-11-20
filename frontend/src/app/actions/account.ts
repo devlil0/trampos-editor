@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
@@ -12,6 +13,9 @@ export interface AccountFormState {
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (res.status === 403) return "Você não tem permissão para fazer isso.";
+  if (res.status >= 500) return fallback;
   try {
     const body = await res.json();
     if (typeof body?.error === "string") return body.error;
@@ -40,7 +44,7 @@ export async function saveInstagramAction(
   const instagram = String(formData.get("instagram") ?? "").trim();
 
   try {
-    const res = await fetch(`${API_URL}/v1/users/me`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/users/me`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ instagram: instagram || null }),
@@ -73,7 +77,7 @@ export async function resendEmailVerificationAction(
   if (!token) return { error: "Sua sessão expirou. Entre de novo." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/users/me/email-verification/resend`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/users/me/email-verification/resend`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
@@ -112,7 +116,7 @@ export async function saveUsernameAction(
   if (!username) return { error: "Escolha um nome de usuário." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/users/me/username`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/users/me/username`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ username }),

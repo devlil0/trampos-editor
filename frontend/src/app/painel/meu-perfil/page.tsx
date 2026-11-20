@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { BotaoConfiguracoes, EditorProfileView } from "@/components/editor-profile-view";
 import { avatarUrl, fetchMyEditorProfile } from "@/lib/api";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Meu perfil — TramposEditor",
@@ -23,8 +22,7 @@ export const metadata: Metadata = {
  */
 export default async function MeuPerfilPage() {
   // Sem trava de papel: publicar este perfil é o que torna a conta editora.
-  const user = await getCurrentUser();
-  if (!user) redirect("/entrar");
+  const user = await requireCurrentUser();
 
   const token = await getSessionToken();
   const profile = token ? await fetchMyEditorProfile(token) : null;
