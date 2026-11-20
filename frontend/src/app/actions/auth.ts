@@ -20,21 +20,35 @@ export interface AuthFormState {
    * trocar de passo.
    */
   codeSent?: string;
+  notice?: string;
+  /** Prazo calculado a partir do Retry-After em segundos da T05. */
+  retryAt?: number;
 }
 
 /**
  * Traduz a resposta de erro do backend numa frase só.
  * O handler global devolve {"error": "..."} ou {"errors": ["campo: msg", ...]}.
  */
-async function readError(res: Response, fallback: string): Promise<string> {
+async function readError(res: Response, fallback: string): Promise<Pick<AuthFormState, "error" | "retryAt">> {
+  let error = fallback;
+  if (res.status === 503) error = "Não foi possível enviar o e-mail agora. Tente novamente mais tarde.";
+  if (res.status === 429) error = "Muitas tentativas. Aguarde e tente novamente.";
   try {
     const body = await res.json();
-    if (typeof body?.error === "string") return body.error;
-    if (Array.isArray(body?.errors) && body.errors.length > 0) return body.errors.join(" · ");
+    if (typeof body?.error === "string") error = body.error;
+    else if (Array.isArray(body?.errors) && body.errors.length > 0) {
+      error = body.errors.filter((message: unknown) => typeof message === "string").join(" · ") || error;
+    }
   } catch {
     // resposta sem corpo JSON
   }
-  return fallback;
+  const rawDelay = res.headers.get("Retry-After");
+  const seconds = rawDelay && /^\d+$/.test(rawDelay) ? Number(rawDelay) : 0;
+  const retryAt = Date.now() + seconds * 1000;
+  return {
+    error,
+    retryAt: res.status === 429 && seconds > 0 && Number.isSafeInteger(retryAt) ? retryAt : undefined,
+  };
 }
 
 export async function loginAction(
@@ -62,7 +76,7 @@ export async function loginAction(
       return { error: "E-mail ou senha incorretos.", values };
     }
     if (!res.ok) {
-      return { error: await readError(res, "Não deu pra entrar agora. Tente de novo."), values };
+      return { ...await readError(res, "Não deu pra entrar agora. Tente de novo."), values };
     }
     auth = await res.json();
   } catch {
@@ -126,10 +140,10 @@ export async function registerAction(
     // e-mail repetido ou nome já tomado. A frase do backend distingue os dois, então
     // repassar é mais útil que a mensagem fixa que estava aqui.
     if (res.status === 409) {
-      return { error: await readError(res, "Já existe uma conta com esse e-mail."), values };
+      return { ...await readError(res, "Já existe uma conta com esse e-mail."), values };
     }
     if (!res.ok) {
-      return { error: await readError(res, "Não deu pra criar a conta agora."), values };
+      return { ...await readError(res, "Não deu pra criar a conta agora."), values };
     }
   } catch {
     return { error: "Servidor fora do ar. Tente de novo em alguns segundos.", values };
@@ -170,7 +184,10 @@ export async function confirmSignupAction(
     });
 
     if (!res.ok) {
-      return fail(await readError(res, "Código inválido ou expirado. Peça um novo."));
+      return {
+        ...await readError(res, "Código inválido ou expirado. Use o código mais recente ou volte ao cadastro."),
+        codeSent: email,
+      };
     }
     auth = await res.json();
   } catch {
@@ -184,20 +201,26 @@ export async function confirmSignupAction(
 /**
  * Outro código pro mesmo cadastro.
  *
- * Silencioso por dentro (o backend sempre devolve 204), então o retorno serve só pra tela
- * dizer que mandou.
+ * O 204 é genérico: também ocorre sem pendência vigente.
  */
-export async function resendSignupCodeAction(email: string): Promise<void> {
+export async function resendSignupCodeAction(email: string): Promise<AuthFormState> {
   try {
-    await fetch(`${API_URL}/v1/auth/register/resend`, {
+    const res = await fetch(`${API_URL}/v1/auth/register/resend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
       cache: "no-store",
     });
+    if (!res.ok) {
+      return { ...await readError(res, "Não deu pra pedir outro código agora."), codeSent: email };
+    }
   } catch {
-    // Falha de rede aqui não tem o que dizer: o botão volta a ficar disponível.
+    return { error: "Servidor fora do ar. Tente de novo em alguns segundos.", codeSent: email };
   }
+  return {
+    codeSent: email,
+    notice: "Se houver um cadastro pendente válido, um novo código será enviado. Se não chegar, volte ao cadastro.",
+  };
 }
 
 export async function logoutAction(): Promise<void> {
@@ -211,6 +234,7 @@ export interface PasswordResetState {
   sent?: boolean;
   done?: boolean;
   values?: { email?: string };
+  retryAt?: number;
 }
 
 /**
@@ -234,7 +258,7 @@ export async function requestPasswordResetAction(
       cache: "no-store",
     });
     if (!res.ok) {
-      return { error: await readError(res, "Não deu pra enviar o link agora."), values };
+      return { ...await readError(res, "Não deu pra pedir o link agora."), values };
     }
   } catch {
     return { error: "Servidor fora do ar. Tente de novo em alguns segundos.", values };
@@ -263,7 +287,7 @@ export async function confirmPasswordResetAction(
       cache: "no-store",
     });
     if (!res.ok) {
-      return { error: await readError(res, "Esse link expirou ou já foi usado. Peça outro.") };
+      return await readError(res, "Esse link expirou ou já foi usado. Peça outro.");
     }
   } catch {
     return { error: "Servidor fora do ar. Tente de novo em alguns segundos." };

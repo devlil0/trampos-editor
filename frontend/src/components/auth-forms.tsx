@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useState } from "react";
 import {
   confirmSignupAction,
   loginAction,
@@ -10,6 +10,7 @@ import {
   type AuthFormState,
 } from "@/app/actions/auth";
 import { UsernameField } from "./username-field";
+import { AuthFeedback, AuthSubmitButton } from "./auth-feedback";
 
 const EMPTY: AuthFormState = {};
 
@@ -17,33 +18,12 @@ const inputClass =
   "w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-base outline-none placeholder:text-muted focus:border-accent";
 const labelClass = "mb-1.5 block text-sm font-semibold";
 
-function ErrorBanner({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p role="alert" className="rounded-xl border border-busy/40 bg-busy/10 px-3.5 py-2.5 text-sm text-busy">
-      {message}
-    </p>
-  );
-}
-
-function SubmitButton({ pending, children }: { pending: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="btn btn-primary btn-block btn-lg"
-    >
-      {pending ? "Um instante…" : children}
-    </button>
-  );
-}
-
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, EMPTY);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <ErrorBanner message={state.error} />
+      <AuthFeedback state={state} />
 
       <div>
         <label htmlFor="email" className={labelClass}>
@@ -82,7 +62,7 @@ export function LoginForm() {
         />
       </div>
 
-      <SubmitButton pending={pending}>Entrar</SubmitButton>
+      <AuthSubmitButton key={state.retryAt ?? 0} pending={pending} retryAt={state.retryAt}>Entrar</AuthSubmitButton>
 
       <p className="text-center text-sm text-muted">
         Ainda não tem conta?{" "}
@@ -106,15 +86,23 @@ export function LoginForm() {
  * sentido com estado — e que quebra se alguém recarregar.
  */
 export function RegisterForm() {
-  const [state, formAction, pending] = useActionState(registerAction, EMPTY);
+  const [editing, setEditing] = useState(false);
+  const [state, formAction, pending] = useActionState(
+    async (previous: AuthFormState, data: FormData) => {
+      const result = await registerAction(previous, data);
+      if (result.codeSent) setEditing(false);
+      return result;
+    },
+    EMPTY,
+  );
 
-  if (state.codeSent) {
-    return <ConfirmSignupForm email={state.codeSent} />;
+  if (state.codeSent && !editing) {
+    return <ConfirmSignupForm email={state.codeSent} onBack={() => setEditing(true)} />;
   }
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <ErrorBanner message={state.error} />
+      <AuthFeedback state={state} />
 
       <div>
         <label htmlFor="displayName" className={labelClass}>
@@ -151,6 +139,7 @@ export function RegisterForm() {
           name="email"
           type="email"
           autoComplete="email"
+          autoFocus={editing}
           required
           defaultValue={state.values?.email}
           placeholder="voce@exemplo.com"
@@ -203,7 +192,7 @@ export function RegisterForm() {
         só publicar seu perfil de editor depois — no painel.
       </p>
 
-      <SubmitButton pending={pending}>Criar conta</SubmitButton>
+      <AuthSubmitButton key={state.retryAt ?? 0} pending={pending} retryAt={state.retryAt}>Criar conta</AuthSubmitButton>
 
       <p className="text-center text-sm text-muted">
         Já tem conta?{" "}
@@ -222,14 +211,23 @@ export function RegisterForm() {
  * pendente com dez minutos de validade. Sair daqui sem confirmar não deixa lixo: o pendente
  * expira sozinho e nunca chega a ocupar o username.
  */
-function ConfirmSignupForm({ email }: { email: string }) {
-  const [state, formAction, pending] = useActionState(confirmSignupAction, EMPTY);
-  const [reenviado, setReenviado] = useState(false);
-  const [reenviando, startReenvio] = useTransition();
+function ConfirmSignupForm({ email, onBack }: { email: string; onBack: () => void }) {
+  const [resendRetryAt, setResendRetryAt] = useState<number>();
+  const [state, formAction, pending] = useActionState(
+    async (previous: AuthFormState, data: FormData) => {
+      if (data.get("operation") === "resend") {
+        const result = await resendSignupCodeAction(email);
+        setResendRetryAt(result.retryAt);
+        return result;
+      }
+      return confirmSignupAction(previous, data);
+    },
+    EMPTY,
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
-      <ErrorBanner message={state.error} />
+      <AuthFeedback state={state} />
 
       {/* O e-mail viaja no formulário porque não há sessão nesta altura: a conta ainda não
           existe, então não há de onde o servidor inferir de quem é o código. */}
@@ -258,36 +256,37 @@ function ConfirmSignupForm({ email }: { email: string }) {
           pattern="[0-9]{6}"
           maxLength={6}
           required
+          disabled={pending}
           autoFocus
           placeholder="000000"
           className={`${inputClass} text-center font-mono text-2xl tracking-[0.4em]`}
         />
       </div>
 
-      <SubmitButton pending={pending}>Confirmar e entrar</SubmitButton>
+      <AuthSubmitButton pending={pending}>Confirmar e entrar</AuthSubmitButton>
 
-      <p className="text-center text-sm text-muted">
-        {reenviado ? (
-          "Mandamos outro código."
-        ) : (
-          <>
-            Não chegou?{" "}
-            <button
-              type="button"
-              disabled={reenviando}
-              onClick={() =>
-                startReenvio(async () => {
-                  await resendSignupCodeAction(email);
-                  setReenviado(true);
-                })
-              }
-              className="font-semibold text-accent hover:underline disabled:opacity-60"
-            >
-              Enviar de novo
-            </button>
-          </>
-        )}
+      <AuthSubmitButton
+        key={resendRetryAt ?? 0}
+        pending={pending}
+        retryAt={resendRetryAt}
+        name="operation"
+        value="resend"
+        formNoValidate
+        className="text-center text-sm font-semibold text-accent hover:underline disabled:opacity-60"
+      >
+        Reenviar código
+      </AuthSubmitButton>
+      <p className="text-sm text-muted">
+        Use o código mais recente. Se ele expirou ou você errou cinco vezes, volte ao cadastro para começar de novo.
       </p>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onBack}
+        className="text-center text-sm font-semibold text-accent hover:underline disabled:opacity-60"
+      >
+        Voltar ao cadastro / corrigir e-mail
+      </button>
     </form>
   );
 }
