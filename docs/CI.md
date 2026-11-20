@@ -52,7 +52,7 @@ ao comando Maven.
 O workflow executa esse teste no `clean verify`. O teste só passa se o
 Flyway falhar com `23505` na restrição esperada e o banco permanecer
 intacto na V11. Um check verde confirma que o defeito foi reproduzido
-e que houve rollback. **O upgrade dos dados afetados continua bloqueado.**
+e que houve rollback. **O upgrade normal dos dados afetados continua bloqueado.**
 O outro teste chega à V19 com a fixture de datas distintas. A CI usa
 bancos descartáveis e não avalia a base que será atualizada.
 
@@ -146,6 +146,7 @@ de preparação de dados anterior à V12, com desempate determinístico e
 revisão do impacto nos endereços públicos. Uma migração posterior à V19
 não alcança um banco que falha na V12. O SQL e o checksum das migrações
 publicadas foram preservados e nenhum dado compartilhado foi alterado.
+O [procedimento manual da V12](UPGRADE-V12.md) descreve o diagnóstico e a preparação em cópia descartável.
 
 
 ## Frontend
