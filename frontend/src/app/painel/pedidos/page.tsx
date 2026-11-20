@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { acceptInterestAction, closeJobRequestAction } from "@/app/actions/job-requests";
+import { JobDecisionForm } from "@/components/job-forms";
 import { NicheTag } from "@/components/niche-tag";
 import { fetchMyJobRequests } from "@/lib/api";
 import { formatPrice, formatTurnaround } from "@/lib/format";
@@ -105,24 +105,22 @@ function PedidoCard({ pedido }: { pedido: JobRequest }) {
       {pedido.interests.length > 0 && (
         <ul className="flex flex-col gap-3">
           {pedido.interests.map((interesse) => (
-            <InteresseItem key={interesse.id} jobId={pedido.id} interesse={interesse} />
+            <InteresseItem key={interesse.id} jobId={pedido.id} interesse={interesse} aberto={aberto} />
           ))}
         </ul>
       )}
 
       {aberto && (
-        <form action={closeJobRequestAction} className="mt-5">
-          <input type="hidden" name="jobId" value={pedido.id} />
-          <button type="submit" className="text-xs font-semibold text-muted hover:text-busy">
-            Fechar pedido
-          </button>
-        </form>
+        <div className="mt-5">
+          <JobDecisionForm jobId={pedido.id} />
+          <p className="mt-2 text-xs text-muted">Fechar mantém o histórico e impede novas candidaturas e aceites.</p>
+        </div>
       )}
     </article>
   );
 }
 
-function InteresseItem({ jobId, interesse }: { jobId: string; interesse: JobInterest }) {
+function InteresseItem({ jobId, interesse, aberto }: { jobId: string; interesse: JobInterest; aberto: boolean }) {
   const aceito = interesse.status === "ACCEPTED";
 
   return (
@@ -139,18 +137,10 @@ function InteresseItem({ jobId, interesse }: { jobId: string; interesse: JobInte
         </span>
         {aceito ? (
           <span className="text-xs font-bold text-good">Aceito</span>
+        ) : aberto ? (
+          <JobDecisionForm jobId={jobId} interestId={interesse.id} />
         ) : (
-          // Aceitar é o que libera o contato dos dois lados (não há chat ainda).
-          <form action={acceptInterestAction}>
-            <input type="hidden" name="jobId" value={jobId} />
-            <input type="hidden" name="interestId" value={interesse.id} />
-            <button
-              type="submit"
-              className="btn btn-ghost btn-sm text-xs"
-            >
-              Aceitar e ver contato
-            </button>
-          </form>
+          <span className="text-xs text-muted">Pedido fechado</span>
         )}
       </div>
 

@@ -11,6 +11,9 @@ import java.util.UUID;
 
 public interface IDealRepository extends JpaRepository<DealEntity, UUID> {
 
+    /** O aceite antigo não reabre a contratação, mesmo depois de encerrada. */
+    Optional<DealEntity> findFirstByJobRequestIdOrderByCreatedAtAsc(UUID jobRequestId);
+
     /** O histórico: meus trampos pelos dois lados, mais recente primeiro. */
     @Query("""
             select d from DealEntity d

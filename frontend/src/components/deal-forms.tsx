@@ -24,7 +24,7 @@ function Erro({ state }: { state: DealFormState }) {
 }
 
 /**
- * Abre o trampo dentro de uma conversa da vitrine. Só aparece pra quem contrata —
+ * Registra um novo trampo na conversa quando não há outro aberto. Só quem contrata —
  * quem combina o trampo é quem está pagando.
  */
 export function OpenDealForm({ conversationId }: { conversationId: string }) {

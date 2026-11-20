@@ -4,12 +4,30 @@ import { useActionState } from "react";
 import {
   createJobRequestAction,
   expressInterestAction,
+  acceptInterestAction,
+  closeJobRequestAction,
   type JobFormState,
 } from "@/app/actions/job-requests";
 import { NICHE_OPTIONS } from "@/lib/format";
 import { NicheIcon } from "./niche-tag";
+import { AuthFeedback } from "./auth-feedback";
 
 const EMPTY: JobFormState = {};
+
+/** Aceite/fechamento preservam o pedido e mostram conflitos, inclusive de outra aba. */
+export function JobDecisionForm({ jobId, interestId }: { jobId: string; interestId?: string }) {
+  const [state, action, pending] = useActionState(interestId ? acceptInterestAction : closeJobRequestAction, EMPTY);
+  return (
+    <form action={action} className="flex flex-col gap-2">
+      <AuthFeedback state={state} />
+      <input type="hidden" name="jobId" value={jobId} />
+      {interestId && <input type="hidden" name="interestId" value={interestId} />}
+      <button type="submit" disabled={pending} className="btn btn-ghost btn-sm text-xs disabled:opacity-60">
+        {pending ? "Atualizando…" : interestId ? "Aceitar editor" : "Fechar pedido"}
+      </button>
+    </form>
+  );
+}
 
 const inputClass =
   "w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-base outline-none placeholder:text-muted focus:border-accent";

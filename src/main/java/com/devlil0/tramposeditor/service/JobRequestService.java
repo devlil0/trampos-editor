@@ -101,7 +101,19 @@ public class JobRequestService {
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("Interesse não encontrado: " + interestId));
 
+        // Replay do mesmo aceite não cria conversa/trampo nem repete o aviso.
+        // A checagem vem antes de CLOSED, pois o primeiro aceite fecha o pedido.
+        if (interest.getStatus() == JobInterestStatus.ACCEPTED) {
+            return toOwnerDTO(job);
+        }
+        if (!job.isOpen()) {
+            throw new BusinessException("Esse pedido já foi fechado e não aceita novos aceites");
+        }
+        if (job.getInterests().stream().anyMatch(i -> i.getStatus() == JobInterestStatus.ACCEPTED)) {
+            throw new BusinessException("Esse pedido já tem um editor escolhido");
+        }
         interest.setStatus(JobInterestStatus.ACCEPTED);
+        job.setStatus(JobRequestStatus.CLOSED);
         var conversation = conversationService.openForJob(job, interest.getEditor());
         // Aceitar já é o gesto de "fechamos": o trampo nasce aqui em vez de pedir o
         // mesmo combinado numa segunda tela (ESBOCO §3.2).
@@ -136,7 +148,7 @@ public class JobRequestService {
 
     @Transactional
     public JobRequestFeedDTO expressInterest(UUID editorUserId, UUID jobId, JobInterestCreateDTO dto){
-        JobRequestEntity job = jobRequestRepository.findById(jobId)
+        JobRequestEntity job = jobRequestRepository.findForUpdateById(jobId)
                 .orElseThrow(() -> new NotFoundException("Pedido não encontrado: " + jobId));
 
         if (!job.isOpen()) {
@@ -177,7 +189,7 @@ public class JobRequestService {
     // ---------- Helpers ----------
 
     private JobRequestEntity loadOwnJob(UUID clientId, UUID jobId){
-        JobRequestEntity job = jobRequestRepository.findById(jobId)
+        JobRequestEntity job = jobRequestRepository.findForUpdateById(jobId)
                 .orElseThrow(() -> new NotFoundException("Pedido não encontrado: " + jobId));
 
         if (!job.getClient().getId().equals(clientId)) {

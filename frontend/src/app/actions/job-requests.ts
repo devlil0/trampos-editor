@@ -106,31 +106,38 @@ export async function expressInterestAction(
   return { ok: true };
 }
 
-export async function acceptInterestAction(formData: FormData): Promise<void> {
+export async function acceptInterestAction(_prev: JobFormState, formData: FormData): Promise<JobFormState> {
   const token = await getSessionToken();
   const jobId = String(formData.get("jobId") ?? "");
   const interestId = String(formData.get("interestId") ?? "");
-  if (!token || !jobId || !interestId) return;
-
-  await fetch(`${API_URL}/v1/me/job-requests/${jobId}/interests/${interestId}/accept`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
-
-  revalidatePath("/painel/pedidos");
+  if (!token) return { error: "Sua sessão expirou. Entre novamente." };
+  if (!jobId || !interestId) return { error: "Candidatura não encontrada. Atualize a página." };
+  return updateJob(token, `${jobId}/interests/${interestId}/accept`);
 }
 
-export async function closeJobRequestAction(formData: FormData): Promise<void> {
+export async function closeJobRequestAction(_prev: JobFormState, formData: FormData): Promise<JobFormState> {
   const token = await getSessionToken();
   const jobId = String(formData.get("jobId") ?? "");
-  if (!token || !jobId) return;
+  if (!token) return { error: "Sua sessão expirou. Entre novamente." };
+  if (!jobId) return { error: "Pedido não encontrado. Atualize a página." };
+  return updateJob(token, `${jobId}/close`);
+}
 
-  await fetch(`${API_URL}/v1/me/job-requests/${jobId}/close`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  });
+async function updateJob(token: string, path: string): Promise<JobFormState> {
+  try {
+    const res = await fetch(`${API_URL}/v1/me/job-requests/${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return { error: await readError(res, "Não foi possível atualizar o pedido. Tente novamente.") };
+  } catch {
+    return { error: "Servidor fora do ar. Tente novamente em alguns segundos." };
+  }
 
   revalidatePath("/painel/pedidos");
+  revalidatePath("/painel/feed");
+  revalidatePath("/painel/conversas");
+  revalidatePath("/painel/trampos-fechados");
+  return { ok: true };
 }

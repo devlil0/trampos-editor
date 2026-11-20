@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Bloco 6 — trampo fechado e avaliação (ESBOCO §7 item 4).
@@ -251,9 +252,65 @@ class DealTest {
         mockMvc.perform(post("/v1/me/deals/" + dealId + "/done")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + estranho))
                 .andExpect(status().isForbidden());
+        String conversationId = dealRepository.findById(java.util.UUID.fromString(dealId))
+                .orElseThrow().getConversation().getId().toString();
+        mockMvc.perform(post("/v1/me/deals/from-conversation/" + conversationId)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + estranho)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Trampo indevido\"}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/v1/me/deals/" + dealId + "/cancel")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + editor))
+                .andExpect(status().isForbidden());
     }
 
     // ---------- Helpers ----------
+
+    @Test
+    void mesmoParConcluiDoisTramposConsecutivosSemReabrirOAnterior() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        publicarPerfil(editor);
+        String conversa = mockMvc.perform(post("/v1/me/conversations/with-editor/" + slugDoEditor(editor))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"body\":\"Vamos trabalhar?\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String conversaId = JsonPath.read(conversa, "$.id");
+        String anterior = null;
+        for (int i = 1; i <= 2; i++) {
+            String body = mockMvc.perform(post("/v1/me/deals/from-conversation/" + conversaId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Trampo " + i + "\"}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.conversationId").value(conversaId))
+                    .andReturn().getResponse().getContentAsString();
+            String id = JsonPath.read(body, "$.id");
+            assertThat(id).isNotEqualTo(anterior);
+            mockMvc.perform(post("/v1/me/deals/" + id + "/done")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DONE"));
+            anterior = id;
+        }
+        mockMvc.perform(get("/v1/me/deals").header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].status").value("DONE"))
+                .andExpect(jsonPath("$[1].status").value("DONE"));
+    }
+
+    @Test
+    void doisPedidosDoMesmoParGeramContratacoesLegitimasDistintas() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente");
+        String editor = registrar("editor@teste.com", "Editor");
+        publicarPerfil(editor);
+        String primeiro = aceitarInteresseECapturarTrampo(cliente, editor);
+        mockMvc.perform(post("/v1/me/deals/" + primeiro + "/done")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)).andExpect(status().isOk());
+        String segundo = aceitarInteresseECapturarTrampo(cliente, editor);
+        assertThat(segundo).isNotEqualTo(primeiro);
+        mockMvc.perform(post("/v1/me/deals/" + segundo + "/done")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente)).andExpect(status().isOk());
+        assertThat(dealRepository.count()).isEqualTo(2);
+        assertThat(conversationRepository.count()).isEqualTo(2);
+    }
 
     /** Roda o caminho do feed até o aceite e devolve o id do trampo que nasceu dele. */
     private String aceitarInteresseECapturarTrampo(String cliente, String editor) throws Exception {

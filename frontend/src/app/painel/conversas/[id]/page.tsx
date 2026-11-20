@@ -32,7 +32,9 @@ export default async function ConversaPage({ params }: { params: Params }) {
 
   // O trampo mais recente desta conversa, se houver. O histórico já vem ordenado do
   // servidor, então o primeiro encontrado é o que interessa.
-  const trampo = (await fetchMyDeals(token)).find((d) => d.conversationId === conversa.id);
+  const trampos = (await fetchMyDeals(token)).filter((d) => d.conversationId === conversa.id);
+  const aberto = trampos.find((d) => d.status === "OPEN");
+  const trampo = aberto ?? trampos[0];
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">
@@ -95,13 +97,16 @@ export default async function ConversaPage({ params }: { params: Params }) {
               {trampo.status === "OPEN" ? "encerrar e avaliar" : "ver no histórico"}
             </Link>
           </p>
-        ) : conversa.iAmClient ? (
-          <OpenDealForm conversationId={conversa.id} />
-        ) : (
+        ) : !conversa.iAmClient ? (
           <p className="text-sm text-muted">
             Quando {conversa.counterpartDisplayName} registrar o trampo, ele aparece aqui e
             vocês dois podem se avaliar no fim.
           </p>
+        ) : null}
+        {!aberto && conversa.iAmClient && (
+          <div className={trampo ? "mt-4" : undefined}>
+            <OpenDealForm conversationId={conversa.id} />
+          </div>
         )}
       </div>
     </div>
