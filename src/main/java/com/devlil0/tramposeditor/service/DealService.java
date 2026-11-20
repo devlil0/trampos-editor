@@ -81,7 +81,7 @@ public class DealService {
      */
     @Transactional
     public DealDTO openFromConversation(UUID clientUserId, UUID conversationId, DealCreateDTO dto){
-        ConversationEntity conversation = conversationRepository.findById(conversationId)
+        ConversationEntity conversation = conversationRepository.findForUpdateById(conversationId)
                 .orElseThrow(() -> new NotFoundException("Conversa não encontrada: " + conversationId));
 
         if (!conversation.isParticipant(clientUserId)) {
@@ -161,6 +161,8 @@ public class DealService {
                 .build());
 
         dealRepository.save(deal);
+        // Envia a review e sua unicidade ao banco antes de calcular o agregado.
+        reviewRepository.flush();
         refreshRating(target);
 
         return toDTO(deal, userId);
@@ -174,7 +176,9 @@ public class DealService {
      * mas não alimenta vitrine nenhuma, porque ele não aparece em nenhuma.
      */
     private void refreshRating(UserEntity target){
-        editorProfileRepository.findByUserId(target.getId()).ifPresent(profile -> {
+        // O bloqueio vem antes da consulta: após esperar outra transação, o agregado
+        // inclui suas avaliações já commitadas e não sobrescreve o cache com dados antigos.
+        editorProfileRepository.findForUpdateByUserId(target.getId()).ifPresent(profile -> {
             RatingAggregateDTO agg = reviewRepository.aggregateFor(target.getId());
             profile.setRatingAvg(BigDecimal.valueOf(agg.average()).setScale(1, RoundingMode.HALF_UP));
             profile.setRatingCount(agg.count().intValue());
@@ -194,7 +198,7 @@ public class DealService {
     // ---------- Helpers ----------
 
     private DealEntity loadParticipating(UUID userId, UUID dealId){
-        DealEntity deal = dealRepository.findById(dealId)
+        DealEntity deal = dealRepository.findForUpdateById(dealId)
                 .orElseThrow(() -> new NotFoundException("Trampo não encontrado: " + dealId));
 
         if (!deal.isParticipant(userId)) {

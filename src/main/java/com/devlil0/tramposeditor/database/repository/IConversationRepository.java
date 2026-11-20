@@ -2,13 +2,20 @@ package com.devlil0.tramposeditor.database.repository;
 
 import com.devlil0.tramposeditor.database.model.ConversationEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface IConversationRepository extends JpaRepository<ConversationEntity, UUID> {
+
+    /** Serializa o registro de novos trabalhos antes de consultar o OPEN existente. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from ConversationEntity c where c.id = :id")
+    Optional<ConversationEntity> findForUpdateById(UUID id);
 
     /**
      * A caixa de entrada não separa os papéis: a pessoa vê tudo em que participa, sem
