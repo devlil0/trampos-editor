@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: trampos_e2e
+      POSTGRES_USER: e2e
+      POSTGRES_PASSWORD: e2e-local-only
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U e2e -d trampos_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    ports:
+      - "127.0.0.1:62926:8025"
+  api:
+    ports:
+      - "127.0.0.1:62927:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8080/actuator/health"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    build:
+      context: ../..
+    depends_on:
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      SPRING_CONFIG_LOCATION: classpath:/application.yaml
+      SPRING_PROFILES_ACTIVE: e2e
+      DB_URL: jdbc:postgresql://db:5432/trampos_e2e
+      DB_USERNAME: e2e
+      DB_PASSWORD: e2e-local-only
+      JWT_SECRET: chave-ficticia-publica-exclusiva-do-container-e2e
+      JWT_TTL: PT60S
+      NOTIFICATIONS_TRANSPORT: smtp
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: "1025"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "false"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "false"
+      FRONTEND_BASE_URL: http://localhost:62925
+  web:
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exitCode=1}).catch(()=>{process.exitCode=1})"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    build:
+      context: ..
+      args:
+        SITE_URL: http://localhost:62925
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_URL: http://api:8080
+      PUBLIC_API_URL: http://localhost:62927
+      SITE_URL: http://localhost:62925
+    ports:
+      - "127.0.0.1:62925:3000"
+
