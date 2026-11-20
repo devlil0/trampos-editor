@@ -168,3 +168,50 @@ As imagens analisadas são Linux/amd64.
 | CVE-2026-127040 | Desconhecida | `gnutls` | `3.8.13-r0` | API | 3.8.14-r0 | [Alpine SecDB](https://secdb.alpinelinux.org/) · [Aviso](https://avd.aquasec.com/nvd/cve-2026-127040) |
 | CVE-2026-127231 | Desconhecida | `gnutls` | `3.8.13-r0` | API | 3.8.14-r0 | [Alpine SecDB](https://secdb.alpinelinux.org/) · [Aviso](https://avd.aquasec.com/nvd/cve-2026-127231) |
 | CVE-2026-39824 | Desconhecida | `golang.org/x/sys` | `v0.1.0` | PostgreSQL (gosu) | 0.44.0 | [GO-2026-5024](https://pkg.go.dev/vuln/GO-2026-5024) |
+
+## Atualização do backend para Spring Boot 4.0.9
+
+Validação em 19/11/2026 (horário de Brasília), a partir de `adbddf4`.
+O inventário acima registra a T10 original. A comparação a seguir usa o
+JAR e a imagem da API construídos com base no mesmo código, com o parent
+Spring Boot 4.0.7 na triagem e 4.0.9 na retomada. As duas varreduras rodaram
+offline com Trivy 0.76.2 e as mesmas bases, publicadas em 19/11/2026 às
+13h02 UTC (vulnerabilidades) e 00h58 UTC (Java). As bases ainda estavam
+na janela de atualização informada pelo Trivy.
+
+| Artefato | SHA-256 antes | SHA-256 depois |
+| --- | --- | --- |
+| JAR extraído de `/app/app.jar` | `c1f2f5256d68baee7f1b1792c72f38c297173cbf51bb4851e58768b120c5a1fa` | `3bad0a9b6e88dc60103162c40481f30f5e999fe8a8d8fa1a1bea5c58e4bb8f8d` |
+| Configuração da imagem da API (Linux/amd64) | `d0ddde8fb11f25ab3ad68e1a188d869ce510e8cbad20f41e1240b4ce9df8bc51` | `e974230151a9cb0d41a47511291bdbbeb30b1da1a8e4c8fa4dc38f6cb7629c2a` |
+
+| Artefato | Antes | Depois |
+| --- | --- | --- |
+| JAR | 31 ocorrências (22 avisos): 7 críticas, 12 altas, 12 médias | 0 ocorrências |
+| Imagem da API | 50 ocorrências (31 avisos), incluindo as 31 do JAR | 19 ocorrências (9 avisos): 16 médias e 3 de gravidade desconhecida |
+
+Cada ocorrência corresponde a um aviso, pacote e versão. As 31
+ocorrências Java que deixaram de aparecer são as mesmas no JAR isolado
+e na imagem. Entre os avisos que saíram estão CVE-2026-65182 (Tomcat),
+CVE-2026-91776 e CVE-2026-91777 (Jackson), CVE-2026-47884 e
+CVE-2026-47890 (Spring MVC) e CVE-2026-54291 (pgJDBC). A tabela histórica
+acima registra os identificadores completos. Os 19 resultados de Alpine
+permaneceram iguais, com destaque
+para OpenSSL `3.5.9-r0`, zlib `1.3.2-r1` e GnuTLS `3.8.13-r0`.
+Nenhuma ocorrência nova foi registrada nos dois artefatos nesta rodada.
+O zero do JAR se refere às bases e ao escopo do scanner nesta execução.
+
+A inspeção do JAR confirmou Tomcat 11.0.27, Jackson 2.21.7 e 3.1.7,
+Spring Framework 7.0.10, Spring Security 7.0.8, pgJDBC 42.7.14,
+Hibernate 7.2.25.Final e Flyway 11.14.1. A mudança usa as versões
+gerenciadas pelo parent. O verificador aprovou os 23 recursos esperados
+e o arquivo contém as 19 migrações, incluindo a V19.
+[Spring Boot 4.0.9](https://spring.io/blog/2026/10/23/spring-boot-4-0-9-available-now/)
+· [BOM oficial](https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-dependencies/4.0.9/spring-boot-dependencies-4.0.9.pom)
+
+A suíte do backend executou 174 testes com Java 21 e PostgreSQL
+descartável via Testcontainers, sem falhas, erros ou testes ignorados.
+SMTP e OAuth reais ficaram fora da validação.
+
+Os avisos nas imagens do frontend e do PostgreSQL seguem fora desta
+atualização. A falha de upgrade com dados legados afetados pela V12
+continua registrada separadamente em [CI.md](CI.md#falha-reproduzida-na-v12).
