@@ -1,0 +1,22 @@
+services:
+  mailpit:
+    ports: !override
+      - "127.0.0.1:62936:8025"
+  api:
+    ports: !override
+      - "127.0.0.1:62937:8080"
+    build:
+      context: ${TRAMPOS_DEMO_SOURCE:?use run.mjs}
+    environment:
+      JWT_TTL: PT4H
+      FRONTEND_BASE_URL: http://localhost:62935
+  web:
+    ports: !override
+      - "127.0.0.1:62935:3000"
+    build:
+      context: ${TRAMPOS_DEMO_SOURCE:?use run.mjs}/frontend
+      args:
+        SITE_URL: http://localhost:62935
+    environment:
+      PUBLIC_API_URL: http://localhost:62937
+      SITE_URL: http://localhost:62935
