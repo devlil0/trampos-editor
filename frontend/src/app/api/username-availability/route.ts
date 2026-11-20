@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import type { NextRequest } from "next/server";
 
 const API_URL = process.env.API_URL ?? "http://localhost:8080";
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${API_URL}/v1/usernames/availability?username=${encodeURIComponent(username)}`,
       { cache: "no-store" },
     );

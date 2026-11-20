@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
@@ -8,9 +9,13 @@ const API_URL = process.env.API_URL ?? "http://localhost:8080";
 
 export interface ConversationFormState {
   error?: string;
+  ok?: boolean;
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (res.status === 403) return "Você não tem permissão para fazer isso.";
+  if (res.status >= 500) return fallback;
   try {
     const body = await res.json();
     if (typeof body?.error === "string") return body.error;
@@ -43,7 +48,7 @@ export async function startConversationAction(
 
   let conversationId: string;
   try {
-    const res = await fetch(`${API_URL}/v1/me/conversations/with-editor/${encodeURIComponent(slug)}`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/conversations/with-editor/${encodeURIComponent(slug)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ body }),
@@ -74,7 +79,7 @@ export async function sendMessageAction(
   if (!body) return { error: "Escreva alguma coisa antes de enviar." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/conversations/${conversationId}/messages`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/conversations/${conversationId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ body }),
@@ -91,5 +96,5 @@ export async function sendMessageAction(
   // É o mesmo padrão do "Aceitar" em /painel/pedidos e basta nesta escala.
   revalidatePath(`/painel/conversas/${conversationId}`);
   revalidatePath("/painel/conversas");
-  return {};
+  return { ok: true };
 }

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { NavSearch } from "@/components/nav-search";
+import { hasAdjustedFilters, normalizeEditorQuery } from "@/lib/query-filters";
 import { Suspense } from "react";
 import { fetchEditors, type EditorQuery } from "@/lib/api";
 import { EditorCard } from "@/components/editor-card";
@@ -29,7 +32,7 @@ function pick(value: string | string[] | undefined): string | undefined {
  */
 export default async function VitrinePage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const query: EditorQuery = {
+  const raw: EditorQuery = {
     niche: pick(sp.niche),
     tool: pick(sp.tool),
     style: pick(sp.style),
@@ -41,12 +44,19 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
     page: pick(sp.page),
   };
 
+  const query = normalizeEditorQuery(raw);
   const result = await fetchEditors(query);
 
   return (
     /* Largura de marketplace e respiro curto nas bordas: é o que empurra a sidebar pro
        canto esquerdo, como nas referências. Acompanha a largura da nav. */
     <div className="mx-auto max-w-[1440px] px-4 pt-7 sm:px-6">
+      <Suspense fallback={null}><NavSearch mobile /></Suspense>
+      {hasAdjustedFilters({ ...raw }, query) && (
+        <p role="status" className="mb-4 text-sm text-muted">
+          Alguns filtros foram ajustados. <Link href="/editores" className="underline">Limpar busca e filtros</Link>
+        </p>
+      )}
       {/* Sidebar à esquerda e resultado à direita: o filtro fica visível junto com o que
           ele filtra. Vira uma coluna só no mobile, onde os filtros vêm antes da lista. */}
       <div className="grid grid-cols-1 items-start gap-x-8 gap-y-6 pb-16 lg:grid-cols-[210px_1fr]">
@@ -54,7 +64,7 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
           <VitrineSidebar />
         </Suspense>
 
-        <section>
+        <section className="min-w-0">
           <Suspense fallback={null}>
             <ToolStrip />
           </Suspense>
@@ -81,7 +91,7 @@ export default async function VitrinePage({ searchParams }: { searchParams: Sear
             <div className="my-16 text-center">
               <p className="text-lg font-semibold">Nenhum editor por aqui ainda.</p>
               <p className="mt-1 text-muted">
-                Tente limpar os filtros ou volte em breve — estamos trazendo editores todo dia.
+                <Link href="/editores" className="underline">Limpar busca e filtros</Link>
               </p>
             </div>
           ) : (

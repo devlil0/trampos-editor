@@ -1,25 +1,20 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   sendMessageAction,
   startConversationAction,
   type ConversationFormState,
 } from "@/app/actions/conversations";
 
+import { useRouter } from "next/navigation";
+import { AuthFeedback } from "./auth-feedback";
+
 const EMPTY: ConversationFormState = {};
 
 const inputClass =
   "w-full rounded-xl border border-line bg-panel px-3.5 py-2.5 text-base outline-none placeholder:text-muted focus:border-accent";
 
-function Erro({ state }: { state: ConversationFormState }) {
-  if (!state.error) return null;
-  return (
-    <p role="alert" className="rounded-xl border border-busy/40 bg-busy/10 px-3.5 py-2.5 text-sm text-busy">
-      {state.error}
-    </p>
-  );
-}
 
 /**
  * Abertura da conversa a partir do perfil. Um botão só.
@@ -39,7 +34,7 @@ export function StartConversationForm({ slug, loggedIn }: { slug: string; logged
 
   return (
     <form action={formAction} className="flex flex-col gap-2.5">
-      <Erro state={state} />
+      <AuthFeedback state={state} />
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="body" value={PRIMEIRA_MENSAGEM} />
       <button type="submit" disabled={pending} className="btn btn-primary btn-block btn-lg disabled:opacity-60">
@@ -56,21 +51,23 @@ export function StartConversationForm({ slug, loggedIn }: { slug: string; logged
 
 /** Campo de responder dentro da conversa aberta. */
 export function SendMessageForm({ conversationId }: { conversationId: string }) {
-  const [state, formAction, pending] = useActionState(sendMessageAction, EMPTY);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // Depois do envio bem-sucedido o campo tem que voltar vazio: sem isso o texto
-  // fica lá e a pessoa reenvia a mesma mensagem sem perceber.
-  useEffect(() => {
-    if (!pending && !state.error) formRef.current?.reset();
-  }, [pending, state]);
+  const [body, setBody] = useState("");
+  const [state, formAction, pending] = useActionState(async (previous: ConversationFormState, data: FormData) => {
+    const result = await sendMessageAction(previous, data);
+    if (result.ok) setBody("");
+    return result;
+  }, EMPTY);
 
   return (
-    <form ref={formRef} action={formAction} className="flex flex-col gap-2.5">
-      <Erro state={state} />
+    <form action={formAction} className="flex flex-col gap-2.5">
+      <AuthFeedback state={state} />
       <input type="hidden" name="conversationId" value={conversationId} />
       <textarea
         name="body"
+        aria-label="Mensagem"
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        readOnly={pending}
         required
         rows={3}
         maxLength={2000}
@@ -83,5 +80,16 @@ export function SendMessageForm({ conversationId }: { conversationId: string }) 
         </button>
       </div>
     </form>
+  );
+}
+
+export function RefreshConversationButton() {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  return (
+    <button type="button" disabled={pending} onClick={() => startTransition(() => router.refresh())}
+      className="mt-3 rounded px-2 py-1 text-sm font-semibold text-accent hover:underline">
+      {pending ? "Atualizando mensagens…" : "Atualizar mensagens"}
+    </button>
   );
 }

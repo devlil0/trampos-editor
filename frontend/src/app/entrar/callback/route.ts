@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import type { NextRequest } from "next/server";
 import { createSession } from "@/lib/session";
 import { readSignupOrigin } from "@/lib/signup-origin";
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const res = await fetch(API_URL + "/v1/auth/social/exchange", {
+    const res = await fetchWithTimeout(API_URL + "/v1/auth/social/exchange", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code, browserProof, origin: await readSignupOrigin() }),

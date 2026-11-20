@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { logoutAction } from "@/app/actions/auth";
-import { removePortfolioAction } from "@/app/actions/editor-profile";
 import { AvatarForm } from "@/components/avatar-form";
 import { EmailVerificationNotice } from "@/components/email-verification-notice";
-import { AddPortfolioForm, EditorProfileForm } from "@/components/editor-profile-form";
+import { AddPortfolioForm, EditorProfileForm, RemovePortfolioForm } from "@/components/editor-profile-form";
 import { InstagramForm } from "@/components/instagram-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UsernameForm } from "@/components/username-form";
 import { VideoThumb } from "@/components/video-thumb";
 import { avatarUrl, fetchMyEditorProfile } from "@/lib/api";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Configurações do perfil — TramposEditor",
@@ -26,8 +24,7 @@ export const metadata: Metadata = {
  * as configurações são os controles. Chega pela engrenagem, não pelo menu.
  */
 export default async function ConfiguracoesDoPerfilPage() {
-  const user = await getCurrentUser();
-  if (!user) redirect("/entrar");
+  const user = await requireCurrentUser();
 
   const token = await getSessionToken();
   const profile = token ? await fetchMyEditorProfile(token) : null;
@@ -138,16 +135,8 @@ export default async function ConfiguracoesDoPerfilPage() {
                     <VideoThumb url={item.videoUrl} alt={item.title} seed={item.id} />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold">{item.title}</span>
-                    <form action={removePortfolioAction}>
-                      <input type="hidden" name="itemId" value={item.id} />
-                      <button
-                        type="submit"
-                        className="text-xs font-semibold text-muted hover:text-busy"
-                      >
-                        Remover
-                      </button>
-                    </form>
+                    <span className="min-w-0 [overflow-wrap:anywhere] text-sm font-semibold">{item.title}</span>
+                    <RemovePortfolioForm itemId={item.id} title={item.title} />
                   </div>
                 </li>
               ))}

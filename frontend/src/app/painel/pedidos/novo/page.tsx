@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { NewJobRequestForm } from "@/components/job-forms";
-import { getCurrentUser } from "@/lib/session";
+import { requireCurrentUser } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Novo pedido — TramposEditor",
@@ -10,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NovoPedidoPage() {
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-12">

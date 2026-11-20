@@ -44,7 +44,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
  * só no teclado, onde o passo é discreto e um salto seco pareceria falha.
  */
 
-/** Lado do viewport de recorte, em px de tela. */
+/** Lado do recorte no sistema de coordenadas interno. */
 const BOX = 264;
 
 /**
@@ -115,7 +115,11 @@ export function AvatarCropper({
       const el = imgRef.current;
       if (!el) return;
       const { x, y, zoom } = geo.current;
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoom})`;
+      const width = el.naturalWidth;
+      const height = el.naturalHeight;
+      if (!width || !height) return;
+      const base = BOX / Math.min(width, height);
+      el.style.transform = `translate3d(${100 * x / (width * base)}%, ${100 * y / (height * base)}%, 0) scale(${zoom})`;
     });
   }, []);
 
@@ -219,13 +223,14 @@ export function AvatarCropper({
     arrasto.current = { px: e.clientX, py: e.clientY, ox: geo.current.x, oy: geo.current.y };
   }
 
-  function aoMover(e: React.PointerEvent) {
+  function aoMover(e: React.PointerEvent<HTMLDivElement>) {
     const inicio = arrasto.current;
     if (!inicio || !img) return;
 
+    const fator = BOX / e.currentTarget.clientWidth;
     const preso = prender(
-      inicio.ox + (e.clientX - inicio.px),
-      inicio.oy + (e.clientY - inicio.py),
+      inicio.ox + (e.clientX - inicio.px) * fator,
+      inicio.oy + (e.clientY - inicio.py) * fator,
       geo.current.zoom,
       img,
     );
@@ -343,8 +348,8 @@ export function AvatarCropper({
         onPointerUp={aoSoltar}
         onPointerCancel={aoSoltar}
         onKeyDown={aoTeclar}
-        style={{ width: BOX, height: BOX }}
-        className="relative mt-4 max-w-full cursor-grab touch-none overflow-hidden rounded-[14px] bg-black/40 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        style={{ width: BOX }}
+        className="relative mt-4 aspect-square max-w-full cursor-grab touch-none overflow-hidden rounded-[14px] bg-black/40 active:cursor-grabbing focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         {img && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -359,8 +364,8 @@ export function AvatarCropper({
               top: 0,
               // Tamanho do zoom 1, fixo. O que muda é só o `transform`, e é por isso que
               // mexer aqui não custa layout nenhum.
-              width: img.naturalWidth * escalaBase,
-              height: img.naturalHeight * escalaBase,
+              width: `${100 * img.naturalWidth * escalaBase / BOX}%`,
+              height: `${100 * img.naturalHeight * escalaBase / BOX}%`,
               maxWidth: "none",
               transformOrigin: "0 0",
               // Avisa o compositor pra promover a imagem a camada própria antes do

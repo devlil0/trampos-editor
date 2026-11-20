@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CloseDealForm, ReviewForm } from "@/components/deal-forms";
 import { fetchMyDeals } from "@/lib/api";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 import type { Deal } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
  * mais barato pra trazer um cliente de volta (§3.2).
  */
 export default async function TramposFechadosPage() {
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
 
   const token = await getSessionToken();
   if (!token) redirect("/entrar");

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { SendMessageForm } from "@/components/conversation-forms";
+import { RefreshConversationButton, SendMessageForm } from "@/components/conversation-forms";
 import { OpenDealForm } from "@/components/deal-forms";
 import { fetchConversation, fetchMyDeals } from "@/lib/api";
-import { getCurrentUser, getSessionToken } from "@/lib/session";
+import { requireCurrentUser, getSessionToken } from "@/lib/session";
 import type { Message } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -21,7 +21,7 @@ type Params = Promise<{ id: string }>;
 export default async function ConversaPage({ params }: { params: Params }) {
   const { id } = await params;
 
-  if (!(await getCurrentUser())) redirect("/entrar");
+  await requireCurrentUser();
   const token = await getSessionToken();
   if (!token) redirect("/entrar");
 
@@ -81,6 +81,7 @@ export default async function ConversaPage({ params }: { params: Params }) {
 
       <div className="mt-8 border-t border-line pt-6">
         <SendMessageForm conversationId={conversa.id} />
+        <RefreshConversationButton />
         <p className="mt-3 text-xs text-muted">
           Pra mandar material, cole o link — o site não recebe arquivo, do mesmo jeito que o
           portfólio funciona por link.
@@ -128,7 +129,7 @@ function Balao({ mensagem }: { mensagem: Message }) {
   return (
     <div className={`flex flex-col gap-1 ${mensagem.mine ? "items-end" : "items-start"}`}>
       <div
-        className={`max-w-[85%] rounded-[18px] px-4 py-3 ${
+        className={`min-w-0 max-w-[85%] rounded-[18px] px-4 py-3 ${
           mensagem.mine
             ? "border border-accent/45 bg-accent-soft"
             : "border border-line bg-card"
@@ -139,7 +140,7 @@ function Balao({ mensagem }: { mensagem: Message }) {
             {mensagem.senderDisplayName}
           </p>
         )}
-        <p className="whitespace-pre-line text-sm">{mensagem.body}</p>
+        <p className="whitespace-pre-line [overflow-wrap:anywhere] text-sm">{mensagem.body}</p>
       </div>
       <time dateTime={mensagem.createdAt} className="font-mono text-[11px] text-muted tabular-nums">
         {quando}

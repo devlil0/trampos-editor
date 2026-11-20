@@ -1,5 +1,6 @@
 "use server";
 
+import { fetchWithTimeout } from "@/lib/api-fetch";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSessionToken } from "@/lib/session";
@@ -13,6 +14,9 @@ export interface JobFormState {
 }
 
 async function readError(res: Response, fallback: string): Promise<string> {
+  if (res.status === 401) return "Sua sessão expirou. Entre novamente.";
+  if (res.status === 403) return "Você não tem permissão para fazer isso.";
+  if (res.status >= 500) return fallback;
   try {
     const body = await res.json();
     if (typeof body?.error === "string") return body.error;
@@ -53,7 +57,7 @@ export async function createJobRequestAction(
   if (!niche) return { error: "Escolha onde o vídeo vai ser publicado." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/me/job-requests`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/job-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({
@@ -89,7 +93,7 @@ export async function expressInterestAction(
   if (!jobId || !message) return { error: "Escreva uma mensagem pro cliente." };
 
   try {
-    const res = await fetch(`${API_URL}/v1/job-requests/${jobId}/interests`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/job-requests/${jobId}/interests`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ message }),
@@ -125,7 +129,7 @@ export async function closeJobRequestAction(_prev: JobFormState, formData: FormD
 
 async function updateJob(token: string, path: string): Promise<JobFormState> {
   try {
-    const res = await fetch(`${API_URL}/v1/me/job-requests/${path}`, {
+    const res = await fetchWithTimeout(`${API_URL}/v1/me/job-requests/${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
