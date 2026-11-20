@@ -8,7 +8,9 @@ import com.devlil0.tramposeditor.enums.Vertical;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
@@ -17,6 +19,11 @@ import java.util.UUID;
 public interface IEditorProfileRepository extends JpaRepository<EditorProfileEntity, UUID> {
 
     Optional<EditorProfileEntity> findByUserId(UUID userId);
+
+    /** Serializa recomputações de reputação por conta, inclusive entre deals diferentes. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from EditorProfileEntity e where e.user.id = :userId")
+    Optional<EditorProfileEntity> findForUpdateByUserId(UUID userId);
 
     Optional<EditorProfileEntity> findBySlug(String slug);
     Optional<EditorProfileEntity> findBySlugAndUser_ActiveTrue(String slug);

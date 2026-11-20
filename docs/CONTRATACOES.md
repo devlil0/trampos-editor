@@ -1,4 +1,4 @@
-# Aceite e recorrência — T19
+# Aceite, recorrência e concorrência — T19/T20
 
 ## Pedido e contratação
 
@@ -43,6 +43,41 @@ trampos duplicados. Os registros e avaliações existentes são preservados;
 eventual correção de dados exige decisão da equipe. A T20 verifica as
 demais corridas de abertura/encerramento, avaliações e agregação da nota.
 O teste de dois aceites simultâneos da T19 não cobre essas outras operações.
+
+## Concorrência — T20
+
+As operações usam transações e bloqueios de linha no PostgreSQL:
+
+- Registrar um novo trampo bloqueia a conversa antes de verificar se existe
+  OPEN. Requisições duplicadas resultam em uma criação e um 409.
+- Concluir, cancelar e avaliar bloqueiam o trampo antes de ler seu estado e
+  suas avaliações. Na disputa de encerramento, só uma transição é aceita;
+  a outra recebe 409. Os avisos de conclusão só são solicitados pela transição
+  vencedora DONE. Cada participante continua podendo avaliar uma vez.
+- A avaliação é enviada ao banco por flush antes do recálculo. O perfil do
+  destinatário é bloqueado antes da consulta do agregado, serializando notas
+  recebidas em trabalhos distintos. Média e contagem são recalculadas das
+  linhas de reviews, preservando o arredondamento existente.
+
+O índice de um OPEN por conversa e a unicidade por autor/trampo continuam
+como proteção adicional. Conflitos mantêm 409 com JSON error da T07, sem
+alteração do handler, esquema ou estados públicos. Mediação não foi adicionada.
+
+A reputação continua sendo da conta: inclui avaliações recebidas como cliente
+e como editor quando essa conta possui perfil. Não foi adotado filtro por
+papel; essa é uma decisão de produto futura, não um defeito presumido.
+
+Na reprodução anterior à correção, duas transições terminais retornaram 200
+e duas notas concorrentes deixaram rating_count em 1 apesar de duas reviews
+commitadas. A existência dessa falha foi demonstrada agora por teste controlado,
+não presumida da auditoria original. Abertura/review duplicadas já eram
+protegidas pelas constraints e pela T07.
+
+Os testes concorrentes usam requisições independentes, barreiras de leitura e
+PostgreSQL descartável; comparam o cache com a consulta das avaliações após os
+commits. Não representam prova de ausência de toda corrida possível. Futuras
+remoções de reviews ou rotinas que recalcularem reputação devem respeitar a
+mesma serialização. Não há saneamento ou recálculo em massa de dados antigos.
 
 ## Roteiro manual com duas contas
 

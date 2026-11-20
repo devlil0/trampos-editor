@@ -3,13 +3,20 @@ package com.devlil0.tramposeditor.database.repository;
 import com.devlil0.tramposeditor.database.model.DealEntity;
 import com.devlil0.tramposeditor.enums.DealStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import jakarta.persistence.LockModeType;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface IDealRepository extends JpaRepository<DealEntity, UUID> {
+
+    /** Estado terminal e avaliações do mesmo trampo mudam sob o mesmo bloqueio. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from DealEntity d where d.id = :id")
+    Optional<DealEntity> findForUpdateById(UUID id);
 
     /** O aceite antigo não reabre a contratação, mesmo depois de encerrada. */
     Optional<DealEntity> findFirstByJobRequestIdOrderByCreatedAtAsc(UUID jobRequestId);
