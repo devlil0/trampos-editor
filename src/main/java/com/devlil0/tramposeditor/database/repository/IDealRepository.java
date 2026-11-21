@@ -32,6 +32,23 @@ public interface IDealRepository extends JpaRepository<DealEntity, UUID> {
     /** Garante o "um trampo aberto por conversa" antes de o índice parcial reclamar. */
     Optional<DealEntity> findByConversationIdAndStatus(UUID conversationId, DealStatus status);
 
+    @Query(value = """
+            select exists (
+                select 1 from deal_mediations m
+                where m.deal_id = :dealId and m.closed_at is null
+            )
+            """, nativeQuery = true)
+    boolean hasActiveMediationForDeal(UUID dealId);
+
+    @Query(value = """
+            select exists (
+                select 1 from deals d join deal_mediations m on m.deal_id = d.id
+                where (d.client_user_id = :userId or d.editor_user_id = :userId)
+                  and m.closed_at is null
+            )
+            """, nativeQuery = true)
+    boolean hasActiveMediation(UUID userId);
+
     /**
      * Quantos trampos a pessoa já fechou, pelos dois lados — o número que a página pública
      * mostra. Só conta o que terminou: trampo aberto ainda não prova nada.
