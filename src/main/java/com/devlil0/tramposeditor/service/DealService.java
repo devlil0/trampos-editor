@@ -123,6 +123,9 @@ public class DealService {
         if (outcome == DealStatus.OPEN) {
             throw new BusinessException("Encerrar exige um desfecho: concluído ou cancelado");
         }
+        if (dealRepository.hasActiveMediationForDeal(dealId)) {
+            throw new BusinessException("Esse trampo precisa ser encerrado pelo fluxo de mediação");
+        }
 
         deal.close(outcome, LocalDateTime.now());
         dealRepository.save(deal);
@@ -187,6 +190,12 @@ public class DealService {
     }
 
     // ---------- Leitura ----------
+
+    /** A T12 consulta após bloquear a conta na transação de exclusão. */
+    @Transactional(readOnly = true)
+    public boolean hasActiveMediation(UUID userId) {
+        return dealRepository.hasActiveMediation(userId);
+    }
 
     @Transactional(readOnly = true)
     public List<DealDTO> listMine(UUID userId){

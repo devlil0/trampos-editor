@@ -5,6 +5,7 @@ import com.devlil0.tramposeditor.database.repository.IConversationRepository;
 import com.devlil0.tramposeditor.database.repository.IDealRepository;
 import com.devlil0.tramposeditor.database.repository.IJobRequestRepository;
 import com.devlil0.tramposeditor.database.repository.IUserRepository;
+import com.devlil0.tramposeditor.service.DealService;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -49,12 +53,60 @@ class DealTest {
     @Autowired
     private IUserRepository userRepository;
 
+    @Autowired
+    private DealService dealService;
+
+    @Autowired
+    private JdbcTemplate jdbc;
+
     @BeforeEach
     void limpar(){
         dealRepository.deleteAll();
         conversationRepository.deleteAll();
         jobRequestRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Test
+    void mediacaoProtegeAsDuasPartesAteOEncerramentoDefinitivo() throws Exception {
+        String cliente = registrar("cliente@teste.com", "Cliente Maria");
+        String editor = registrar("editor@teste.com", "Editor Bruno");
+        publicarPerfil(editor);
+        UUID dealId = UUID.fromString(aceitarInteresseECapturarTrampo(cliente, editor));
+        UUID clienteId = userRepository.findByEmail("cliente@teste.com").orElseThrow().getId();
+        UUID editorId = userRepository.findByEmail("editor@teste.com").orElseThrow().getId();
+
+        assertThat(dealService.hasActiveMediation(clienteId)).isFalse();
+        jdbc.update("""
+                insert into deal_mediations (deal_id, agreed_amount_cents, status, activated_at)
+                values (?, 50000, 'ACTIVE', current_timestamp)
+                """, dealId);
+        try {
+            assertThat(dealService.hasActiveMediation(clienteId)).isTrue();
+            assertThat(dealService.hasActiveMediation(editorId)).isTrue();
+            assertThat(dealService.hasActiveMediation(UUID.randomUUID())).isFalse();
+            mockMvc.perform(post("/v1/me/deals/" + dealId + "/done")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.error").value("Esse trampo precisa ser encerrado pelo fluxo de mediação"));
+
+            jdbc.update("update users set active = false where id = ?", editorId);
+            jdbc.update("update deal_mediations set status = 'DISPUTED' where deal_id = ?", dealId);
+            assertThat(dealService.hasActiveMediation(clienteId)).isTrue();
+            assertThat(dealService.hasActiveMediation(editorId)).isTrue();
+            mockMvc.perform(post("/v1/me/deals/" + dealId + "/cancel")
+                            .header(HttpHeaders.AUTHORIZATION, "Bearer " + cliente))
+                    .andExpect(status().isConflict());
+            assertThat(dealRepository.findById(dealId).orElseThrow().isOpen()).isTrue();
+
+            jdbc.update("""
+                    update deal_mediations set status = 'CLOSED', closed_at = current_timestamp where deal_id = ?
+                    """, dealId);
+            assertThat(dealService.hasActiveMediation(clienteId)).isFalse();
+            assertThat(dealService.hasActiveMediation(editorId)).isFalse();
+        } finally {
+            jdbc.update("delete from deal_mediations where deal_id = ?", dealId);
+        }
     }
 
     @Test
